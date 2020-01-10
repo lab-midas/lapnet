@@ -9,9 +9,13 @@ import random
 import scipy.io as sio
 from skimage.transform import warp
 import h5py
+import pylab
+import matplotlib.pyplot as plt
 
 from ..core.input import read_png_image, Input
 from ..core.augment import random_crop
+from ..core.flow_util import flow_to_color
+from ..core.image_warp import image_warp
 
 
 def _read_flow(filenames, num_epochs=None):
@@ -27,6 +31,29 @@ def _read_flow(filenames, num_epochs=None):
     return flow, mask
 
 
+def plot_ims():
+    f = plt.figure()
+    f.add_subplot(1, 2, 1)
+    plt.imshow(warped_img)
+    f.add_subplot(1, 2, 2)
+    plt.imshow(warped_img_2[0, ..., 0])
+
+def np_warp_2D(img, flow):
+    img = img.astype('float32')
+    flow = flow.astype('float32')
+    height, width = np.shape(img)[0], np.shape(img)[1]
+    posx, posy = np.mgrid[:height, :width]
+    # flow=np.reshape(flow, [-1, 3])
+    vx = flow[:, :, 0]
+    vy = flow[:, :, 1]
+
+    coord_x = posx + vx
+    coord_y = posy + vy
+    coords = np.array([coord_x, coord_y])
+    warped = warp(img, coords, order=1)  # order=1 for bi-linear
+    return warped
+
+
 class MRI_Resp_2D(Input):
     def __init__(self, data, batch_size, dims, *,
                  num_threads=1, normalize=True,
@@ -34,8 +61,8 @@ class MRI_Resp_2D(Input):
         super().__init__(data, batch_size, dims, num_threads=num_threads,
                          normalize=normalize, skipped_frames=skipped_frames)
 
-    def input_test_data(self, fn_im_path, selected_frames, selected_slices, hold_out_inv=None):
-        amplitude = 30
+    def input_test_data(self, fn_im_path, selected_frames, selected_slices, cross_test=False):
+        amplitude = 10
         batches = []
         with h5py.File(fn_im_path, 'r') as f:
             # fn_im_raw = sio.loadmat(fn_im_path)
@@ -48,44 +75,59 @@ class MRI_Resp_2D(Input):
             dset = np.transpose(dset, (2, 3, 1, 0))
             dset = dset[..., selected_frames]
             dset = dset[..., selected_slices, :]
-        for frame in range(np.shape(dset)[3]):
+        if cross_test:
             for slice in range(np.shape(dset)[2]):
-                img = dset[..., slice, :][..., frame]
-                img_size = np.shape(img)
-                u = self._u_generation_2D(img_size, amplitude, motion_type='smooth')
-                warped_img = self._np_warp_2D(img, u)
-                img, warped_img, = img[..., np.newaxis], warped_img[..., np.newaxis]
+                im1 = dset[..., slice, 0]
+                im2 = dset[..., slice, 1]
+                img_size = np.shape(im1)
+                im1, im2 = im1[..., np.newaxis], im2[..., np.newaxis]
+                u = np.zeros((*img_size, 2))
                 mask = np.zeros((*img_size, 1))
-                batch = np.concatenate([img, warped_img, u, mask], 2)
+                batch = np.concatenate([im1, im2, u, mask], 2)
                 #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
                 batches.append(batch)
-        random.seed(0)
-        random.shuffle(batches)
-        batches = np.asarray(batches, dtype=np.float32)
+        else:
+            for frame in range(np.shape(dset)[3]):
+                for slice in range(np.shape(dset)[2]):
+                    img = dset[..., slice, :][..., frame]
+                    img = (img - np.mean(img)) / np.std(img)
+                    img_size = np.shape(img)
+                    motion_type = random.randint(0, 1)
+                    u = self._u_generation_2D(img_size, amplitude, motion_type=0)
+                    warped_img = np_warp_2D(img, u)
+                    img, warped_img, = img[..., np.newaxis], warped_img[..., np.newaxis]
+                    batch = np.concatenate([img, warped_img, u], 2)
+                    #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
+                    batches.append(batch)
 
-        im1_queue = tf.train.slice_input_producer([batches[..., 0]], shuffle=False,
-                                                  capacity=len(list(batches[..., 0])), num_epochs=None)
-        im2_queue = tf.train.slice_input_producer([batches[..., 1]], shuffle=False,
-                                                  capacity=len(list(batches[..., 1])), num_epochs=None)
-        flow_queue = tf.train.slice_input_producer([batches[..., 2:4]], shuffle=False,
-                                                   capacity=len(list(batches[..., 2:4])), num_epochs=None)
-        mask_queue = tf.train.slice_input_producer([batches[..., 4]], shuffle=False,
-                                                   capacity=len(list(batches[..., 4])), num_epochs=None)
-        return tf.train.batch([im1_queue, im2_queue, flow_queue, mask_queue],
+        batches = np.asarray(batches, dtype=np.float32)
+        # im1_queue = tf.train.slice_input_producer([batches[..., 0]], shuffle=False,
+        #                                           capacity=len(list(batches[..., 0])), num_epochs=None)
+        im1_queue = tf.train.slice_input_producer([batches[..., 0]], shuffle=False, num_epochs=None)
+        im2_queue = tf.train.slice_input_producer([batches[..., 1]], shuffle=False, num_epochs=None)
+        flow_queue = tf.train.slice_input_producer([batches[..., 2:4]], shuffle=False, num_epochs=None)
+        return tf.train.batch([im1_queue, im2_queue, flow_queue],
                               batch_size=self.batch_size,
                               num_threads=self.num_threads)
 
 
-    def _u_generation_2D(self, img_size, amplitude, motion_type='constant'):
+    def _u_generation_2D(self, img_size, amplitude, motion_type=0):
+        '''
+
+        :param img_size:
+        :param amplitude:
+        :param motion_type: 0: constant, 1: smooth
+        :return:
+        '''
         M, N = img_size
-        if motion_type == 'constant':
+        if motion_type == 0:
             u_C = np.random.rand(2)
             amplitude = amplitude / np.linalg.norm(u_C, 2)
             u = amplitude * np.ones((M, N, 2))
             u[..., 0] = u_C[0] * u[..., 0]
             u[..., 1] = u_C[1] * u[..., 1]
-        elif motion_type == 'smooth':
-            u = np.random.rand(M, N, 2)
+        elif motion_type == 1:
+            u = np.random.normal(0, 1, (M, N, 2))
             cut_off = 0.01
             w_x_cut = math.floor(cut_off / (1 / M) + (M + 1) / 2)
             w_y_cut = math.floor(cut_off / (1 / N) + (N + 1) / 2)
@@ -94,27 +136,19 @@ class MRI_Resp_2D(Input):
             LowPass_win[(M - w_x_cut): w_x_cut, (N - w_y_cut): w_y_cut] = 1
 
             u[..., 0] = (np.fft.ifft2(np.fft.fft2(u[..., 0]) * np.fft.ifftshift(LowPass_win))).real
+            # also equal to u[..., 0] =
+            # (np.fft.ifft2(np.fft.ifftshift(np.fft.fftshift(np.fft.fft2(u[..., 0])) * LowPass_win))).real
             u[..., 1] = (np.fft.ifft2(np.fft.fft2(u[..., 1]) * np.fft.ifftshift(LowPass_win))).real
+
+            u1 = u[..., 0].flatten()
+            u2 = u[..., 1].flatten()
+            amplitude = amplitude / max(np.linalg.norm(np.vstack([u1, u2]), axis=0))
+            u = u * amplitude
+
         elif motion_type == 'realistic':
             pass
 
         return u
-
-    def _np_warp_2D(self, img, flow):
-        img = img.astype('float32')
-        flow = flow.astype('float32')
-        height, width = self.dims
-        posx, posy = np.mgrid[:height, :width]
-        # flow=np.reshape(flow, [-1, 3])
-        vx = flow[:, :, 0]
-        vy = flow[:, :, 1]
-
-        coord_x = posx + vx
-        coord_y = posy + vy
-        coords = np.array([coord_x, coord_y])
-        warped = warp(img, coords, order=1)  # order=1 for bi-linear
-
-        return warped
 
     def get_data_paths(self, img_dirs):
         fn_im_paths = []
@@ -157,13 +191,16 @@ class MRI_Resp_2D(Input):
             for frame in range(np.shape(dset)[3]):
                 for slice in range(np.shape(dset)[2]):
                     img = dset[..., slice, :][..., frame]
+                    img = (img - np.mean(img)) / np.std(img)
+                    # img = (img - np.amin(img)) / (np.amax(img) - np.amin(img))
                     img_size = np.shape(img)
-                    u = self._u_generation_2D(img_size, amplitude, motion_type='smooth')
-                    warped_img = self._np_warp_2D(img, u)
+                    motion_type = random.randint(0, 1)
+                    u = self._u_generation_2D(img_size, amplitude, motion_type=motion_type)
+                    warped_img = np_warp_2D(img, u)
                     img, warped_img, = img[..., np.newaxis], warped_img[..., np.newaxis]
-                    mask = np.zeros((*img_size, 1))
+
                     try:
-                        batch = np.concatenate([img, warped_img, u, mask], 2)
+                        batch = np.concatenate([img, warped_img, u], 2)
                         #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
                         batches.append(batch)
                     except Exception:
@@ -172,12 +209,13 @@ class MRI_Resp_2D(Input):
                               'It cannot be loaded!'.format(fn_im_path, np.shape(img)[:2], self.dims))
                         break
                 break
-            if len(batches) > 300:
+            if len(batches) > 1000:
                 break
 
         # shell.exec("matlab myscript.m")
         random.seed(0)
         random.shuffle(batches)
+        # patient_num = np.linspace(1, len(batches), len(batches), dtype=np.int)
         batches = np.asarray(batches, dtype=np.float32)
 
         im1_queue = tf.train.slice_input_producer([batches[..., 0]], shuffle=False,
@@ -186,9 +224,9 @@ class MRI_Resp_2D(Input):
                                                   capacity=len(list(batches[..., 1])), num_epochs=None)
         flow_queue = tf.train.slice_input_producer([batches[..., 2:4]], shuffle=False,
                                                    capacity=len(list(batches[..., 2:4])), num_epochs=None)
-        mask_queue = tf.train.slice_input_producer([batches[..., 4]], shuffle=False,
-                                                   capacity=len(list(batches[..., 4])), num_epochs=None)
-        return tf.train.batch([im1_queue, im2_queue, flow_queue, mask_queue],
+        # num_queue = tf.train.slice_input_producer([patient_num], shuffle=False,
+        #                                            capacity=len(list(patient_num)), num_epochs=None)
+        return tf.train.batch([im1_queue, im2_queue, flow_queue],
                               batch_size=self.batch_size,
                               num_threads=self.num_threads)
 

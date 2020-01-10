@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import os
 import copy
 
@@ -100,7 +101,7 @@ def main(argv=None):
             debug=FLAGS.debug,
             interactive_plot=run_config.get('interactive_plot'),
             devices=devices)
-        tr.run(0, 10000)
+        tr.run(0, ftiters)
     elif train_dataset == 'card_2D':
         pass  # todo
     elif train_dataset == 'kitti_ft':

@@ -95,11 +95,15 @@ def flow_error_image(flow_1, flow_2, mask_occ, mask_noc=None, log_colors=True):
     return im
 
 
-def flow_error_avg(flow_1, flow_2, mask):
+def flow_error_avg(flow_1, flow_2, mask=None):
     """Evaluates the average endpoint error between flow batches."""
     with tf.variable_scope('flow_error_avg'):
-        diff = euclidean(flow_1 - flow_2) * mask
-        error = tf.reduce_sum(diff) / tf.reduce_sum(mask)
+        if mask is not None:
+            diff = euclidean(flow_1 - flow_2) * mask
+            error = tf.reduce_sum(diff) / tf.reduce_sum(mask)
+        else:
+            diff = euclidean(flow_1 - flow_2)
+            error = tf.reduce_sum(diff)
         return error
 
 

@@ -3,7 +3,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, Button
-
+from PIL import Image
 
 def display(results, image_names, title="Flow eval"):
     image_grids = []
@@ -39,6 +39,8 @@ def display(results, image_names, title="Flow eval"):
                 imshow_images.append(ax.imshow(image[0, :, :, 0], "gray"))
             else:
                 imshow_images.append(ax.imshow(image[0, :, :, :]))
+                # plt.imshow(image[0, :, :, :], interpolation='nearest')
+                # plt.show()
         imshow_image_lists.append(imshow_images)
 
     def display_example(index):

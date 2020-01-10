@@ -1,11 +1,12 @@
 import os
 import sys
 import shutil
-
+import PIL
 import tensorflow as tf
 import numpy as np
 import png
 import matplotlib.pyplot as plt
+import pylab
 
 from e2eflow.core.flow_util import flow_to_color, flow_error_avg, outlier_pct
 from e2eflow.core.flow_util import flow_error_image
@@ -21,7 +22,7 @@ from e2eflow.ops import forward_warp
 from e2eflow.gui import display
 from e2eflow.core.losses import DISOCC_THRESH, occlusion, create_outgoing_mask
 from e2eflow.util import convert_input_strings
-
+from e2eflow.kitti.input import np_warp_2D
 
 tf.app.flags.DEFINE_string('dataset', 'resp_2D',
                             'Name of dataset to evaluate on. One of {kitti, sintel, chairs, mdb}.')
@@ -89,7 +90,7 @@ def write_flo(flow, filename):
     f.close()
 
 
-def _evaluate_experiment(name, data_input, test_path, selected_frames, selected_slices):
+def _evaluate_experiment(name, data_input, test_path, selected_frames, selected_slices, cross_test=False, LAP=False):
     normalize_fn = data_input._normalize_image
     resized_h = data_input.dims[0]
     resized_w = data_input.dims[1]
@@ -113,23 +114,24 @@ def _evaluate_experiment(name, data_input, test_path, selected_frames, selected_
     ckpt_path = exp_dir + "/" + os.path.basename(ckpt.model_checkpoint_path)
 
     with tf.Graph().as_default(): #, tf.device('gpu:' + FLAGS.gpu):
-        input_fn = data_input.input_test_data(test_path, selected_frames, selected_slices)
-        im1, im2, flow_gt, mask = input_fn
+        input_fn = data_input.input_test_data(test_path, selected_frames, selected_slices, cross_test=cross_test)
+        im1, im2, flow_gt = input_fn
         height = tf.shape(im1)[1]
         width = tf.shape(im1)[2]
         im1 = im1[:, 0, :, :]
         im2 = im2[:, 0, :, :]
         flow_gt = flow_gt[:, 0, :, :, :]
-        mask = mask[:, 0, :, :]
+        # mask = mask[:, 0, :, :]
         im1 = im1[..., tf.newaxis]
         im2 = im2[..., tf.newaxis]
-        mask = mask[..., tf.newaxis]
+        # mask = mask[..., tf.newaxis]
 
         loss, flow = supervised_loss(
                      input_fn,
                      normalization=data_input.get_normalization(),
                      augment=False,
-                     params=params)
+                     params=params,
+                     LAP=LAP)
 
         # im1 = resize_output(im1, height, width, 3)
         # im2 = resize_output(im2, height, width, 3)
@@ -137,7 +139,7 @@ def _evaluate_experiment(name, data_input, test_path, selected_frames, selected_
 
         flow_fw_int16 = flow_to_int16(flow)
 
-        im1_pred = image_warp(im2, flow)
+        im1_pred = image_warp(im2, -flow)
         im1_diff = tf.abs(im1 - im1_pred)
         ori_diff = tf.abs(im1 - im2)
         flow_diff = tf.abs(flow - flow_gt)
@@ -148,13 +150,14 @@ def _evaluate_experiment(name, data_input, test_path, selected_frames, selected_
         image_slots = [(im1 / 255, 'first image'),
                        (im2 / 255, 'second image'),
                        (im1_pred, 'warped second image'),
-                       (im1_diff, 'warp error'),
+                       (ori_diff, 'original error'),
+                       (im1_diff, 'warping error'),
                        (flow_to_color(flow), 'flow'),
-                       (flow_to_color(flow_gt), 'gt'),
+                       (flow_to_color(flow_gt), 'gt_flow')
                        ]
 
         # list of (scalar_op, title)
-        scalar_slots = [(flow_error_avg(flow_gt, flow, mask), 'EPE_all')]
+        scalar_slots = [(flow_error_avg(flow_gt, flow, tf.ones(tf.shape(flow))), 'EPE_all')]
 
 
         num_ims = len(image_slots)
@@ -179,9 +182,7 @@ def _evaluate_experiment(name, data_input, test_path, selected_frames, selected_
             saver = tf.train.Saver(tf.global_variables())
             sess.run(tf.global_variables_initializer())
             sess.run(tf.local_variables_initializer())
-
             restore_networks(sess, params, ckpt, ckpt_path)
-
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(sess=sess,
                                                    coord=coord)
@@ -192,12 +193,16 @@ def _evaluate_experiment(name, data_input, test_path, selected_frames, selected_
             try:
                 num_iters = 0
                 while not coord.should_stop() and (max_iter is None or num_iters != max_iter):
-                    all_results = sess.run([flow, flow_fw_int16] + all_ops)
+                    all_results = sess.run([flow, flow_fw_int16, loss] + all_ops)
+                    flow_gt = sess.run(flow_gt)
                     flow_fw_res, flow_fw_int16_res = all_results[:2]
-                    all_results = all_results[2:]
+                    loss_res = all_results[2]
+                    all_results = all_results[3:]
                     image_results = all_results[:num_ims]
+                    flow_diff = flow_gt - flow_fw_res  # JP
                     scalar_results = all_results[num_ims:]
                     iterstr = str(num_iters).zfill(6)
+
                     if FLAGS.output_visual:
                         path_im1 = os.path.join(exp_out_dir, iterstr + '_im1.png')
                         path_im2 = os.path.join(exp_out_dir, iterstr + '_im2.png')
@@ -228,6 +233,7 @@ def _evaluate_experiment(name, data_input, test_path, selected_frames, selected_
                                      .format(name, num_iters, max_iter))
                     sys.stdout.flush()
                     print()
+                    print('charbonnier_loss = ' + str(loss_res))
             except tf.errors.OutOfRangeError:
                 pass
 
@@ -242,27 +248,42 @@ def _evaluate_experiment(name, data_input, test_path, selected_frames, selected_
 
     return image_lists, image_names
 
+# def show_results(result, save_path=None):
+#     f = plt.figure()
+#     f.add_subplot(3, 2, 1)
+#     plt.imshow(result[0][0][0][0, :, :, 0], cmap='gray')
+#     f.add_subplot(3, 2, 2)
+#     plt.imshow(result[0][0][1][0, :, :, 0], cmap='gray')
 
-def show_res(result, sli=36):
-    flow = result[0][4]
-    # flow_mag = np.squeeze(np.sqrt(np.sum(np.square(flow[0, :, :, sli, :]), 2)))
 
 
-    fig, ax = plt.subplots(2, 3, figsize=(7, 5))
-    ax[0][0].imshow(result[0][0][0, :, :, 0], cmap='gray')  # ref
-    ax[0][0].set_title('Ref')
-    ax[0][1].imshow(result[0][1][0, :, :, 0], cmap='gray', )  # mov
-    ax[0][1].set_title('Mov')
-    ax[0][2].imshow(result[0][2][0, :, :, 0], cmap='gray')  # warped
-    ax[0][2].set_title('Mov_Corr')
+def show_results(result, save_path=None):
 
-    ax[1][0].imshow(result[0][3][0, :, :, 0], cmap='gray')  #
-    ax[1][0].set_title('Warp_err')
-    ax[1][1].imshow(result[0][4][0, :, :, 0] * 255, cmap='jet', vmin=0, vmax=3.0)  # mov-ref
-    ax[1][1].set_title('Flow')
-    ax[1][2].imshow(result[0][5][0, :, :, 0] * 255, cmap='jet', vmin=0, vmax=3.0)  # warped-ref
-    ax[1][2].set_title('Moco-ref')
+    fig, ax = plt.subplots(2, 4, figsize=(8, 5))
+    ax[0][0].imshow(result[0][0][0][0, :, :, 0], cmap='gray')  # ref
+    ax[0][0].set_title('Orignal Img')
+    ax[0][1].imshow(result[0][0][1][0, :, :, 0], cmap='gray')  # mov
+    ax[0][1].set_title('Moving Img')
+    ax[0][2].imshow(result[0][0][2][0, :, :, 0], cmap='gray')  # warped
+    ax[0][2].set_title('Moving Corrected')
+    fig.delaxes(ax[0, 3])
+    ax[1][0].imshow(result[0][0][3][0, :, :, 0], cmap='gray')
+    ax[1][0].set_title('Original Error')
+
+    ax[1][1].imshow(result[0][0][4][0, :, :, 0], cmap='gray')
+    ax[1][1].set_title('Warped Error')
+
+    ax[1][2].imshow(result[0][0][5][0, :, :, 0])
+    # ax[1][1].imshow(result[0][0][4][0, :, :, 0] * 255, cmap='jet', vmin=0, vmax=3.0)
+    ax[1][2].set_title('Predicted Flow')
+
+    ax[1][3].imshow(result[0][0][6][0, :, :, 0])
+    # ax[1][2].imshow(result[0][0][5][0, :, :, 0] * 255, cmap='jet', vmin=0, vmax=3.0)
+    ax[1][3].set_title('GT Flow')
     plt.show()
+    if save_path:
+        plt.savefig(os.path.join(save_path, '.' + 'pdf'),
+                format='pdf')
 
 
 def main(argv=None):
@@ -291,16 +312,24 @@ def main(argv=None):
                                  batch_size=1,
                                  normalize=False,
                                  dims=(256, 256))
-        FLAGS.num = 5
+        FLAGS.num = 1
     # input_fn = getattr(data_input, 'input_' + FLAGS.variant)
     test_path = os.path.join(test_dir, test_data)
     results = []
     for name in FLAGS.ex.split(','):
-        result, image_names = _evaluate_experiment(name, data_input, test_path, selected_frames, selected_slices)
+        result, image_names = _evaluate_experiment(name,
+                                                   data_input,
+                                                   test_path,
+                                                   selected_frames,
+                                                   selected_slices,
+                                                   cross_test=False,
+                                                   LAP=False)
         results.append(result)
 
-    #show_res(result)
-    display(results, image_names)
+    #display(results, image_names)
+    show_results(results)
+
+    pass
 
 
 if __name__ == '__main__':

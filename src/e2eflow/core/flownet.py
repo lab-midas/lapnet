@@ -8,7 +8,7 @@ from .image_warp import image_warp
 from .flow_util import flow_to_color
 
 
-FLOW_SCALE = 5.0
+FLOW_SCALE = 5
 
 
 def flownet(im1, im2, flownet_spec='S', full_resolution=False, train_all=False,

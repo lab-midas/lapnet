@@ -1,4 +1,19 @@
 import tensorflow as tf
+import numpy as np
+
+def image_warp_np(im, flow):
+    height, width = np.shape(im)[0], np.shape(im)[1]
+    max_x, max_y = width - 1, height - 1
+    zero = a
+
+    im_flat = im.reshape((-1, 1))
+    flow_flat = flow.reshape((-1, 2))
+    flow_floor = np.floor(flow).astape(int)
+    bilinear_weights = flow_flat - np.floor(flow)
+
+
+
+
 
 
 def image_warp(im, flow):
@@ -11,6 +26,7 @@ def image_warp(im, flow):
         warped: transformed image of the same shape as the input image.
     """
     with tf.variable_scope('image_warp'):
+        flow = tf.roll(flow, 1, 3)
 
         num_batch, height, width, channels = tf.unstack(tf.shape(im))
         max_x = tf.cast(width - 1, 'int32')

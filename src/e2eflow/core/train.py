@@ -27,7 +27,10 @@ def restore_networks(sess, params, ckpt, ckpt_path=None):
     spec = params.get('flownet', 'S')
     flownet_num = len(spec)
 
-    net_names = ['flownet_c'] + ['stack_{}_flownet'.format(i+1) for i in range(flownet_num - 1)]
+    if spec.lower() == 's':
+        net_names = ['flownet_s'] + ['stack_{}_flownet'.format(i+1) for i in range(flownet_num - 1)]
+    elif spec.lower() == 'c':
+        net_names = ['flownet_c'] + ['stack_{}_flownet'.format(i + 1) for i in range(flownet_num - 1)]
     assert len(finetune) <= flownet_num
     # Save all trained networks, restore all networks which are kept fixed
     if train_all:
@@ -158,7 +161,7 @@ class Trainer():
                 _add_image_summaries()
 
         if len(self.devices) == 1:
-            loss_, _ = self.loss_fn(batch, self.params, self.normalization)
+            loss_, _ = self.loss_fn(batch, self.params, self.normalization, LAP=False)
             train_op = opt.minimize(loss_)
             _add_summaries()
         else:   # JP: below is for multi-gpu train, haven't seen yet
@@ -197,7 +200,7 @@ class Trainer():
 
             global_step_ = tf.placeholder(tf.int32, name="global_step")
 
-            train_op, loss_ = self.get_train_and_loss_ops(batch, learning_rate_, global_step_)
+            train_op, loss_, = self.get_train_and_loss_ops(batch, learning_rate_, global_step_)
 
             summaries = tf.get_collection(tf.GraphKeys.SUMMARIES)
             summary_ = tf.summary.merge(summaries)
@@ -245,7 +248,7 @@ class Trainer():
                             learning_rate = self.params['learning_rate']
 
                     feed_dict = {learning_rate_: learning_rate, global_step_: i}
-                    _, loss = sess.run(
+                    _, loss, = sess.run(
                         [train_op, loss_],
                         feed_dict=feed_dict,
                         options=run_options,
@@ -255,6 +258,7 @@ class Trainer():
                         summary = sess.run(summary_, feed_dict=feed_dict)
                         summary_writer.add_summary(summary, i)
                         print("-- train: i = {}, loss = {}".format(i, loss))
+                        # print(num[0])
 
                 save_path = os.path.join(self.ckpt_dir, 'model.ckpt')
                 saver.save(sess, save_path, global_step=max_iter)

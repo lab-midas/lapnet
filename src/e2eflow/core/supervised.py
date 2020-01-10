@@ -10,7 +10,7 @@ from .unsupervised import _track_image, _track_loss, FLOW_SCALE
 
 
 def supervised_loss(batch, params, normalization=None, LAP=False, augment=False):
-    channel_mean = tf.constant(normalization[0]) / 255.0
+    # channel_mean = tf.constant(normalization[0]) / 255.0
     im1, im2, flow_gt = batch
     # im1, im2, flow_gt, mask_gt = tf.squeeze(im1), tf.squeeze(im2), tf.squeeze(flow_gt), tf.squeeze(mask_gt)
 

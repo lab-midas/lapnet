@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import os
 import copy
+import json
 
 import tensorflow as tf
 from tensorflow.python.client import device_lib
@@ -89,7 +90,11 @@ def main(argv=None):
                            normalize=False,
                            dims=(ftconfig['height'], ftconfig['width']))
         tr = Trainer(
-            lambda shift: ftinput.input_train_gt_debug(40),
+            lambda: ftinput.input_train_data(img_dirs=['resp/patient', 'resp/volunteer'],
+                                             selected_frames=[0, 3],
+                                             selected_slices=list(range(15, 55)),
+                                             amplitude=ftconfig.get('flow_amplitude'),
+                                             ),
             lambda: einput.input_train_2015(40),
             supervised=True,
             params=ftconfig,

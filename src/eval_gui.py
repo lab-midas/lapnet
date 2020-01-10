@@ -90,10 +90,7 @@ def write_flo(flow, filename):
     f.close()
 
 
-def _evaluate_experiment(name, data_input, test_path, selected_frames, selected_slices, cross_test=False, LAP=False):
-    normalize_fn = data_input._normalize_image
-    resized_h = data_input.dims[0]
-    resized_w = data_input.dims[1]
+def _evaluate_experiment(name, data, LAP=False):
 
     current_config = config_dict('../config.ini')
     exp_dir = os.path.join(current_config['dirs']['log'], 'ex', name)
@@ -114,7 +111,7 @@ def _evaluate_experiment(name, data_input, test_path, selected_frames, selected_
     ckpt_path = exp_dir + "/" + os.path.basename(ckpt.model_checkpoint_path)
 
     with tf.Graph().as_default(): #, tf.device('gpu:' + FLAGS.gpu):
-        input_fn = data_input.input_test_data(test_path, selected_frames, selected_slices, cross_test=cross_test)
+        input_fn = data()
         im1, im2, flow_gt = input_fn
         height = tf.shape(im1)[1]
         width = tf.shape(im1)[2]
@@ -128,7 +125,7 @@ def _evaluate_experiment(name, data_input, test_path, selected_frames, selected_
 
         loss, flow = supervised_loss(
                      input_fn,
-                     normalization=data_input.get_normalization(),
+                     normalization=None,
                      augment=False,
                      params=params,
                      LAP=LAP)
@@ -257,44 +254,45 @@ def _evaluate_experiment(name, data_input, test_path, selected_frames, selected_
 
 def show_results(result, save_path=None):
 
-    for num in range(np.shape(result[0][0][0])[0]):
-        fig, ax = plt.subplots(2, 4, figsize=(15, 8))
-        ax[0][0].imshow(result[0][0][0][num, :, :, 0], cmap='gray')  # ref
-        ax[0][0].set_title('Orignal Img')
-        ax[0][1].imshow(result[0][0][1][num, :, :, 0], cmap='gray')  # mov
-        ax[0][1].set_title('Moving Img')
-        ax[0][2].imshow(result[0][0][2][num, :, :, 0], cmap='gray')  # warped
-        ax[0][2].set_title('Moving Corrected')
-        fig.delaxes(ax[0, 3])
-        ax[1][0].imshow(result[0][0][3][num, :, :, 0], cmap='gray')
-        ax[1][0].set_title('Original Error')
+    for exp in range(len(result)):
+        for num in range(np.shape(result[0][0][0])[0]):
+            fig, ax = plt.subplots(2, 4, figsize=(15, 8))
+            ax[0][0].imshow(result[exp][0][0][num, :, :, 0], cmap='gray')  # ref
+            ax[0][0].set_title('Orignal Img')
+            ax[0][1].imshow(result[exp][0][1][num, :, :, 0], cmap='gray')  # mov
+            ax[0][1].set_title('Moving Img')
+            ax[0][2].imshow(result[exp][0][2][num, :, :, 0], cmap='gray')  # warped
+            ax[0][2].set_title('Moving Corrected')
+            fig.delaxes(ax[0, 3])
+            ax[1][0].imshow(result[exp][0][3][num, :, :, 0], cmap='gray')
+            ax[1][0].set_title('Original Error')
 
-        ax[1][1].imshow(result[0][0][4][num, :, :, 0], cmap='gray')
-        ax[1][1].set_title('Warped Error')
+            ax[1][1].imshow(result[exp][0][4][num, :, :, 0], cmap='gray')
+            ax[1][1].set_title('Warped Error')
 
-        ax[1][2].imshow(result[0][0][5][num, ...])
-        # ax[1][1].imshow(result[0][0][4][0, :, :, 0] * 255, cmap='jet', vmin=0, vmax=3.0)
-        ax[1][2].set_title('Predicted Flow')
+            ax[1][2].imshow(result[exp][0][5][num, ...])
+            # ax[1][1].imshow(result[0][0][4][0, :, :, 0] * 255, cmap='jet', vmin=0, vmax=3.0)
+            ax[1][2].set_title('Predicted Flow')
 
-        ax[1][3].imshow(result[0][0][6][num, ...])
-        # ax[1][2].imshow(result[0][0][5][0, :, :, 0] * 255, cmap='jet', vmin=0, vmax=3.0)
-        ax[1][3].set_title('GT Flow')
-        plt.show()
-        if save_path:
-            plt.savefig(os.path.join(save_path, '.' + 'pdf'),
-                    format='pdf')
+            ax[1][3].imshow(result[exp][0][6][num, ...])
+            # ax[1][2].imshow(result[0][0][5][0, :, :, 0] * 255, cmap='jet', vmin=0, vmax=3.0)
+            ax[1][3].set_title('GT Flow')
+            plt.show()
+            if save_path:
+                plt.savefig(os.path.join(save_path, '.' + 'pdf'),
+                        format='pdf')
 
 
 def main(argv=None):
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
-    test_dir = '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/'
-    test_data = '001/Ph4_Tol100_t000_Ext00_EspOff_closest_recon.mat'
+    test_dir = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/']
     selected_frames = [0, 3]
     #selected_slices = list(range(15, 55))
     selected_slices = [35]
+    amplitude = 30
     LAP = False
-    cross_test = False
+    cross_test = True
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))
@@ -310,20 +308,20 @@ def main(argv=None):
     elif FLAGS.dataset == 'resp_2D':
         kdata = KITTIData(data_dir=dirs['data'], development=True)
         data_input = MRI_Resp_2D(data=kdata,
-                                 batch_size=4,
+                                 batch_size=2,
                                  normalize=False,
                                  dims=(256, 256))
         FLAGS.num = 1
     # input_fn = getattr(data_input, 'input_' + FLAGS.variant)
-    test_path = os.path.join(test_dir, test_data)
+    # test_path = os.path.join(test_dir, test_data)
     results = []
     for name in FLAGS.ex.split(','):
         result, image_names = _evaluate_experiment(name,
-                                                   data_input,
-                                                   test_path,
-                                                   selected_frames,
-                                                   selected_slices,
-                                                   cross_test=cross_test,
+                                                   lambda: data_input.input_train_data(img_dirs=test_dir,
+                                                                                       selected_frames=selected_frames,
+                                                                                       selected_slices=selected_slices,
+                                                                                       amplitude=amplitude,
+                                                                                       cross_test=cross_test),
                                                    LAP=LAP)
         results.append(result)
 

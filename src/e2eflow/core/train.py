@@ -192,7 +192,7 @@ class Trainer():
         ckpt = tf.train.get_checkpoint_state(self.ckpt_dir)
 
         with tf.Graph().as_default(), tf.device(self.shared_device):
-            batch = self.train_batch_fn(iter_offset)
+            batch = self.train_batch_fn()
 
             with tf.name_scope('params') as scope:
                 learning_rate_ = util.summarized_placeholder('learning_rate', 'train')

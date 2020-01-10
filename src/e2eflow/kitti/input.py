@@ -31,13 +31,6 @@ def _read_flow(filenames, num_epochs=None):
     return flow, mask
 
 
-def plot_ims():
-    f = plt.figure()
-    f.add_subplot(1, 2, 1)
-    plt.imshow(warped_img)
-    f.add_subplot(1, 2, 2)
-    plt.imshow(warped_img_2[0, ..., 0])
-
 def np_warp_2D(img, flow):
     img = img.astype('float32')
     flow = flow.astype('float32')
@@ -54,101 +47,52 @@ def np_warp_2D(img, flow):
     return warped
 
 
+def _u_generation_2D(img_size, amplitude, motion_type=0):
+    """
+
+    :param img_size:
+    :param amplitude:
+    :param motion_type: 0: constant, 1: smooth
+    :return:
+    """
+    M, N = img_size
+    if motion_type == 0:
+        u_C = np.random.rand(2)
+        amplitude = amplitude / np.linalg.norm(u_C, 2)
+        u = amplitude * np.ones((M, N, 2))
+        u[..., 0] = u_C[0] * u[..., 0]
+        u[..., 1] = u_C[1] * u[..., 1]
+    elif motion_type == 1:
+        u = np.random.normal(0, 1, (M, N, 2))
+        cut_off = 0.01
+        w_x_cut = math.floor(cut_off / (1 / M) + (M + 1) / 2)
+        w_y_cut = math.floor(cut_off / (1 / N) + (N + 1) / 2)
+
+        LowPass_win = np.zeros((M, N))
+        LowPass_win[(M - w_x_cut): w_x_cut, (N - w_y_cut): w_y_cut] = 1
+
+        u[..., 0] = (np.fft.ifft2(np.fft.fft2(u[..., 0]) * np.fft.ifftshift(LowPass_win))).real
+        # also equal to u[..., 0] =
+        # (np.fft.ifft2(np.fft.ifftshift(np.fft.fftshift(np.fft.fft2(u[..., 0])) * LowPass_win))).real
+        u[..., 1] = (np.fft.ifft2(np.fft.fft2(u[..., 1]) * np.fft.ifftshift(LowPass_win))).real
+
+        u1 = u[..., 0].flatten()
+        u2 = u[..., 1].flatten()
+        amplitude = amplitude / max(np.linalg.norm(np.vstack([u1, u2]), axis=0))
+        u = u * amplitude
+
+    elif motion_type == 'realistic':
+        pass
+
+    return u
+
+
 class MRI_Resp_2D(Input):
     def __init__(self, data, batch_size, dims, *,
                  num_threads=1, normalize=True,
                  skipped_frames=False):
         super().__init__(data, batch_size, dims, num_threads=num_threads,
                          normalize=normalize, skipped_frames=skipped_frames)
-
-    def input_test_data(self, fn_im_path, selected_frames, selected_slices, cross_test=False):
-        amplitude = 10
-        batches = []
-        with h5py.File(fn_im_path, 'r') as f:
-            # fn_im_raw = sio.loadmat(fn_im_path)
-            dset = f['dImg']
-            try:
-                dset = np.array(dset, dtype=np.float32)
-                # dset = tf.constant(dset, dtype=tf.float32)
-            except Exception:
-                print("File {} is defective and cannot be read!".format(fn_im_path))
-            dset = np.transpose(dset, (2, 3, 1, 0))
-            dset = dset[..., selected_frames]
-            dset = dset[..., selected_slices, :]
-        if cross_test:
-            for slice in range(np.shape(dset)[2]):
-                im1 = dset[..., slice, 0]
-                im2 = dset[..., slice, 1]
-                im1 = (im1 - np.mean(im1)) / np.std(im1)
-                im2 = (im2 - np.mean(im2)) / np.std(im2)
-                img_size = np.shape(im1)
-                im1, im2 = im1[..., np.newaxis], im2[..., np.newaxis]
-                u = np.zeros((*img_size, 2))
-                batch = np.concatenate([im1, im2, u], 2)
-                #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
-                batches.append(batch)
-        else:
-            for frame in range(np.shape(dset)[3]):
-                for slice in range(np.shape(dset)[2]):
-                    img = dset[..., slice, :][..., frame]
-                    img = (img - np.mean(img)) / np.std(img)
-                    img_size = np.shape(img)
-                    motion_type = random.randint(0, 1)
-                    u = self._u_generation_2D(img_size, amplitude, motion_type=motion_type)
-                    warped_img = np_warp_2D(img, u)
-                    img, warped_img, = img[..., np.newaxis], warped_img[..., np.newaxis]
-                    batch = np.concatenate([img, warped_img, u], 2)
-                    #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
-                    batches.append(batch)
-
-        batches = np.asarray(batches, dtype=np.float32)
-        # im1_queue = tf.train.slice_input_producer([batches[..., 0]], shuffle=False,
-        #                                           capacity=len(list(batches[..., 0])), num_epochs=None)
-        im1_queue = tf.train.slice_input_producer([batches[..., 0]], shuffle=False, num_epochs=None)
-        im2_queue = tf.train.slice_input_producer([batches[..., 1]], shuffle=False, num_epochs=None)
-        flow_queue = tf.train.slice_input_producer([batches[..., 2:4]], shuffle=False, num_epochs=None)
-        return tf.train.batch([im1_queue, im2_queue, flow_queue],
-                              batch_size=self.batch_size,
-                              num_threads=self.num_threads)
-
-    def _u_generation_2D(self, img_size, amplitude, motion_type=0):
-        """
-
-        :param img_size:
-        :param amplitude:
-        :param motion_type: 0: constant, 1: smooth
-        :return:
-        """
-        M, N = img_size
-        if motion_type == 0:
-            u_C = np.random.rand(2)
-            amplitude = amplitude / np.linalg.norm(u_C, 2)
-            u = amplitude * np.ones((M, N, 2))
-            u[..., 0] = u_C[0] * u[..., 0]
-            u[..., 1] = u_C[1] * u[..., 1]
-        elif motion_type == 1:
-            u = np.random.normal(0, 1, (M, N, 2))
-            cut_off = 0.01
-            w_x_cut = math.floor(cut_off / (1 / M) + (M + 1) / 2)
-            w_y_cut = math.floor(cut_off / (1 / N) + (N + 1) / 2)
-
-            LowPass_win = np.zeros((M, N))
-            LowPass_win[(M - w_x_cut): w_x_cut, (N - w_y_cut): w_y_cut] = 1
-
-            u[..., 0] = (np.fft.ifft2(np.fft.fft2(u[..., 0]) * np.fft.ifftshift(LowPass_win))).real
-            # also equal to u[..., 0] =
-            # (np.fft.ifft2(np.fft.ifftshift(np.fft.fftshift(np.fft.fft2(u[..., 0])) * LowPass_win))).real
-            u[..., 1] = (np.fft.ifft2(np.fft.fft2(u[..., 1]) * np.fft.ifftshift(LowPass_win))).real
-
-            u1 = u[..., 0].flatten()
-            u2 = u[..., 1].flatten()
-            amplitude = amplitude / max(np.linalg.norm(np.vstack([u1, u2]), axis=0))
-            u = u * amplitude
-
-        elif motion_type == 'realistic':
-            pass
-
-        return u
 
     def get_data_paths(self, img_dirs):
         fn_im_paths = []
@@ -165,12 +109,12 @@ class MRI_Resp_2D(Input):
                     fn_im_paths.append(os.path.join(img_dir, img_file, img_mat))
         return fn_im_paths
 
-    def input_train_gt_debug(self, hold_out):
-        img_dirs = ['resp/patient',
-                    'resp/volunteer']
-        selected_frames = [0, 3]
-        selected_slices = list(range(15, 55))
-        amplitude = 30
+    def input_train_data(self, img_dirs, selected_frames, selected_slices, amplitude, cross_test=False):
+        # img_dirs = ['resp/patient',
+        #             'resp/volunteer']
+        # selected_frames = [0, 3]
+        # selected_slices = list(range(15, 55))
+        # amplitude = 30
         flow_augment_type = ['constant', 'smooth']
 
         fn_im_paths = self.get_data_paths(img_dirs)
@@ -188,29 +132,43 @@ class MRI_Resp_2D(Input):
                 dset = np.transpose(dset, (2, 3, 1, 0))
                 dset = dset[..., selected_frames]
                 dset = dset[..., selected_slices, :]
-            for frame in range(np.shape(dset)[3]):
-                for slice in range(np.shape(dset)[2]):
-                    img = dset[..., slice, :][..., frame]
-                    img = (img - np.mean(img)) / np.std(img)
-                    # img = (img - np.amin(img)) / (np.amax(img) - np.amin(img))
-                    img_size = np.shape(img)
-                    motion_type = random.randint(0, 1)
-                    u = self._u_generation_2D(img_size, amplitude, motion_type=motion_type)
-                    warped_img = np_warp_2D(img, u)
-                    img, warped_img, = img[..., np.newaxis], warped_img[..., np.newaxis]
+            if not cross_test:  # TODO: use matrix operation instead of for loop
+                for frame in range(np.shape(dset)[3]):
+                    for slice in range(np.shape(dset)[2]):
+                        img = dset[..., slice, :][..., frame]
+                        img = (img - np.mean(img)) / np.std(img)
+                        # img = (img - np.amin(img)) / (np.amax(img) - np.amin(img))
+                        img_size = np.shape(img)
+                        motion_type = random.randint(0, 1)
+                        u = _u_generation_2D(img_size, amplitude, motion_type=motion_type)
+                        warped_img = np_warp_2D(img, u)
+                        img, warped_img, = img[..., np.newaxis], warped_img[..., np.newaxis]
 
-                    try:
-                        batch = np.concatenate([img, warped_img, u], 2)
-                        #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
-                        batches.append(batch)
-                    except Exception:
-                        pass
-                        print('the size of {} is {}, does not match {}. '
-                              'It cannot be loaded!'.format(fn_im_path, np.shape(img)[:2], self.dims))
-                        break
-                break
-            if len(batches) > 1000:
-                break
+                        try:
+                            batch = np.concatenate([img, warped_img, u], 2)
+                            #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
+                            batches.append(batch)
+                        except Exception:
+                            pass
+                            print('the size of {} is {}, does not match {}. '
+                                  'It cannot be loaded!'.format(fn_im_path, np.shape(img)[:2], self.dims))
+                            break
+                    # break
+                if len(batches) > 1000:
+                    break
+            else:
+                for slice in range(np.shape(dset)[2]):
+                    im1 = dset[..., slice, 0]
+                    im2 = dset[..., slice, 1]
+                    im1 = (im1 - np.mean(im1)) / np.std(im1)
+                    im2 = (im2 - np.mean(im2)) / np.std(im2)
+                    img_size = np.shape(im1)
+                    im1, im2 = im1[..., np.newaxis], im2[..., np.newaxis]
+                    u = np.zeros((*img_size, 2))
+                    batch = np.concatenate([im1, im2, u], 2)
+                    #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
+                    batches.append(batch)
+
 
         # shell.exec("matlab myscript.m")
         random.seed(0)
@@ -245,7 +203,8 @@ class MRI_Resp_2D(Input):
 
         # return next(iter(batches.batch(self.batch_size)))
 
-    def input_train_gt(self, hold_out):
+
+    def input_train_gt(self):
         img_dirs = ['resp/patient',
                     'resp/volunteer']
         selected_frames = [0, 3]

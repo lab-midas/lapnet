@@ -79,11 +79,12 @@ class MRI_Resp_2D(Input):
             for slice in range(np.shape(dset)[2]):
                 im1 = dset[..., slice, 0]
                 im2 = dset[..., slice, 1]
+                im1 = (im1 - np.mean(im1)) / np.std(im1)
+                im2 = (im2 - np.mean(im2)) / np.std(im2)
                 img_size = np.shape(im1)
                 im1, im2 = im1[..., np.newaxis], im2[..., np.newaxis]
                 u = np.zeros((*img_size, 2))
-                mask = np.zeros((*img_size, 1))
-                batch = np.concatenate([im1, im2, u, mask], 2)
+                batch = np.concatenate([im1, im2, u], 2)
                 #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
                 batches.append(batch)
         else:
@@ -93,7 +94,7 @@ class MRI_Resp_2D(Input):
                     img = (img - np.mean(img)) / np.std(img)
                     img_size = np.shape(img)
                     motion_type = random.randint(0, 1)
-                    u = self._u_generation_2D(img_size, amplitude, motion_type=0)
+                    u = self._u_generation_2D(img_size, amplitude, motion_type=motion_type)
                     warped_img = np_warp_2D(img, u)
                     img, warped_img, = img[..., np.newaxis], warped_img[..., np.newaxis]
                     batch = np.concatenate([img, warped_img, u], 2)
@@ -110,15 +111,14 @@ class MRI_Resp_2D(Input):
                               batch_size=self.batch_size,
                               num_threads=self.num_threads)
 
-
     def _u_generation_2D(self, img_size, amplitude, motion_type=0):
-        '''
+        """
 
         :param img_size:
         :param amplitude:
         :param motion_type: 0: constant, 1: smooth
         :return:
-        '''
+        """
         M, N = img_size
         if motion_type == 0:
             u_C = np.random.rand(2)

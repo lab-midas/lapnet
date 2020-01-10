@@ -63,11 +63,11 @@ def write_rgb_png(z, path, bitdepth=8):
 
 
 def flow_to_int16(flow):
-    _, h, w, _ = tf.unstack(tf.shape(flow))
+    num_batch, h, w, _ = tf.unstack(tf.shape(flow))
     u, v = tf.unstack(flow, num=2, axis=3)
     r = tf.cast(tf.maximum(0.0, tf.minimum(u * 64.0 + 32768.0, 65535.0)), tf.uint16)
     g = tf.cast(tf.maximum(0.0, tf.minimum(v * 64.0 + 32768.0, 65535.0)), tf.uint16)
-    b = tf.ones([1, h, w], tf.uint16)
+    b = tf.ones([num_batch, h, w], tf.uint16)
     return tf.stack([r, g, b], axis=3)
 
 
@@ -255,35 +255,34 @@ def _evaluate_experiment(name, data_input, test_path, selected_frames, selected_
 #     f.add_subplot(3, 2, 2)
 #     plt.imshow(result[0][0][1][0, :, :, 0], cmap='gray')
 
-
-
 def show_results(result, save_path=None):
 
-    fig, ax = plt.subplots(2, 4, figsize=(8, 5))
-    ax[0][0].imshow(result[0][0][0][0, :, :, 0], cmap='gray')  # ref
-    ax[0][0].set_title('Orignal Img')
-    ax[0][1].imshow(result[0][0][1][0, :, :, 0], cmap='gray')  # mov
-    ax[0][1].set_title('Moving Img')
-    ax[0][2].imshow(result[0][0][2][0, :, :, 0], cmap='gray')  # warped
-    ax[0][2].set_title('Moving Corrected')
-    fig.delaxes(ax[0, 3])
-    ax[1][0].imshow(result[0][0][3][0, :, :, 0], cmap='gray')
-    ax[1][0].set_title('Original Error')
+    for num in range(np.shape(result[0][0][0])[0]):
+        fig, ax = plt.subplots(2, 4, figsize=(15, 8))
+        ax[0][0].imshow(result[0][0][0][num, :, :, 0], cmap='gray')  # ref
+        ax[0][0].set_title('Orignal Img')
+        ax[0][1].imshow(result[0][0][1][num, :, :, 0], cmap='gray')  # mov
+        ax[0][1].set_title('Moving Img')
+        ax[0][2].imshow(result[0][0][2][num, :, :, 0], cmap='gray')  # warped
+        ax[0][2].set_title('Moving Corrected')
+        fig.delaxes(ax[0, 3])
+        ax[1][0].imshow(result[0][0][3][num, :, :, 0], cmap='gray')
+        ax[1][0].set_title('Original Error')
 
-    ax[1][1].imshow(result[0][0][4][0, :, :, 0], cmap='gray')
-    ax[1][1].set_title('Warped Error')
+        ax[1][1].imshow(result[0][0][4][num, :, :, 0], cmap='gray')
+        ax[1][1].set_title('Warped Error')
 
-    ax[1][2].imshow(result[0][0][5][0, :, :, 0])
-    # ax[1][1].imshow(result[0][0][4][0, :, :, 0] * 255, cmap='jet', vmin=0, vmax=3.0)
-    ax[1][2].set_title('Predicted Flow')
+        ax[1][2].imshow(result[0][0][5][num, ...])
+        # ax[1][1].imshow(result[0][0][4][0, :, :, 0] * 255, cmap='jet', vmin=0, vmax=3.0)
+        ax[1][2].set_title('Predicted Flow')
 
-    ax[1][3].imshow(result[0][0][6][0, :, :, 0])
-    # ax[1][2].imshow(result[0][0][5][0, :, :, 0] * 255, cmap='jet', vmin=0, vmax=3.0)
-    ax[1][3].set_title('GT Flow')
-    plt.show()
-    if save_path:
-        plt.savefig(os.path.join(save_path, '.' + 'pdf'),
-                format='pdf')
+        ax[1][3].imshow(result[0][0][6][num, ...])
+        # ax[1][2].imshow(result[0][0][5][0, :, :, 0] * 255, cmap='jet', vmin=0, vmax=3.0)
+        ax[1][3].set_title('GT Flow')
+        plt.show()
+        if save_path:
+            plt.savefig(os.path.join(save_path, '.' + 'pdf'),
+                    format='pdf')
 
 
 def main(argv=None):
@@ -291,9 +290,11 @@ def main(argv=None):
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     test_dir = '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/'
     test_data = '001/Ph4_Tol100_t000_Ext00_EspOff_closest_recon.mat'
-    selected_frames = [0]
+    selected_frames = [0, 3]
     #selected_slices = list(range(15, 55))
     selected_slices = [35]
+    LAP = False
+    cross_test = False
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))
@@ -309,7 +310,7 @@ def main(argv=None):
     elif FLAGS.dataset == 'resp_2D':
         kdata = KITTIData(data_dir=dirs['data'], development=True)
         data_input = MRI_Resp_2D(data=kdata,
-                                 batch_size=1,
+                                 batch_size=4,
                                  normalize=False,
                                  dims=(256, 256))
         FLAGS.num = 1
@@ -322,11 +323,11 @@ def main(argv=None):
                                                    test_path,
                                                    selected_frames,
                                                    selected_slices,
-                                                   cross_test=False,
-                                                   LAP=False)
+                                                   cross_test=cross_test,
+                                                   LAP=LAP)
         results.append(result)
 
-    #display(results, image_names)
+    # display(results, image_names)
     show_results(results)
 
     pass

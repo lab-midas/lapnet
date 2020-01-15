@@ -42,8 +42,8 @@ def compute_losses(im1, im2, flow_fw, flow_bw,
     
     mag_sq_fw = length_sq(flow_fw) + length_sq(flow_bw_warped) 
     mag_sq_bw = length_sq(flow_bw) + length_sq(flow_fw_warped)
-    occ_thresh_fw =  0.01 * mag_sq_fw + 0.5
-    occ_thresh_bw =  0.01 * mag_sq_bw + 0.5
+    occ_thresh_fw = 0.01 * mag_sq_fw + 0.5
+    occ_thresh_bw = 0.01 * mag_sq_bw + 0.5
     
     fb_occ_fw = tf.cast(length_sq(flow_diff_fw) > occ_thresh_fw, tf.float32)
     fb_occ_bw = tf.cast(length_sq(flow_diff_bw) > occ_thresh_bw, tf.float32)
@@ -224,10 +224,10 @@ def _smoothness_deltas(flow):
 
 def _gradient_delta(im1, im2_warped):
     with tf.variable_scope('gradient_delta'):
-        filter_x = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]] # sobel filter
+        filter_x = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]  # sobel filter
         filter_y = np.transpose(filter_x)
-        weight_array = np.zeros([3, 3, 3, 6])
-        for c in range(3):
+        weight_array = np.zeros([3, 3, 1, 2])
+        for c in range(1):
             weight_array[:, :, c, 2 * c] = filter_x
             weight_array[:, :, c, 2 * c + 1] = filter_y
         weights = tf.constant(weight_array, dtype=tf.float32)

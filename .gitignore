@@ -3,7 +3,7 @@ log
 out
 data/
 log/
-/config.ini
+src/playground.py
 
 *.ckpt
 *~

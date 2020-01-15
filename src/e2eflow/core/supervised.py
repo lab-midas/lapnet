@@ -72,30 +72,43 @@ def supervised_loss(batch, params, normalization=None, LAP=False, augment=False)
             final_flow_fw = flow_fw * FLOW_SCALE * 4
         else:
             final_flow_fw = tf.image.resize_bilinear(flow_fw, im_shape) * FLOW_SCALE * 4
-        _track_image(flow_to_color(final_flow_fw), 'flow_pred_' + str(i))
+        # _track_image(flow_to_color(final_flow_fw), 'flow_pred_' + str(i))
 
         if LAP:
-            final_flow_fw = slim.conv2d(final_flow_fw, 1, 4, stride=1)
-            # final_flow_fw = tf.reduce_sum(final_flow_fw, axis=3)  # todo: find a better way!
-            # final_flow_fw = tf.expand_dims(final_flow_fw, -1)
-            paddings = tf.constant([[0, 0, ], [1, 1, ], [1, 1], [0, 0, ]])
-            final_flow_fw = tf.pad(final_flow_fw, paddings, 'SYMMETRIC')
-            filter_x = np.array([[-1, -1, -1],
-                                 [0, 0, 0],
-                                 [1, 1, 1]])
-            filter_y = np.array([[-1, 0, 1],
-                                 [-1, 0, 1],
-                                 [-1, 0, 1]])
-            filter_x = np.expand_dims(filter_x, -1)
-            filter_x = np.expand_dims(filter_x, -1)
-            filter_y = np.expand_dims(filter_y, -1)
-            filter_y = np.expand_dims(filter_y, -1)
-            a = tf.nn.conv2d(final_flow_fw, filter_x, strides=[1, 1, 1, 1], padding='VALID')
-            b = tf.nn.conv2d(final_flow_fw, filter_y, strides=[1, 1, 1, 1], padding='VALID')
-            flow_x = a / tf.reduce_sum(final_flow_fw)
-            flow_y = b / tf.reduce_sum(final_flow_fw)
+            with tf.variable_scope('LAP_layer'):
+                # final_flow_fw = LAP_layer(final_flow_fw)
+                # final_flow_fw = slim.conv2d(final_flow_fw, 1, 4, stride=1)
+                # final_flow_fw = tf.reduce_sum(final_flow_fw, axis=3)  # todo: find a better way!
+                # final_flow_fw = tf.expand_dims(final_flow_fw, -1)
+                # paddings = tf.constant([[0, 0, ], [1, 1, ], [1, 1], [0, 0, ]])
+                # final_flow_fw = tf.pad(final_flow_fw, paddings, 'SYMMETRIC')
+                filter_x = np.array([[-1, -1, -1],
+                                     [0, 0, 0],
+                                     [1, 1, 1]])
+                filter_y = np.array([[-1, 0, 1],
+                                     [-1, 0, 1],
+                                     [-1, 0, 1]])
+                filter_sum = np.array([[1, 1, 1],
+                                      [1, 1, 1],
+                                      [1, 1, 1]])
 
-            final_flow_fw = tf.concat([flow_x, flow_y], axis=3)
+                filter_x = np.expand_dims(filter_x, -1)
+                filter_x = np.expand_dims(filter_x, -1)
+                filter_y = np.expand_dims(filter_y, -1)
+                filter_y = np.expand_dims(filter_y, -1)
+                filter_sum = np.expand_dims(filter_sum, -1)
+                filter_sum = np.expand_dims(filter_sum, -1)
+
+                weights_x = tf.constant(filter_x, dtype=tf.float32)
+                weights_y = tf.constant(filter_y, dtype=tf.float32)
+                a = tf.nn.conv2d(final_flow_fw, weights_x, strides=[1, 1, 1, 1], padding='SAME')
+                b = tf.nn.conv2d(final_flow_fw, weights_y, strides=[1, 1, 1, 1], padding='SAME')
+                denomi = tf.nn.conv2d(final_flow_fw, filter_sum, strides=[1, 1, 1, 1], padding='SAME')
+
+                flow_x = tf.math.truediv(a, denomi)
+                flow_y = tf.math.truediv(b, denomi)
+
+                final_flow_fw = tf.concat([flow_x, flow_y], axis=3)
 
         net_loss = charbonnier_loss(final_flow_fw - flow_gt, mask=None)
         # layer_weight = layer_weights[i]
@@ -107,3 +120,10 @@ def supervised_loss(batch, params, normalization=None, LAP=False, augment=False)
     _track_loss(final_loss, 'loss/combined')
 
     return final_loss, final_flow_fw
+
+
+# def LAP_layer(flow):
+#
+#
+#
+#     return final_layer

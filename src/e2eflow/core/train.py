@@ -161,7 +161,8 @@ class Trainer():
                 _add_image_summaries()
 
         if len(self.devices) == 1:
-            loss_, _ = self.loss_fn(batch, self.params, self.normalization, LAP=False)
+            # loss_, _ = self.loss_fn(batch, self.params, self.normalization)
+            loss_, _ = self.loss_fn(batch, self.params, self.normalization, LAP=True)
             train_op = opt.minimize(loss_)
             _add_summaries()
         else:   # JP: below is for multi-gpu train, haven't seen yet

@@ -47,6 +47,18 @@ def np_warp_2D(img, flow):
     return warped
 
 
+def load_mat_file(fn_im_path):
+    try:
+        f = sio.loadmat(fn_im_path)
+    except Exception:
+        try:
+            f = h5py.File(fn_im_path, 'r')
+        except IOError:
+            # print("File {} is defective and cannot be read!".format(fn_im_path))
+            raise IOError("File {} is defective and cannot be read!".format(fn_im_path))
+    return f
+
+
 def _u_generation_2D(img_size, amplitude, motion_type=0):
     """
 
@@ -100,25 +112,201 @@ class MRI_Resp_2D(Input):
             img_dir = os.path.join(self.data.current_dir, img_dir)
             img_files = os.listdir(img_dir)
             for img_file in img_files:
-                if not img_file.startswith('.'):
-                    try:
-                        img_mat = os.listdir(os.path.join(img_dir, img_file))[0]
-                    except Exception:
-                        print("File {} is empty!".format(img_file))
-                        continue
-                    fn_im_paths.append(os.path.join(img_dir, img_file, img_mat))
+                if '.mat' in img_file:
+                    im_path = os.path.join(img_dir, img_file)
+                    fn_im_paths.append(im_path)
+                else:
+                    if not img_file.startswith('.'):
+                        try:
+                            img_mat = os.listdir(os.path.join(img_dir, img_file))[0]
+                        except Exception:
+                            print("File {} is empty!".format(img_file))
+                            continue
+                        fn_im_paths.append(os.path.join(img_dir, img_file, img_mat))
         return fn_im_paths
 
-    def input_train_data(self, img_dirs, selected_frames, selected_slices, amplitude, cross_test=False):
-        # img_dirs = ['resp/patient',
-        #             'resp/volunteer']
-        # selected_frames = [0, 3]
-        # selected_slices = list(range(15, 55))
-        # amplitude = 30
-        flow_augment_type = ['constant', 'smooth']
+    def load_real_simulated_data(self, fn_im_paths, selected_slices, max_num_to_take=2000):
+        batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
+        for fn_im_path in fn_im_paths:
+            f = load_mat_file(fn_im_path)
+            im1 = f['I1_real'][..., selected_slices]
+            im1 = im1[np.newaxis, ...]
+            im2 = f['I1_Real_hat'][..., selected_slices]
+            im2 = im2[np.newaxis, ...]
+            u0 = f['u_Real_est_1'][..., selected_slices]
+            u0 = u0[np.newaxis, ...]
+            u1 = f['u_Real_est_2'][..., selected_slices]
+            u1 = u1[np.newaxis, ...]
+            batch = np.concatenate((im1, im2, u0, u1), axis=0)
+            batch = np.swapaxes(batch, 0, 3)
+            # batch = batch.tolist()
+            batches = np.concatenate((batches, batch), axis=0)
+            if len(batches) >= max_num_to_take:
+                batches = batches[:max_num_to_take, ...]
+                print("{} real simulated data are generated".format((len(batches))))
+                return batches
+        return batches
 
-        fn_im_paths = self.get_data_paths(img_dirs)
+    def augmentation(self,
+                     fn_im_paths,
+                     motion_shares,
+                     amplitude,
+                     selected_frames,
+                     selected_slices,
+                     max_num_to_take=2000,
+                     cross_test=False):
+        # batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
         batches = []
+        for fn_im_path in fn_im_paths:
+            dset = load_mat_file(fn_im_path)
+            dset = dset['dImg']
+            try:
+                dset = np.array(dset, dtype=np.float32)
+                # dset = tf.constant(dset, dtype=tf.float32)
+            except ImportError:
+                print("File {} is defective and cannot be read!".format(fn_im_path))
+                continue
+            dset = np.transpose(dset, (2, 3, 1, 0))
+            dset = dset[..., selected_frames]
+            dset = dset[..., selected_slices, :]
+            for frame in range(np.shape(dset)[3]):
+                for slice in range(np.shape(dset)[2]):
+                    if not cross_test:
+                        img = dset[..., slice, :][..., frame]
+                        # img = (img - np.mean(img)) / np.std(img)
+                        img = (img - np.amin(img)) / (np.amax(img) - np.amin(img))
+                        img_size = np.shape(img)
+                        motion_type = np.random.choice(np.arange(0, 2), p=motion_shares)
+                        u = _u_generation_2D(img_size, amplitude, motion_type=motion_type)
+                        warped_img = np_warp_2D(img, u)
+                        img, warped_img, = img[..., np.newaxis], warped_img[..., np.newaxis]
+                        batch = np.concatenate([img, warped_img, u], 2)
+                        batches.append(batch)
+
+                        # batch = batch[np.newaxis, ...]
+                        # #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
+                        # batches = np.concatenate((batches, batch), axis=0) # this step is too slow
+                        if len(batches) >= max_num_to_take:
+                            batches = batches[:max_num_to_take]
+                            print("{} augmented data with synthetic flows are generated".format((len(batches))))
+
+                            return np.asarray(batches, dtype=np.float32)
+                    else:
+                        im1 = dset[..., slice, 0]
+                        im2 = dset[..., slice, 1]
+                        im1 = (im1 - np.amin(im1)) / (np.amax(im1) - np.amin(im1))
+                        im2 = (im2 - np.amin(im2)) / (np.amax(im2) - np.amin(im2))
+                        # im1 = (im1 - np.mean(im1)) / np.std(im1)
+                        # im2 = (im2 - np.mean(im2)) / np.std(im2)
+                        img_size = np.shape(im1)
+                        im1, im2 = im1[..., np.newaxis], im2[..., np.newaxis]
+                        u = np.zeros((*img_size, 2))
+                        batch = np.concatenate([im1, im2, u], 2)
+                        #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
+                        batches.append(batch)
+
+        return np.asarray(batches, dtype=np.float32)
+
+    def input_train_data(self,
+                         img_dirs,
+                         img_dirs_real_simulated,
+                         data_per_interval,
+                         selected_frames,
+                         selected_slices,
+                         augment_type_percent,
+                         amplitude,
+                         cross_test=False):
+
+        flow_augment_type = ['constant', 'smooth', 'real_simulated']
+        batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
+
+        real_simulated_data_num = math.floor(data_per_interval * augment_type_percent[2])
+        fn_im_paths = self.get_data_paths(img_dirs_real_simulated)
+        random.shuffle(fn_im_paths)
+        batches_real_simulated = self.load_real_simulated_data(fn_im_paths, selected_slices, real_simulated_data_num)
+        batches = np.concatenate((batches, batches_real_simulated), axis=0)
+
+        augmented_data_num = math.floor(data_per_interval * sum(augment_type_percent[:2]))
+        motion_1_share = augment_type_percent[0] / sum(augment_type_percent[:2])
+        motion_2_share = augment_type_percent[1] / sum(augment_type_percent[:2])
+        fn_im_paths = self.get_data_paths(img_dirs)
+        random.shuffle(fn_im_paths)
+        batches_augmented = self.augmentation(fn_im_paths,
+                                              [motion_1_share, motion_2_share],
+                                              amplitude,
+                                              selected_frames,
+                                              selected_slices,
+                                              augmented_data_num)
+        batches = np.concatenate((batches, batches_augmented), axis=0)
+        np.random.shuffle(batches)
+
+        im1_queue = tf.train.slice_input_producer([batches[..., 0]], shuffle=False,
+                                                  capacity=len(list(batches[..., 0])), num_epochs=None)
+        im2_queue = tf.train.slice_input_producer([batches[..., 1]], shuffle=False,
+                                                  capacity=len(list(batches[..., 1])), num_epochs=None)
+        flow_queue = tf.train.slice_input_producer([batches[..., 2:4]], shuffle=False,
+                                                   capacity=len(list(batches[..., 2:4])), num_epochs=None)
+        # num_queue = tf.train.slice_input_producer([patient_num], shuffle=False,
+        #                                            capacity=len(list(patient_num)), num_epochs=None)
+        return tf.train.batch([im1_queue, im2_queue, flow_queue],
+                              batch_size=self.batch_size,
+                              num_threads=self.num_threads)
+
+    def input_test_data(self, test_types, img_dir, img_dir_matlab_simulated, selected_frames, selected_slices, amplitude, cross_test=False):
+        batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
+        for test_type in test_types:
+            if test_type is 0:
+                fn_im_paths = self.get_data_paths(img_dir)
+                batch = self.augmentation(fn_im_paths,
+                                          [1, 0],
+                                          amplitude,
+                                          selected_frames,
+                                          selected_slices)
+                batch = batch[0, ...]  # only take the first sample
+                batch = batch[np.newaxis, ...]
+            elif test_type is 1:
+                fn_im_paths = self.get_data_paths(img_dir)
+                batch = self.augmentation(fn_im_paths,
+                                          [0, 1],
+                                          amplitude,
+                                          selected_frames,
+                                          selected_slices)
+                batch = batch[0, ...]  # only take the first sample
+                batch = batch[np.newaxis, ...]
+            elif test_type is 2:
+                fn_im_paths = self.get_data_paths(img_dir)
+                batch = self.augmentation(fn_im_paths,
+                                          [0, 1],
+                                          amplitude,
+                                          selected_frames,
+                                          selected_slices,
+                                          cross_test=True)
+                batch = batch[0, ...]  # only take the first sample
+                batch = batch[np.newaxis, ...]
+            elif test_type is 3:
+                fn_im_paths = self.get_data_paths(img_dir_matlab_simulated)
+                batch = self.load_real_simulated_data(fn_im_paths, selected_slices)
+            else:
+                raise ImportError('Wrong test type is given')
+
+            batches = np.concatenate((batches, batch), axis=0)
+
+        im1_queue = tf.train.slice_input_producer([batches[..., 0]], shuffle=False,
+                                                  capacity=len(list(batches[..., 0])), num_epochs=None)
+        im2_queue = tf.train.slice_input_producer([batches[..., 1]], shuffle=False,
+                                                  capacity=len(list(batches[..., 1])), num_epochs=None)
+        flow_queue = tf.train.slice_input_producer([batches[..., 2:4]], shuffle=False,
+                                                   capacity=len(list(batches[..., 2:4])), num_epochs=None)
+        # num_queue = tf.train.slice_input_producer([patient_num], shuffle=False,
+        #                                            capacity=len(list(patient_num)), num_epochs=None)
+        return tf.train.batch([im1_queue, im2_queue, flow_queue],
+                              batch_size=self.batch_size,
+                              num_threads=self.num_threads)
+
+    def input_test1_data(self, img_dirs, selected_frames, selected_slices, amplitude, cross_test=False):
+
+        batches = []
+        fn_im_paths = self.get_data_paths(img_dirs)
         for fn_im_path in fn_im_paths:
             with h5py.File(fn_im_path, 'r') as f:
                 # fn_im_raw = sio.loadmat(fn_im_path)
@@ -126,7 +314,7 @@ class MRI_Resp_2D(Input):
                 try:
                     dset = np.array(dset, dtype=np.float32)
                     # dset = tf.constant(dset, dtype=tf.float32)
-                except Exception:
+                except ImportError:
                     print("File {} is defective and cannot be read!".format(fn_im_path))
                     continue
                 dset = np.transpose(dset, (2, 3, 1, 0))
@@ -136,10 +324,11 @@ class MRI_Resp_2D(Input):
                 for frame in range(np.shape(dset)[3]):
                     for slice in range(np.shape(dset)[2]):
                         img = dset[..., slice, :][..., frame]
-                        img = (img - np.mean(img)) / np.std(img)
-                        # img = (img - np.amin(img)) / (np.amax(img) - np.amin(img))
+                        # img = (img - np.mean(img)) / np.std(img)
+                        img = (img - np.amin(img)) / (np.amax(img) - np.amin(img))
                         img_size = np.shape(img)
-                        motion_type = random.randint(0, 1)
+                        motion_type = random.randint(0, 2)
+                        motion_type = 0
                         u = _u_generation_2D(img_size, amplitude, motion_type=motion_type)
                         warped_img = np_warp_2D(img, u)
                         img, warped_img, = img[..., np.newaxis], warped_img[..., np.newaxis]
@@ -148,20 +337,23 @@ class MRI_Resp_2D(Input):
                             batch = np.concatenate([img, warped_img, u], 2)
                             #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
                             batches.append(batch)
+                            print(len(batches))
                         except Exception:
                             pass
                             print('the size of {} is {}, does not match {}. '
                                   'It cannot be loaded!'.format(fn_im_path, np.shape(img)[:2], self.dims))
                             break
                     # break
-                if len(batches) > 1000:
+                if len(batches) > 1600:
                     break
             else:
                 for slice in range(np.shape(dset)[2]):
                     im1 = dset[..., slice, 0]
                     im2 = dset[..., slice, 1]
-                    im1 = (im1 - np.mean(im1)) / np.std(im1)
-                    im2 = (im2 - np.mean(im2)) / np.std(im2)
+                    im1 = (im1 - np.amin(im1)) / (np.amax(im1) - np.amin(im1))
+                    im2 = (im2 - np.amin(im2)) / (np.amax(im2) - np.amin(im2))
+                    # im1 = (im1 - np.mean(im1)) / np.std(im1)
+                    # im2 = (im2 - np.mean(im2)) / np.std(im2)
                     img_size = np.shape(im1)
                     im1, im2 = im1[..., np.newaxis], im2[..., np.newaxis]
                     u = np.zeros((*img_size, 2))
@@ -187,8 +379,7 @@ class MRI_Resp_2D(Input):
         return tf.train.batch([im1_queue, im2_queue, flow_queue],
                               batch_size=self.batch_size,
                               num_threads=self.num_threads)
-
-
+        pass
         # im1 = tf.data.Dataset.from_tensor_slices(batches[..., 0])
         # im2 = tf.data.Dataset.from_tensor_slices(batches[..., 1])
         # flow_gt = tf.data.Dataset.from_tensor_slices(batches[..., 2:4])

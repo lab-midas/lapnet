@@ -91,8 +91,11 @@ def main(argv=None):
                            dims=(ftconfig['height'], ftconfig['width']))
         tr = Trainer(
             lambda: ftinput.input_train_data(img_dirs=['resp/patient', 'resp/volunteer'],
+                                             img_dirs_real_simulated=['resp/matlab_simulated_data'],
+                                             data_per_interval=1000,
                                              selected_frames=[0, 3],
                                              selected_slices=list(range(15, 55)),
+                                             augment_type_percent=[0.2, 0, 0.8],
                                              amplitude=ftconfig.get('flow_amplitude'),
                                              ),
             lambda: einput.input_train_2015(40),

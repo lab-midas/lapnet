@@ -136,7 +136,7 @@ def _evaluate_experiment(name, data, LAP=False):
 
         flow_fw_int16 = flow_to_int16(flow)
 
-        im1_pred = image_warp(im2, -flow)
+        im1_pred = image_warp(im2, flow)
         im1_diff = tf.abs(im1 - im1_pred)
         ori_diff = tf.abs(im1 - im2)
         flow_diff = tf.abs(flow - flow_gt)
@@ -286,13 +286,17 @@ def show_results(result, save_path=None):
 def main(argv=None):
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
-    test_dir = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/']
+
+    test_dir = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/001']
+    test_dir_matlab_simulated = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
+    # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
+    test_types = [0, 3]
     selected_frames = [0, 3]
     #selected_slices = list(range(15, 55))
     selected_slices = [35]
-    amplitude = 30
+    amplitude = 20
     LAP = False
-    cross_test = True
+
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))
@@ -308,7 +312,7 @@ def main(argv=None):
     elif FLAGS.dataset == 'resp_2D':
         kdata = KITTIData(data_dir=dirs['data'], development=True)
         data_input = MRI_Resp_2D(data=kdata,
-                                 batch_size=2,
+                                 batch_size=len(test_types),
                                  normalize=False,
                                  dims=(256, 256))
         FLAGS.num = 1
@@ -317,11 +321,12 @@ def main(argv=None):
     results = []
     for name in FLAGS.ex.split(','):
         result, image_names = _evaluate_experiment(name,
-                                                   lambda: data_input.input_train_data(img_dirs=test_dir,
-                                                                                       selected_frames=selected_frames,
-                                                                                       selected_slices=selected_slices,
-                                                                                       amplitude=amplitude,
-                                                                                       cross_test=cross_test),
+                                                   lambda: data_input.input_test_data(test_types=test_types,
+                                                                                      img_dir=test_dir,
+                                                                                      img_dir_matlab_simulated=test_dir_matlab_simulated,
+                                                                                      selected_frames=selected_frames,
+                                                                                      selected_slices=selected_slices,
+                                                                                      amplitude=amplitude),
                                                    LAP=LAP)
         results.append(result)
 

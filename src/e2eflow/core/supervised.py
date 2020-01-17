@@ -9,7 +9,7 @@ from .flownet import flownet
 from .unsupervised import _track_image, _track_loss, FLOW_SCALE
 
 
-def supervised_loss(batch, params, normalization=None, LAP=False, augment=False):
+def supervised_loss(batch, params, normalization=None, LAP_layer=False, augment=False):
     # channel_mean = tf.constant(normalization[0]) / 255.0
     im1, im2, flow_gt = batch
     # im1, im2, flow_gt, mask_gt = tf.squeeze(im1), tf.squeeze(im2), tf.squeeze(flow_gt), tf.squeeze(mask_gt)
@@ -59,7 +59,8 @@ def supervised_loss(batch, params, normalization=None, LAP=False, augment=False)
     flows_fw = flownet(im1_photo, im2_photo,
                        flownet_spec=flownet_spec,
                        full_resolution=full_resolution,
-                       train_all=train_all)
+                       train_all=train_all,
+                       LAP_layer=LAP_layer)
     
     if not train_all:
         flows_fw = [flows_fw[-1]]
@@ -74,7 +75,7 @@ def supervised_loss(batch, params, normalization=None, LAP=False, augment=False)
             final_flow_fw = tf.image.resize_bilinear(flow_fw, im_shape) * FLOW_SCALE * 4
         # _track_image(flow_to_color(final_flow_fw), 'flow_pred_' + str(i))
 
-        if LAP:
+        if LAP_layer:
             with tf.variable_scope('LAP_layer'):
                 # final_flow_fw = LAP_layer(final_flow_fw)
                 # final_flow_fw = slim.conv2d(final_flow_fw, 1, 4, stride=1)
@@ -82,32 +83,34 @@ def supervised_loss(batch, params, normalization=None, LAP=False, augment=False)
                 # final_flow_fw = tf.expand_dims(final_flow_fw, -1)
                 # paddings = tf.constant([[0, 0, ], [1, 1, ], [1, 1], [0, 0, ]])
                 # final_flow_fw = tf.pad(final_flow_fw, paddings, 'SYMMETRIC')
-                filter_x = np.array([[-1, -1, -1],
-                                     [0, 0, 0],
-                                     [1, 1, 1]])
-                filter_y = np.array([[-1, 0, 1],
-                                     [-1, 0, 1],
-                                     [-1, 0, 1]])
-                filter_sum = np.array([[1, 1, 1],
-                                      [1, 1, 1],
-                                      [1, 1, 1]])
-
-                filter_x = np.expand_dims(filter_x, -1)
-                filter_x = np.expand_dims(filter_x, -1)
-                filter_y = np.expand_dims(filter_y, -1)
-                filter_y = np.expand_dims(filter_y, -1)
-                filter_sum = np.expand_dims(filter_sum, -1)
-                filter_sum = np.expand_dims(filter_sum, -1)
-
-                weights_x = tf.constant(filter_x, dtype=tf.float32)
-                weights_y = tf.constant(filter_y, dtype=tf.float32)
-                a = tf.nn.conv2d(final_flow_fw, weights_x, strides=[1, 1, 1, 1], padding='SAME')
-                b = tf.nn.conv2d(final_flow_fw, weights_y, strides=[1, 1, 1, 1], padding='SAME')
-                denomi = tf.nn.conv2d(final_flow_fw, filter_sum, strides=[1, 1, 1, 1], padding='SAME')
-
-                flow_x = tf.math.truediv(a, denomi)
-                flow_y = tf.math.truediv(b, denomi)
-
+                # filter_x = np.array([[-1, -1, -1],
+                #                      [0, 0, 0],
+                #                      [1, 1, 1]])
+                # filter_y = np.array([[-1, 0, 1],
+                #                      [-1, 0, 1],
+                #                      [-1, 0, 1]])
+                # filter_sum = np.array([[1, 1, 1],
+                #                       [1, 1, 1],
+                #                       [1, 1, 1]])
+                #
+                # filter_x = np.expand_dims(filter_x, -1)
+                # filter_x = np.expand_dims(filter_x, -1)
+                # filter_y = np.expand_dims(filter_y, -1)
+                # filter_y = np.expand_dims(filter_y, -1)
+                # filter_sum = np.expand_dims(filter_sum, -1)
+                # filter_sum = np.expand_dims(filter_sum, -1)
+                #
+                # weights_x = tf.constant(filter_x, dtype=tf.float32)
+                # weights_y = tf.constant(filter_y, dtype=tf.float32)
+                # a = tf.nn.conv2d(final_flow_fw, weights_x, strides=[1, 1, 1, 1], padding='SAME')
+                # b = tf.nn.conv2d(final_flow_fw, weights_y, strides=[1, 1, 1, 1], padding='SAME')
+                # denomi = tf.nn.conv2d(final_flow_fw, filter_sum, strides=[1, 1, 1, 1], padding='SAME')
+                #
+                # flow_x = tf.math.truediv(a, denomi)
+                # flow_y = tf.math.truediv(b, denomi)
+                flow_nominator_x, flow_nominator_y, denominator = tf.split(axis=3, num_or_size_splits=3, value=final_flow_fw)
+                flow_x = tf.math.truediv(flow_nominator_x, denominator)
+                flow_y = tf.math.truediv(flow_nominator_y, denominator)
                 final_flow_fw = tf.concat([flow_x, flow_y], axis=3)
 
         net_loss = charbonnier_loss(final_flow_fw - flow_gt, mask=None)

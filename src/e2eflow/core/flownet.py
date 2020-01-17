@@ -11,7 +11,7 @@ from .flow_util import flow_to_color
 FLOW_SCALE = 5
 
 
-def flownet(im1, im2, flownet_spec='S', full_resolution=False, train_all=False,
+def flownet(im1, im2, flownet_spec='S', full_resolution=False, train_all=False, LAP_layer=False,
             backward_flow=False):
     num_batch, height, width, _ = tf.unstack(tf.shape(im1))
     flownet_num = len(flownet_spec)
@@ -40,7 +40,8 @@ def flownet(im1, im2, flownet_spec='S', full_resolution=False, train_all=False,
                         scope.reuse_variables()
                         flow_bw = flownet_c(conv3_b, conv3_a, conv2_b,
                                             full_res=full_res,
-                                            channel_mult=channel_mult)
+                                            channel_mult=channel_mult,
+                                            LAP_layer=LAP_layer)
                         flows_bw.append(flow_bw)
             elif name.lower() == 's':
                 def _flownet_s(im1, im2, flow=None):
@@ -59,7 +60,8 @@ def flownet(im1, im2, flownet_spec='S', full_resolution=False, train_all=False,
                         inputs = tf.concat([im1, im2], 3)
                     return flownet_s(inputs,
                                      full_res=full_res,
-                                     channel_mult=channel_mult)
+                                     channel_mult=channel_mult,
+                                     LAP_layer=LAP_layer)
                 stacked = len(flows_fw) > 0
                 with tf.variable_scope('flownet_s') as scope:
                     flow_fw = _flownet_s(im1, im2, flows_fw[-1][0] if stacked else None)
@@ -89,6 +91,7 @@ def _leaky_relu(x):
 def _flownet_upconv(conv6_1, conv5_1, conv4_1, conv3_1, conv2, conv1=None, inputs=None,
                     channel_mult=1, full_res=False, channels=2):
     m = channel_mult
+    channels = channels
 
     flow6 = slim.conv2d(conv6_1, channels, 3, scope='flow6',
                         activation_fn=None)
@@ -125,7 +128,7 @@ def _flownet_upconv(conv6_1, conv5_1, conv4_1, conv3_1, conv2, conv1=None, input
                                      scope='flow3_up2',
                                      activation_fn=None)
     concat2 = tf.concat([conv2, deconv2, flow3_up2], 1)
-    channels = 2
+
     flow2 = slim.conv2d(concat2, channels, 3, scope='flow2',
                        activation_fn=None)
 
@@ -164,7 +167,7 @@ def nchw_to_nhwc(tensors):
     return [tf.transpose(t, [0, 2, 3, 1]) for t in tensors]
 
 
-def flownet_s(inputs, channel_mult=1, full_res=False):
+def flownet_s(inputs, channel_mult=1, full_res=False, LAP_layer=False):
     """Given stacked inputs, returns flow predictions in decreasing resolution.
 
     Uses FlowNetSimple.
@@ -188,8 +191,12 @@ def flownet_s(inputs, channel_mult=1, full_res=False):
         conv6 = slim.conv2d(conv5_1, int(1024 * m), 3, stride=2, scope='conv6')
         conv6_1 = slim.conv2d(conv6, int(1024 * m), 3, stride=1, scope='conv6_1')
 
+        if LAP_layer:
+            channels = 3
+        else:
+            channels = 2
         res = _flownet_upconv(conv6_1, conv5_1, conv4_1, conv3_1, conv2, conv1, inputs,
-                              channel_mult=channel_mult, full_res=full_res)
+                              channel_mult=channel_mult, full_res=full_res, channels=channels)
         return nchw_to_nhwc(res)
 
 
@@ -207,7 +214,7 @@ def flownet_c_features(im, channel_mult=1, reuse=None):
         return conv1, conv2, conv3
 
 
-def flownet_c(conv3_a, conv3_b, conv2_a, channel_mult=1, full_res=False):
+def flownet_c(conv3_a, conv3_b, conv2_a, channel_mult=1, full_res=False, LAP_layer=False):
     """Given two images, returns flow predictions in decreasing resolution.
 
     Uses FlowNetCorr.
@@ -233,6 +240,11 @@ def flownet_c(conv3_a, conv3_b, conv2_a, channel_mult=1, full_res=False):
         conv6 = slim.conv2d(conv5_1, int(1024 * m), 3, stride=2, scope='conv6')
         conv6_1 = slim.conv2d(conv6, int(1024 * m), 3, stride=1, scope='conv6_1')
 
+        if LAP_layer:
+            channels = 3
+        else:
+            channels = 2
+
         res = _flownet_upconv(conv6_1, conv5_1, conv4_1, conv3_1, conv2_a,
-                              channel_mult=channel_mult, full_res=full_res)
+                              channel_mult=channel_mult, full_res=full_res, channels=channels)
         return nchw_to_nhwc(res)

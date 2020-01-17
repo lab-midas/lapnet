@@ -92,10 +92,10 @@ def main(argv=None):
         tr = Trainer(
             lambda: ftinput.input_train_data(img_dirs=['resp/patient', 'resp/volunteer'],
                                              img_dirs_real_simulated=['resp/matlab_simulated_data'],
-                                             data_per_interval=1000,
+                                             data_per_interval=ftconfig.get('data_per_interval'),
                                              selected_frames=[0, 3],
                                              selected_slices=list(range(15, 55)),
-                                             augment_type_percent=[0.2, 0, 0.8],
+                                             augment_type_percent=ftconfig.get('augment_type_percent'),
                                              amplitude=ftconfig.get('flow_amplitude'),
                                              ),
             lambda: einput.input_train_2015(40),
@@ -108,7 +108,8 @@ def main(argv=None):
             ckpt_dir=experiment.save_dir,
             debug=FLAGS.debug,
             interactive_plot=run_config.get('interactive_plot'),
-            devices=devices)
+            devices=devices,
+            LAP_layer=ftconfig.get('lap_layer'))
         tr.run(0, ftiters)
     elif train_dataset == 'card_2D':
         pass  # todo

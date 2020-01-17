@@ -99,7 +99,7 @@ class Trainer():
     def __init__(self, train_batch_fn, eval_batch_fn, params,
                  train_summaries_dir, eval_summaries_dir, ckpt_dir,
                  normalization, debug=False, experiment="", interactive_plot=False,
-                 supervised=False, devices=None):
+                 supervised=False, devices=None, LAP_layer=False):
 
         self.train_summaries_dir = train_summaries_dir
         self.eval_summaries_dir = eval_summaries_dir
@@ -116,6 +116,7 @@ class Trainer():
         self.loss_fn = supervised_loss if supervised else unsupervised_loss
         self.devices = devices or '/gpu:0'
         self.shared_device = devices[0] if len(devices) == 1 else '/cpu:0'
+        self.LAP_layer = LAP_layer
 
     def run(self, min_iter, max_iter):
         """Train (at most) from min_iter + 1 to max_iter.
@@ -162,7 +163,7 @@ class Trainer():
 
         if len(self.devices) == 1:
             # loss_, _ = self.loss_fn(batch, self.params, self.normalization)
-            loss_, _ = self.loss_fn(batch, self.params, self.normalization, LAP=True)
+            loss_, _ = supervised_loss(batch, self.params, self.normalization, LAP_layer=self.LAP_layer)
             train_op = opt.minimize(loss_)
             _add_summaries()
         else:   # JP: below is for multi-gpu train, haven't seen yet
@@ -269,7 +270,7 @@ class Trainer():
                 coord.join(threads)
 
     def eval(self, num):
-        assert num == 1 # TODO enable num > 1
+        assert num == 1  # TODO enable num > 1
 
         with tf.Graph().as_default():
             inputs = self.eval_batch_fn()

@@ -90,7 +90,7 @@ def write_flo(flow, filename):
     f.close()
 
 
-def _evaluate_experiment(name, data, LAP=False):
+def _evaluate_experiment(name, data, LAP_layer=False):
 
     current_config = config_dict('../config.ini')
     exp_dir = os.path.join(current_config['dirs']['log'], 'ex', name)
@@ -128,7 +128,7 @@ def _evaluate_experiment(name, data, LAP=False):
                      normalization=None,
                      augment=False,
                      params=params,
-                     LAP=LAP)
+                     LAP_layer=LAP_layer)
 
         # im1 = resize_output(im1, height, width, 3)
         # im2 = resize_output(im2, height, width, 3)
@@ -136,7 +136,7 @@ def _evaluate_experiment(name, data, LAP=False):
 
         flow_fw_int16 = flow_to_int16(flow)
 
-        im1_pred = image_warp(im2, flow)
+        im1_pred = image_warp(im2, -flow)  # todo
         im1_diff = tf.abs(im1 - im1_pred)
         ori_diff = tf.abs(im1 - im2)
         flow_diff = tf.abs(flow - flow_gt)
@@ -290,12 +290,12 @@ def main(argv=None):
     test_dir = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/001']
     test_dir_matlab_simulated = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
-    test_types = [0, 3]
+    test_types = [3]
     selected_frames = [0, 3]
     #selected_slices = list(range(15, 55))
     selected_slices = [35]
     amplitude = 20
-    LAP = False
+    LAP_layer = False
 
 
     print("-- evaluating: on {} pairs from {}"
@@ -327,7 +327,7 @@ def main(argv=None):
                                                                                       selected_frames=selected_frames,
                                                                                       selected_slices=selected_slices,
                                                                                       amplitude=amplitude),
-                                                   LAP=LAP)
+                                                   LAP_layer=LAP_layer)
         results.append(result)
 
     # display(results, image_names)

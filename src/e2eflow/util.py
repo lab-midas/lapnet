@@ -83,6 +83,8 @@ def convert_input_strings(config_dct, dirs):
             assert ckpt, "Could not load experiment " + name
             finetune.append(ckpt)
         config_dct['finetune'] = finetune
+    if 'augment_type_percent' in config_dct:
+        config_dct['augment_type_percent'] = [float(i) for i in config_dct['augment_type_percent'].split(',')]
 
 
 def tryremove(name, file=False):

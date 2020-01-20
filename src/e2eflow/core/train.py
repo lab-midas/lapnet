@@ -263,8 +263,9 @@ class Trainer():
                         # print(num[0])
 
                 save_path = os.path.join(self.ckpt_dir, 'model.ckpt')
-                saver.save(sess, save_path, global_step=max_iter)
-
+                # saver.save(sess, save_path, global_step=max_iter)
+                saver.save(sess, save_path)
+                
                 summary_writer.close()
                 coord.request_stop()
                 coord.join(threads)

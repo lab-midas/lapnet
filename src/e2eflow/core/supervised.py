@@ -77,12 +77,11 @@ def supervised_loss(batch, params, normalization=None, LAP_layer=False, augment=
 
         if LAP_layer:
             with tf.variable_scope('LAP_layer'):
-                # final_flow_fw = LAP_layer(final_flow_fw)
-                # final_flow_fw = slim.conv2d(final_flow_fw, 1, 4, stride=1)
-                # final_flow_fw = tf.reduce_sum(final_flow_fw, axis=3)  # todo: find a better way!
-                # final_flow_fw = tf.expand_dims(final_flow_fw, -1)
-                # paddings = tf.constant([[0, 0, ], [1, 1, ], [1, 1], [0, 0, ]])
-                # final_flow_fw = tf.pad(final_flow_fw, paddings, 'SYMMETRIC')
+
+                # # final_flow_fw = tf.reduce_sum(final_flow_fw, axis=3)  # todo: find a better way!
+                # # final_flow_fw = tf.expand_dims(final_flow_fw, -1)
+                # # paddings = tf.constant([[0, 0, ], [1, 1, ], [1, 1], [0, 0, ]])
+                # # final_flow_fw = tf.pad(final_flow_fw, paddings, 'SYMMETRIC')
                 # filter_x = np.array([[-1, -1, -1],
                 #                      [0, 0, 0],
                 #                      [1, 1, 1]])
@@ -108,6 +107,7 @@ def supervised_loss(batch, params, normalization=None, LAP_layer=False, augment=
                 #
                 # flow_x = tf.math.truediv(a, denomi)
                 # flow_y = tf.math.truediv(b, denomi)
+
                 flow_nominator_x, flow_nominator_y, denominator = tf.split(axis=3, num_or_size_splits=3, value=final_flow_fw)
                 flow_x = tf.math.truediv(flow_nominator_x, denominator)
                 flow_y = tf.math.truediv(flow_nominator_y, denominator)

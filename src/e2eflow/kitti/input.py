@@ -69,7 +69,8 @@ def _u_generation_2D(img_size, amplitude, motion_type=0):
     """
     M, N = img_size
     if motion_type == 0:
-        u_C = np.random.rand(2)
+        # u_C = np.random.rand(2)
+        u_C = -1 + 2 * np.random.rand(2)  # interval [-1, 1]
         amplitude = amplitude / np.linalg.norm(u_C, 2)
         u = amplitude * np.ones((M, N, 2))
         u[..., 0] = u_C[0] * u[..., 0]

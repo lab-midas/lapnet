@@ -2,6 +2,7 @@
 import os
 import copy
 import json
+import numpy as np
 
 import tensorflow as tf
 from tensorflow.python.client import device_lib
@@ -81,6 +82,7 @@ def main(argv=None):
               devices=devices)
         tr.run(0, ftiters)
     elif train_dataset == 'resp_2D':
+        np.random.seed(0)
         ftconfig = copy.deepcopy(experiment.config['train'])
         ftconfig.update(experiment.config['train_resp_2D'])
         convert_input_strings(ftconfig, dirs)
@@ -94,7 +96,7 @@ def main(argv=None):
                                              img_dirs_real_simulated=['resp/matlab_simulated_data'],
                                              data_per_interval=ftconfig.get('data_per_interval'),
                                              selected_frames=[0, 3],
-                                             selected_slices=list(range(15, 55)),
+                                             selected_slices=list(range(20, 60)),
                                              augment_type_percent=ftconfig.get('augment_type_percent'),
                                              amplitude=ftconfig.get('flow_amplitude'),
                                              ),

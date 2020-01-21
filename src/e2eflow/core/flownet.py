@@ -127,7 +127,7 @@ def _flownet_upconv(conv6_1, conv5_1, conv4_1, conv3_1, conv2, conv1=None, input
                                      scope='flow3_up2',
                                      activation_fn=None)
     concat2 = tf.concat([conv2, deconv2, flow3_up2], 1)
-    channels = 1
+
     flow2 = slim.conv2d(concat2, channels, 3, scope='flow2',
                        activation_fn=None)
 

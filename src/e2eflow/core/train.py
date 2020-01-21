@@ -155,6 +155,8 @@ class Trainer():
         else:
             opt = tf.train.AdamOptimizer(beta1=0.9, beta2=0.999,
                                          learning_rate=learning_rate)
+            #opt = tf.train.MomentumOptimizer(learning_rate, 0.9)
+
         def _add_summaries():
             _add_loss_summaries()
             _add_param_summaries()

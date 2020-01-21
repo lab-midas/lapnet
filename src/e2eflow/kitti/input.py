@@ -69,12 +69,13 @@ def _u_generation_2D(img_size, amplitude, motion_type=0):
     """
     M, N = img_size
     if motion_type == 0:
-        # u_C = np.random.rand(2)
+        #u_C = 2 * np.random.rand(2)
         u_C = -1 + 2 * np.random.rand(2)  # interval [-1, 1]
         amplitude = amplitude / np.linalg.norm(u_C, 2)
         u = amplitude * np.ones((M, N, 2))
         u[..., 0] = u_C[0] * u[..., 0]
         u[..., 1] = u_C[1] * u[..., 1]
+        pass
     elif motion_type == 1:
         u = np.random.normal(0, 1, (M, N, 2))
         cut_off = 0.01
@@ -260,7 +261,7 @@ class MRI_Resp_2D(Input):
         real_simulated_data_num = math.floor(data_per_interval * augment_type_percent[2])
         if real_simulated_data_num is not 0:
             fn_im_paths = self.get_data_paths(img_dirs_real_simulated)
-            random.shuffle(fn_im_paths)
+            np.random.shuffle(fn_im_paths)
             batches_real_simulated = self.load_real_simulated_data(fn_im_paths, selected_slices, real_simulated_data_num)
             batches = np.concatenate((batches, batches_real_simulated), axis=0)
 
@@ -269,7 +270,7 @@ class MRI_Resp_2D(Input):
             motion_1_share = augment_type_percent[0] / sum(augment_type_percent[:2])
             motion_2_share = augment_type_percent[1] / sum(augment_type_percent[:2])
             fn_im_paths = self.get_data_paths(img_dirs)
-            random.shuffle(fn_im_paths)
+            np.random.shuffle(fn_im_paths)
             batches_augmented = self.augmentation(fn_im_paths,
                                                   [motion_1_share, motion_2_share],
                                                   amplitude,

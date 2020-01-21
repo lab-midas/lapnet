@@ -8,6 +8,9 @@ from .losses import charbonnier_loss
 from .flownet import flownet
 from .unsupervised import _track_image, _track_loss, FLOW_SCALE
 
+def _track_param(op, name):
+    tf.add_to_collection('params', tf.identity(op, name=name))
+
 
 def supervised_loss(batch, params, normalization=None, LAP_layer=False, augment=False):
     # channel_mean = tf.constant(normalization[0]) / 255.0
@@ -76,42 +79,14 @@ def supervised_loss(batch, params, normalization=None, LAP_layer=False, augment=
         # _track_image(flow_to_color(final_flow_fw), 'flow_pred_' + str(i))
 
         if LAP_layer:
-            with tf.variable_scope('LAP_layer'):
-
-                # # final_flow_fw = tf.reduce_sum(final_flow_fw, axis=3)  # todo: find a better way!
-                # # final_flow_fw = tf.expand_dims(final_flow_fw, -1)
-                # # paddings = tf.constant([[0, 0, ], [1, 1, ], [1, 1], [0, 0, ]])
-                # # final_flow_fw = tf.pad(final_flow_fw, paddings, 'SYMMETRIC')
-                # filter_x = np.array([[-1, -1, -1],
-                #                      [0, 0, 0],
-                #                      [1, 1, 1]])
-                # filter_y = np.array([[-1, 0, 1],
-                #                      [-1, 0, 1],
-                #                      [-1, 0, 1]])
-                # filter_sum = np.array([[1, 1, 1],
-                #                       [1, 1, 1],
-                #                       [1, 1, 1]])
-                #
-                # filter_x = np.expand_dims(filter_x, -1)
-                # filter_x = np.expand_dims(filter_x, -1)
-                # filter_y = np.expand_dims(filter_y, -1)
-                # filter_y = np.expand_dims(filter_y, -1)
-                # filter_sum = np.expand_dims(filter_sum, -1)
-                # filter_sum = np.expand_dims(filter_sum, -1)
-                #
-                # weights_x = tf.constant(filter_x, dtype=tf.float32)
-                # weights_y = tf.constant(filter_y, dtype=tf.float32)
-                # a = tf.nn.conv2d(final_flow_fw, weights_x, strides=[1, 1, 1, 1], padding='SAME')
-                # b = tf.nn.conv2d(final_flow_fw, weights_y, strides=[1, 1, 1, 1], padding='SAME')
-                # denomi = tf.nn.conv2d(final_flow_fw, filter_sum, strides=[1, 1, 1, 1], padding='SAME')
-                #
-                # flow_x = tf.math.truediv(a, denomi)
-                # flow_y = tf.math.truediv(b, denomi)
-
-                flow_nominator_x, flow_nominator_y, denominator = tf.split(axis=3, num_or_size_splits=3, value=final_flow_fw)
-                flow_x = tf.math.truediv(flow_nominator_x, denominator)
-                flow_y = tf.math.truediv(flow_nominator_y, denominator)
-                final_flow_fw = tf.concat([flow_x, flow_y], axis=3)
+            final_flow_fw = LAP(final_flow_fw, flow_gt)
+        else:
+            flow_x, _ = tf.split(axis=3, num_or_size_splits=2, value=final_flow_fw)
+            mean_flow_x = tf.reduce_mean(flow_x)
+            flow_x_gt, _ = tf.split(axis=3, num_or_size_splits=2, value=flow_gt)
+            mean_flow_x_gt = tf.reduce_mean(flow_x_gt)
+            _track_loss(mean_flow_x, 'mean_flow_x')
+            _track_loss(mean_flow_x_gt, 'mean_flow_x_gt')
 
         net_loss = charbonnier_loss(final_flow_fw - flow_gt, mask=None)
         # layer_weight = layer_weights[i]
@@ -125,8 +100,61 @@ def supervised_loss(batch, params, normalization=None, LAP_layer=False, augment=
     return final_loss, final_flow_fw
 
 
-# def LAP_layer(flow):
-#
-#
-#
-#     return final_layer
+def LAP(flow, flow_gt):
+    with tf.variable_scope('LAP_layer'):
+        # # final_flow_fw = tf.reduce_sum(final_flow_fw, axis=3)  # todo: find a better way!
+        # # final_flow_fw = tf.expand_dims(final_flow_fw, -1)
+        # # paddings = tf.constant([[0, 0, ], [1, 1, ], [1, 1], [0, 0, ]])
+        # # final_flow_fw = tf.pad(final_flow_fw, paddings, 'SYMMETRIC')
+
+        # filter_x = np.tile(np.arange(-4, 5), (9, 1))
+        # filter_y = np.transpose(np.tile(np.arange(-4, 5), (9, 1)))
+        # filter_sum = np.ones((9, 9))
+        # # filter_x = np.array([[-1, -1, -1],
+        # #                      [0, 0, 0],
+        # #                      [1, 1, 1]])
+        # # filter_y = np.array([[-1, 0, 1],
+        # #                      [-1, 0, 1],
+        # #                      [-1, 0, 1]])
+        # # filter_sum = np.array([[1, 1, 1],
+        # #                       [1, 1, 1],
+        # #                       [1, 1, 1]])
+        #
+        # filter_x = np.expand_dims(filter_x, -1)
+        # filter_x = np.expand_dims(filter_x, -1)
+        # filter_y = np.expand_dims(filter_y, -1)
+        # filter_y = np.expand_dims(filter_y, -1)
+        # filter_sum = np.expand_dims(filter_sum, -1)
+        # filter_sum = np.expand_dims(filter_sum, -1)
+        #
+        # weights_x = tf.constant(filter_x, dtype=tf.float32)
+        # weights_y = tf.constant(filter_y, dtype=tf.float32)
+        # a = tf.nn.conv2d(final_flow_fw, weights_x, strides=[1, 1, 1, 1], padding='SAME')
+        # b = tf.nn.conv2d(final_flow_fw, weights_y, strides=[1, 1, 1, 1], padding='SAME')
+        # denomi = tf.nn.conv2d(final_flow_fw, filter_sum, strides=[1, 1, 1, 1], padding='SAME')
+        #
+        # flow_x = tf.math.truediv(a, denomi)
+        # flow_y = tf.math.truediv(b, denomi)
+
+        flow_nominator_x, flow_nominator_y, denominator = tf.split(axis=3, num_or_size_splits=3, value=flow)
+        flow_x_gt, _ = tf.split(axis=3, num_or_size_splits=2, value=flow_gt)
+
+        # denominator = tf.math.abs(denominator) + 1e-8
+        # flow_x = tf.math.truediv(flow_nominator_x, denominator)
+        # flow_y = tf.math.truediv(flow_nominator_y, denominator)
+        flow_x = tf.math.multiply(flow_nominator_x, denominator)
+        flow_y = tf.math.multiply(flow_nominator_y, denominator)
+        final_flow_fw = tf.concat([flow_x, flow_y], axis=3)
+
+        mean_x = tf.reduce_mean(flow_nominator_x)
+        mean_y = tf.reduce_mean(flow_nominator_y)
+        mean_denomi = tf.reduce_mean(denominator)
+        mean_flow_x = tf.reduce_mean(flow_x)
+        mean_flow_x_gt = tf.reduce_mean(flow_x_gt)
+        _track_param(mean_x, 'mean_nomi_x')
+        _track_param(mean_y, 'mean_nomi_y')
+        _track_param(mean_denomi, 'mean_denomi')
+        _track_param(mean_flow_x, 'mean_flow_x')
+        _track_param(mean_flow_x_gt, 'mean_flow_x_gt')
+
+    return final_flow_fw

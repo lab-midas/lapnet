@@ -288,14 +288,15 @@ def main(argv=None):
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
     test_dir = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/001']
+    test_dir = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/patient/030']
     test_dir_matlab_simulated = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
-    test_types = [3]
+    test_types = [0]
     selected_frames = [0, 3]
     #selected_slices = list(range(15, 55))
-    selected_slices = [35]
+    selected_slices = [40]
     amplitude = 20
-    LAP_layer = False
+    LAP_layer = True
 
 
     print("-- evaluating: on {} pairs from {}"

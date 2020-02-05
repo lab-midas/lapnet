@@ -2,6 +2,7 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import tensorflow.contrib.layers as layers
 
+
 from ..ops import correlation
 from .image_warp import image_warp
 
@@ -197,6 +198,56 @@ def flownet_s(inputs, channel_mult=1, full_res=False, LAP_layer=False):
         res = _flownet_upconv(conv6_1, conv5_1, conv4_1, conv3_1, conv2, conv1, inputs,
                               channel_mult=channel_mult, full_res=full_res, channels=channels)
         return nchw_to_nhwc(res)
+
+
+
+def flownet_s_kspace_cut(inputs, channel_mult=1, full_res=False):
+
+    m = channel_mult
+    inputs = nhwc_to_nchw([inputs])[0]
+
+    with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
+                        data_format='NCHW',
+                        weights_regularizer=slim.l2_regularizer(0.0004),
+                        weights_initializer=layers.variance_scaling_initializer(),
+                        activation_fn=_leaky_relu):
+        conv1 = slim.conv2d(inputs, int(64 * m), 7, stride=2, scope='conv1')
+        conv2 = slim.conv2d(conv1, int(128 * m), 5, stride=2, scope='conv2')
+        conv3 = slim.conv2d(conv2, int(256 * m), 5, stride=2, scope='conv3')
+        conv3_1 = slim.conv2d(conv3, int(256 * m), 3, stride=1, scope='conv3_1')
+        conv4 = slim.conv2d(conv3_1, int(512 * m), 3, stride=2, scope='conv4')
+        conv4_1 = slim.conv2d(conv4, int(512 * m), 3, stride=1, scope='conv4_1')
+        conv5 = slim.conv2d(conv4_1, int(512 * m), 3, stride=2, scope='conv5')
+        conv5_1 = slim.conv2d(conv5, int(512 * m), 3, stride=1, scope='conv5_1')
+        conv6 = slim.conv2d(conv5_1, int(1024 * m), 3, stride=2, scope='conv6')
+        conv6_1 = slim.conv2d(conv6, int(1024 * m), 3, stride=1, scope='conv6_1')
+    pool = slim.max_pool2d(conv6_1, 4, data_format='NCHW')
+    flatten_conv6_1 = slim.flatten(pool)
+
+    # fc1 = slim.fully_connected(flatten_conv6_1,
+    #                            4096,
+    #                            weights_initializer=layers.variance_scaling_initializer(),
+    #                            biases_initializer=tf.constant_initializer(0.1),
+    #                            scope='fc1')
+    # dp1 = slim.dropout(fc1, 0.5, is_training=True,
+    #                    scope='dropout6')
+
+    fc2 = slim.fully_connected(flatten_conv6_1,
+                               2,
+                               activation_fn=None,
+                               normalizer_fn=None,
+                               biases_initializer=tf.compat.v1.zeros_initializer(),
+                               scope='fc2')
+    # fc2 = slim.conv2d(pool,
+    #                   2, [1, 1],
+    #                   activation_fn=None,
+    #                   normalizer_fn=None,
+    #                   biases_initializer=tf.compat.v1.zeros_initializer(),
+    #                   data_format='NCHW',
+    #                   scope='fc2')
+    # fc2 = tf.squeeze(fc2, name='fc8/squeezed')
+
+    return fc2
 
 
 def flownet_c_features(im, channel_mult=1, reuse=None):

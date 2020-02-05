@@ -90,7 +90,7 @@ def write_flo(flow, filename):
     f.close()
 
 
-def _evaluate_experiment(name, data, LAP_layer=False):
+def _evaluate_experiment(name, data):
 
     current_config = config_dict('../config.ini')
     exp_dir = os.path.join(current_config['dirs']['log'], 'ex', name)
@@ -112,40 +112,55 @@ def _evaluate_experiment(name, data, LAP_layer=False):
 
     with tf.Graph().as_default(): #, tf.device('gpu:' + FLAGS.gpu):
         input_fn = data()
+        im1_ori = input_fn[3]
+        im2_ori = input_fn[4]
+        im1_ori = tf.transpose(im1_ori, [0, 2, 3, 1])
+        im2_ori = tf.transpose(im2_ori, [0, 2, 3, 1])
+        input_fn = input_fn[:3]
         im1, im2, flow_gt = input_fn
         height = tf.shape(im1)[1]
         width = tf.shape(im1)[2]
         im1 = im1[:, 0, :, :]
         im2 = im2[:, 0, :, :]
-        flow_gt = flow_gt[:, 0, :, :, :]
-        # mask = mask[:, 0, :, :]
-        im1 = im1[..., tf.newaxis]
-        im2 = im2[..., tf.newaxis]
-        # mask = mask[..., tf.newaxis]
+
+        if params.get('k_space'):
+            flow_gt = flow_gt[:, 0, :]
+
+        else:
+            flow_gt = flow_gt[:, 0, :, :, :]
+            im1 = im1[..., tf.newaxis]
+            im2 = im2[..., tf.newaxis]
 
         loss, flow = supervised_loss(
                      input_fn,
                      normalization=None,
                      augment=False,
-                     params=params,
-                     LAP_layer=LAP_layer)
+                     params=params)
 
-        # im1 = resize_output(im1, height, width, 3)
+        if params.get('k_space'):
+            flow_x, flow_y = tf.split(axis=1, num_or_size_splits=2, value=flow)
+            flow1 = tf.ones([1, tf.shape(im1)[1], tf.shape(im1)[1], 1])
+            flow2 = tf.ones([1, tf.shape(im1)[1], tf.shape(im1)[1], 1])
+            flow1 = flow_x * flow1
+            flow2 = flow_y * flow2
+            flow = tf.concat((flow1, flow2), axis=3)
+
+                # im1 = resize_output(im1, height, width, 3)
         # im2 = resize_output(im2, height, width, 3)
         # flow = resize_output_flow(flow, height, width, 2)
 
         flow_fw_int16 = flow_to_int16(flow)
 
-        im1_pred = image_warp(im2, -flow)  # todo
-        im1_diff = tf.abs(im1 - im1_pred)
-        ori_diff = tf.abs(im1 - im2)
+        im1_pred = image_warp(im2_ori, -flow)  # todo
+        im1_diff = tf.abs(im1_ori - im1_pred)
+        ori_diff = tf.abs(im1_ori - im2_ori)
         flow_diff = tf.abs(flow - flow_gt)
 
         # flow_gt = resize_output_crop(flow_gt, height, width, 2)
         # mask = resize_output_crop(mask, height, width, 1)
 
-        image_slots = [(im1 / 255, 'first image'),
-                       (im2 / 255, 'second image'),
+        image_slots = [(im1_ori / 255, 'first image'),
+                       (im2_ori / 255, 'second image'),
                        (im1_pred, 'warped second image'),
                        (ori_diff, 'original error'),
                        (im1_diff, 'warping error'),
@@ -288,7 +303,7 @@ def main(argv=None):
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
     test_dir = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/001']
-    test_dir = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/patient/030']
+    #test_dir = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/patient/030']
     test_dir_matlab_simulated = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
     test_types = [0]
@@ -297,7 +312,6 @@ def main(argv=None):
     selected_slices = [40]
     amplitude = 20
     LAP_layer = True
-
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))
@@ -320,15 +334,30 @@ def main(argv=None):
     # input_fn = getattr(data_input, 'input_' + FLAGS.variant)
     # test_path = os.path.join(test_dir, test_data)
     results = []
+
     for name in FLAGS.ex.split(','):
+
+        current_config = config_dict('../config.ini')
+        exp_dir = os.path.join(current_config['dirs']['log'], 'ex', name)
+        config_path = os.path.join(exp_dir, 'config.ini')
+        if not os.path.isfile(config_path):
+            config_path = '../config.ini'
+        config = config_dict(config_path)
+        params = config['train']
+        convert_input_strings(params, config_dict('../config.ini')['dirs'])
+        dataset_params_name = 'train_' + FLAGS.dataset
+        if dataset_params_name in config:
+            params.update(config[dataset_params_name])
+
         result, image_names = _evaluate_experiment(name,
                                                    lambda: data_input.input_test_data(test_types=test_types,
                                                                                       img_dir=test_dir,
                                                                                       img_dir_matlab_simulated=test_dir_matlab_simulated,
                                                                                       selected_frames=selected_frames,
                                                                                       selected_slices=selected_slices,
-                                                                                      amplitude=amplitude),
-                                                   LAP_layer=LAP_layer)
+                                                                                      amplitude=10,
+                                                                                      test_in_kspace=params.get('k_space'))
+                                                   )
         results.append(result)
 
     # display(results, image_names)

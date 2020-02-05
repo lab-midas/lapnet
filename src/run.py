@@ -99,7 +99,7 @@ def main(argv=None):
                                              selected_slices=list(range(20, 60)),
                                              augment_type_percent=ftconfig.get('augment_type_percent'),
                                              amplitude=ftconfig.get('flow_amplitude'),
-                                             ),
+                                             train_in_kspace=ftconfig.get('k_space')),
             lambda: einput.input_train_2015(40),
             supervised=True,
             params=ftconfig,

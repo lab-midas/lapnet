@@ -165,7 +165,7 @@ class Trainer():
 
         if len(self.devices) == 1:
             # loss_, _ = self.loss_fn(batch, self.params, self.normalization)
-            loss_, _ = supervised_loss(batch, self.params, self.normalization, LAP_layer=self.LAP_layer)
+            loss_, _ = supervised_loss(batch, self.params, self.normalization)
             train_op = opt.minimize(loss_)
             _add_summaries()
         else:   # JP: below is for multi-gpu train, haven't seen yet

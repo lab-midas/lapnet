@@ -123,11 +123,9 @@ def _evaluate_experiment(name, data):
         im1 = im1[:, 0, :, :]
         im2 = im2[:, 0, :, :]
 
-        if params.get('k_space'):
-            flow_gt = flow_gt[:, 0, :]
+        flow_gt = flow_gt[:, 0, :, :, :]
 
-        else:
-            flow_gt = flow_gt[:, 0, :, :, :]
+        if not params.get('k_space'):
             im1 = im1[..., tf.newaxis]
             im2 = im2[..., tf.newaxis]
 
@@ -154,7 +152,7 @@ def _evaluate_experiment(name, data):
         im1_pred = image_warp(im2_ori, -flow)  # todo
         im1_diff = tf.abs(im1_ori - im1_pred)
         ori_diff = tf.abs(im1_ori - im2_ori)
-        flow_diff = tf.abs(flow - flow_gt)
+        # flow_diff = tf.abs(flow - flow_gt)
 
         # flow_gt = resize_output_crop(flow_gt, height, width, 2)
         # mask = resize_output_crop(mask, height, width, 1)
@@ -205,11 +203,12 @@ def _evaluate_experiment(name, data):
             try:
                 num_iters = 0
                 while not coord.should_stop() and (max_iter is None or num_iters != max_iter):
-                    all_results = sess.run([flow, flow_fw_int16, loss] + all_ops)
-                    flow_gt = sess.run(flow_gt)
+                    all_results = sess.run([flow, flow_fw_int16, loss, flow_gt] + all_ops)
+                    flow = all_results[0]
                     flow_fw_res, flow_fw_int16_res = all_results[:2]
                     loss_res = all_results[2]
-                    all_results = all_results[3:]
+                    flow_gt = all_results[3]
+                    all_results = all_results[4:]
                     image_results = all_results[:num_ims]
                     flow_diff = flow_gt - flow_fw_res  # JP
                     scalar_results = all_results[num_ims:]
@@ -245,7 +244,10 @@ def _evaluate_experiment(name, data):
                                      .format(name, num_iters, max_iter))
                     sys.stdout.flush()
                     print()
-                    print('charbonnier_loss = ' + str(loss_res))
+                    # print('charbonnier_loss = ' + str(loss_res))
+                    # if params.get('k_space'):
+                    #     print('flow_gt = ' + str(flow_gt[0, 0, 0, 0]) + ', ' + str(flow_gt[0, 0, 0, 1]))
+                    #     print('flow_pred = ' + str(flow[0, 0, 0, 0]) + ', ' + str(flow[0, 0, 0, 1]))
             except tf.errors.OutOfRangeError:
                 pass
 
@@ -355,7 +357,7 @@ def main(argv=None):
                                                                                       img_dir_matlab_simulated=test_dir_matlab_simulated,
                                                                                       selected_frames=selected_frames,
                                                                                       selected_slices=selected_slices,
-                                                                                      amplitude=10,
+                                                                                      amplitude=8,
                                                                                       crop=True,
                                                                                       test_in_kspace=params.get('k_space'))
                                                    )

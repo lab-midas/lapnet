@@ -102,10 +102,10 @@ def _u_generation_2D(img_size, amplitude, motion_type=0):
     return u
 
 
-def convert2kspace(arr):
+def imgpair2kspace(arr):
     im1_kspace = to_freq_space(arr[..., 0])
     im2_kspace = to_freq_space(arr[..., 1])
-    return np.asarray(np.concatenate((im1_kspace, im2_kspace, arr[..., 2:]), axis=-1), dtype=np.float32)
+    return np.asarray(np.concatenate((im1_kspace, im2_kspace), axis=-1), dtype=np.float32)
 
 
 def image2kspace(y, normalize=False):
@@ -124,7 +124,6 @@ def image2kspace(y, normalize=False):
     return x
 
 
-
 def to_freq_space_tf(img):
     img_f = tf.signal.fft2d(img)  # FFT
     img_fshift = tf.signal.fftshift(img_f)  # FFT shift
@@ -133,6 +132,7 @@ def to_freq_space_tf(img):
     img_real_imag = np.dstack((img_real, img_imag))  # (im_size1, im_size2, 2)
 
     return img_real_imag
+
 
 def to_freq_space(img):
     """ Performs FFT of an image
@@ -176,11 +176,24 @@ class MRI_Resp_2D(Input):
                         fn_im_paths.append(os.path.join(img_dir, img_file, img_mat))
         return fn_im_paths
 
-    def crop2D(self, arr, crop_size, box_num):
-        arr_cropped_augmented = np.zeros((arr.shape[0] * box_num, crop_size, crop_size, 4), dtype=np.float32)
+    def crop2D(self, arr, crop_size, box_num, pos=None):
+        """
+
+        :param arr:
+        :param crop_size:
+        :param box_num: crops per slices
+        :param pos: shape (2, n), pos_x and pos_y, n must be same as the box number. if pos=None, select random pos
+        :return:
+        """
+        arr_cropped_augmented = np.zeros((arr.shape[0] * box_num, crop_size, crop_size, arr.shape[-1]), dtype=np.float32)
         for i in range(box_num):
-            x_pos = np.random.randint(0, self.dims[0] - crop_size, arr.shape[0])
-            y_pos = np.random.randint(0, self.dims[1] - crop_size, arr.shape[0])
+            if pos is None:
+                x_pos = np.random.randint(0, self.dims[0] - crop_size, arr.shape[0])
+                y_pos = np.random.randint(0, self.dims[1] - crop_size, arr.shape[0])
+            else:
+                x_pos = pos[0]
+                y_pos = pos[0]
+
             w = view_as_windows(arr, (1, crop_size, crop_size, 1))[..., 0, :, :, 0]
             out = w[np.arange(arr.shape[0]), x_pos, y_pos]
             out = out.transpose(0, 2, 3, 1)
@@ -421,7 +434,7 @@ class MRI_Resp_2D(Input):
                                                   data_per_interval)
             if crop:
                 batches_augmented = self.crop2D(batches_augmented, crop_size=64, box_num=8)
-            batches = convert2kspace(batches_augmented)
+            batches = np.concatenate((imgpair2kspace(batches_augmented[..., :2]), batches_augmented[..., 2:]), axis=-1)
 
             #batches = np.concatenate((batches, batches_augmented), axis=0)
             np.random.shuffle(batches)
@@ -466,10 +479,14 @@ class MRI_Resp_2D(Input):
                                           selected_frames,
                                           selected_slices)
 
+                # batch: batch_size * im_size[0] * im_size[1] * 8,
+                # 8: [fft.real &  imag of im1, fft.real &  imag of im2, u1, u2, im1, im2]
+
                 if crop:
-                    batches_augmented = self.crop2D(batch, crop_size=64, box_num=8)
+                    batch = self.crop2D(batch, crop_size=64, box_num=1, pos=[[100], [100]])
                 #else:
-                batch = np.concatenate((convert2kspace(batch), batch[..., :2]), axis=-1)
+                batch = np.concatenate((imgpair2kspace(batch[..., :2]), batch[..., 2:], batch[..., :2]), axis=-1)
+
 
                 # batch = batch[0, ...]  # only take the first sample
                 # batch = batch[np.newaxis, ...]

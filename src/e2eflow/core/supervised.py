@@ -5,7 +5,7 @@ import numpy as np
 from .augment import random_photometric
 from .flow_util import flow_to_color
 from .losses import charbonnier_loss
-from .flownet import flownet, flownet_s_kspace_cut
+from .flownet import flownet, flownet_s_kspace_cut_full, flownet_s_kspace_cut_down_4
 from .automap import automap
 from .unsupervised import _track_image, _track_loss, FLOW_SCALE
 
@@ -20,12 +20,16 @@ def supervised_loss(batch, params, normalization=None, augment=False):
 
     im1 = im1[:, 0, :, :]
     im2 = im2[:, 0, :, :]
-    if params.get('k_space'):
-        flow_gt = flow_gt[:, 0, :]
-    else:
+    if len(flow_gt.get_shape()) is 5:
         flow_gt = flow_gt[:, 0, :, :, :]
+    elif len(flow_gt.get_shape()) is 3:
+        flow_gt = flow_gt[:, 0, :]
+
+    if len(im1.get_shape()) is 3:
         im1 = im1[..., tf.newaxis]
         im2 = im2[..., tf.newaxis]
+
+
     # mask_gt = mask_gt[:, 0, :, :]
 
 
@@ -107,10 +111,14 @@ def supervised_loss(batch, params, normalization=None, augment=False):
         inputs = tf.concat([im1_photo, im2_photo], 3)
         if not params.get('automap'):
             with tf.variable_scope('flownet_s'):
-                final_flow_fw = flownet_s_kspace_cut(inputs,
-                                                     im1.get_shape().as_list(),
-                                                     channel_mult=1)
+                if im1.get_shape().as_list()[2] is 256:
+                    final_flow_fw = flownet_s_kspace_cut_full(inputs, channel_mult=1)
+                elif im1.get_shape().as_list()[2] is 64:
+                    final_flow_fw = flownet_s_kspace_cut_down_4(inputs, channel_mult=1)
                 flow_x, _ = tf.split(axis=1, num_or_size_splits=2, value=final_flow_fw)
+                if len(flow_gt.get_shape()) is 4:
+                    flow_gt = flow_gt[:, 0, 0, :]
+
                 error = final_flow_fw - flow_gt
                 final_loss = tf.reduce_mean(tf.square(error))
                 # regularization_loss = tf.add_n(slim.losses.get_regularization_losses())
@@ -203,3 +211,4 @@ def LAP(flow, flow_gt):
         _track_param(mean_flow_x_gt, 'mean_flow_x_gt')
 
     return final_flow_fw
+

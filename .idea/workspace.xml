@@ -4,12 +4,7 @@
     <list default="true" id="4fb5ce6e-469f-4a31-9d44-208d88ff44a5" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config.ini" beforeDir="false" afterPath="$PROJECT_DIR$/config.ini" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/e2eflow/core/flownet.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/e2eflow/core/flownet.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/e2eflow/core/supervised.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/e2eflow/core/supervised.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/e2eflow/core/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/e2eflow/core/train.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/e2eflow/kitti/input.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/e2eflow/kitti/input.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/eval_gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/eval_gui.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/run.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/run.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -21,14 +16,14 @@
     <favorites_list name="UnFlow" />
   </component>
   <component name="FileEditorManager">
-    <splitter split-orientation="horizontal" split-proportion="0.5206659">
+    <splitter split-orientation="horizontal" split-proportion="0.64029664">
       <split-first>
         <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
           <file pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/src/e2eflow/core/train.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="297">
-                  <caret line="206" selection-start-line="206" selection-end-line="206" />
+                <state relative-caret-position="2760">
+                  <caret line="204" column="12" selection-start-line="204" selection-start-column="12" selection-end-line="204" selection-end-column="12" />
                   <folding>
                     <element signature="e#0#9#0" expanded="true" />
                   </folding>
@@ -39,8 +34,8 @@
           <file pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/src/e2eflow/kitti/input.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="4152">
-                  <caret line="392" column="47" selection-start-line="392" selection-start-column="47" selection-end-line="392" selection-end-column="47" />
+                <state relative-caret-position="457">
+                  <caret line="487" selection-start-line="487" selection-end-line="487" />
                   <folding>
                     <element signature="e#0#9#0" expanded="true" />
                   </folding>
@@ -51,8 +46,8 @@
           <file pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/src/playground.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="315">
-                  <caret line="21" column="20" lean-forward="true" selection-start-line="21" selection-start-column="20" selection-end-line="21" selection-end-column="20" />
+                <state relative-caret-position="675">
+                  <caret line="48" selection-start-line="48" selection-end-line="48" />
                   <folding>
                     <element signature="e#0#17#0" expanded="true" />
                   </folding>
@@ -60,11 +55,11 @@
               </provider>
             </entry>
           </file>
-          <file pinned="false" current-in-tab="false">
+          <file pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/src/eval_gui.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="331">
-                  <caret line="348" column="41" lean-forward="true" selection-start-line="348" selection-start-column="41" selection-end-line="348" selection-end-column="41" />
+                <state relative-caret-position="335">
+                  <caret line="151" selection-start-line="151" selection-end-line="151" />
                   <folding>
                     <element signature="e#0#9#0" expanded="true" />
                   </folding>
@@ -75,8 +70,8 @@
           <file pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/src/e2eflow/core/supervised.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="282">
-                  <caret line="113" column="43" selection-start-line="113" selection-start-column="43" selection-end-line="113" selection-end-column="43" />
+                <state relative-caret-position="1515">
+                  <caret line="110" column="68" selection-start-line="110" selection-start-column="57" selection-end-line="110" selection-end-column="68" />
                   <folding>
                     <element signature="e#0#23#0" expanded="true" />
                   </folding>
@@ -84,11 +79,11 @@
               </provider>
             </entry>
           </file>
-          <file pinned="false" current-in-tab="true">
+          <file pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/src/e2eflow/core/flownet.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="207">
-                  <caret line="238" column="40" lean-forward="true" selection-start-line="238" selection-start-column="40" selection-end-line="238" selection-end-column="40" />
+                <state relative-caret-position="3330">
+                  <caret line="230" column="8" selection-start-line="230" selection-start-column="8" selection-end-line="230" selection-end-column="8" />
                   <folding>
                     <element signature="e#0#23#0" expanded="true" />
                   </folding>
@@ -115,8 +110,8 @@
           <file pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/config.ini">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="596">
-                  <caret line="154" column="22" selection-start-line="154" selection-start-column="22" selection-end-line="154" selection-end-column="22" />
+                <state relative-caret-position="178">
+                  <caret line="156" column="14" selection-start-line="156" selection-start-column="14" selection-end-line="156" selection-end-column="14" />
                 </state>
               </provider>
             </entry>
@@ -124,7 +119,7 @@
           <file pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/src/run.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="502">
+                <state relative-caret-position="1335">
                   <caret line="102" selection-start-line="102" selection-end-line="102" />
                   <folding>
                     <element signature="e#19#28#0" expanded="true" />
@@ -208,13 +203,13 @@
         <option value="$PROJECT_DIR$/src/e2eflow/core/unsupervised.py" />
         <option value="$PROJECT_DIR$/src/run.py" />
         <option value="$PROJECT_DIR$/src/e2eflow/core/automap.py" />
-        <option value="$PROJECT_DIR$/src/playground.py" />
-        <option value="$PROJECT_DIR$/src/e2eflow/core/supervised.py" />
         <option value="$PROJECT_DIR$/src/e2eflow/core/train.py" />
         <option value="$PROJECT_DIR$/src/eval_gui.py" />
-        <option value="$PROJECT_DIR$/src/e2eflow/kitti/input.py" />
+        <option value="$PROJECT_DIR$/src/e2eflow/core/supervised.py" />
         <option value="$PROJECT_DIR$/src/e2eflow/core/flownet.py" />
         <option value="$PROJECT_DIR$/config.ini" />
+        <option value="$PROJECT_DIR$/src/playground.py" />
+        <option value="$PROJECT_DIR$/src/e2eflow/kitti/input.py" />
       </list>
     </option>
   </component>
@@ -300,7 +295,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.run">
+  <component name="RunManager" selected="Python.eval_gui">
     <configuration name="eval_gui" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="UnFlow" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -314,7 +309,7 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/eval_gui.py" />
-      <option name="PARAMETERS" value="-ex only_encoder_fc_100_0402" />
+      <option name="PARAMETERS" value="-ex encoder_conv_100_0802" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -371,8 +366,8 @@
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.run" />
         <item itemvalue="Python.eval_gui" />
+        <item itemvalue="Python.run" />
         <item itemvalue="Python.playground" />
       </list>
     </recent_temporary>
@@ -401,20 +396,19 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="0" y="-2" width="1920" height="1202" extended-state="6" />
-    <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.49809885" visible="true" weight="0.13020559" />
+      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.49809885" visible="true" weight="0.14707433" />
       <window_info id="Structure" order="1" sideWeight="0.50190115" side_tool="true" weight="0.1544544" />
       <window_info id="Favorites" order="2" sideWeight="0.50190115" side_tool="true" weight="0.1544544" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
       <window_info anchor="bottom" id="Run" order="2" weight="0.3438956" />
-      <window_info anchor="bottom" x="1" y="335" width="1917" height="547" id="Debug" order="3" weight="0.4557316" />
+      <window_info active="true" anchor="bottom" x="1" y="335" width="1917" height="547" id="Debug" order="3" visible="true" weight="0.47530288" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" weight="0.32991612" />
-      <window_info anchor="bottom" id="Version Control" order="7" />
-      <window_info active="true" anchor="bottom" id="Terminal" order="8" visible="true" weight="0.32339236" />
+      <window_info anchor="bottom" id="Version Control" order="7" weight="0.32991612" />
+      <window_info anchor="bottom" id="Terminal" order="8" weight="0.32339236" />
       <window_info anchor="bottom" id="Event Log" order="9" side_tool="true" />
       <window_info anchor="bottom" id="Python Console" order="10" weight="0.277726" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
@@ -446,7 +440,7 @@
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/e2eflow/kitti/input.py</url>
-          <line>682</line>
+          <line>684</line>
           <option name="timeStamp" value="57" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -475,18 +469,8 @@
           <option name="timeStamp" value="128" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/playground.py</url>
-          <line>14</line>
-          <option name="timeStamp" value="200" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/e2eflow/kitti/input.py</url>
-          <line>198</line>
-          <option name="timeStamp" value="207" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/e2eflow/kitti/input.py</url>
-          <line>520</line>
+          <line>522</line>
           <option name="timeStamp" value="242" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -511,18 +495,38 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/e2eflow/kitti/input.py</url>
-          <line>475</line>
-          <option name="timeStamp" value="295" />
+          <line>392</line>
+          <option name="timeStamp" value="305" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/playground.py</url>
+          <line>73</line>
+          <option name="timeStamp" value="311" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/playground.py</url>
+          <line>64</line>
+          <option name="timeStamp" value="314" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/playground.py</url>
+          <line>48</line>
+          <option name="timeStamp" value="315" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/e2eflow/kitti/input.py</url>
-          <line>427</line>
-          <option name="timeStamp" value="296" />
+          <line>435</line>
+          <option name="timeStamp" value="316" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/e2eflow/core/flownet.py</url>
-          <line>220</line>
-          <option name="timeStamp" value="297" />
+          <url>file://$PROJECT_DIR$/src/e2eflow/kitti/input.py</url>
+          <line>471</line>
+          <option name="timeStamp" value="317" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/e2eflow/kitti/input.py</url>
+          <line>426</line>
+          <option name="timeStamp" value="320" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
@@ -530,47 +534,47 @@
   <component name="debuggerHistoryManager">
     <expressions id="evaluateExpression">
       <expression>
-        <expression-string>np.sum([np.product([xi.value for xi in x.get_shape()]) for x in tf.all_variables()])</expression-string>
+        <expression-string>(batches_1==batches).all()</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>im1.get_shape().as_list()[1]</expression-string>
+        <expression-string>(batches_augmented_1[..., 6:]==batches_augmented[..., :2]).all()</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>im1.get_shape().as_list()</expression-string>
+        <expression-string>batches_augmented_1[..., 6:]==batches_augmented[..., :2]</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>im_shape[0] == 64</expression-string>
+        <expression-string>batches_augmented_1[...,6:]==batches_augmented[...:2]</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>im_shape[0] == tf.cast(64,dtype=tf.int32)</expression-string>
+        <expression-string>batches_1[100, ...]==batches[100, ...]</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>im_shape[0] == tf.cast(32,dtype=tf.int32)</expression-string>
+        <expression-string>batches_1==batches</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>im_shape[0] == tf.cast(256,dtype=tf.int32)</expression-string>
+        <expression-string>(np.fft.fft2(img[100, ...]) == np.fft.fft2(img)[100]).all()</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>im_shape[0] == tf.cast(64,dtype=int32)</expression-string>
+        <expression-string>(np.fft.fft2(img[100, ...]) == np.fft.fft2(img)[100]).all</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>im_shape[0] == tf.cast(64,dtype=int.32)</expression-string>
+        <expression-string>np.fft.fft2(img[100, ...]) == np.fft.fft2(img)[100]</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
@@ -799,33 +803,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/e2eflow/core/losses.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="4620">
-          <caret line="313" column="30" selection-start-line="313" selection-start-column="30" selection-end-line="313" selection-end-column="30" />
-          <folding>
-            <element signature="e#0#23#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/e2eflow/core/data.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="450">
-          <caret line="38" column="17" selection-start-line="38" selection-start-column="17" selection-end-line="38" selection-end-column="17" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/playground.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="315">
-          <caret line="21" column="20" lean-forward="true" selection-start-line="21" selection-start-column="20" selection-end-line="21" selection-end-column="20" />
-          <folding>
-            <element signature="e#0#17#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/log/ex/only_encoder_fc_100_0402/config.ini">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-2030" />
@@ -862,9 +839,59 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/src/e2eflow/core/train.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2760">
+          <caret line="204" column="12" selection-start-line="204" selection-start-column="12" selection-end-line="204" selection-end-column="12" />
+          <folding>
+            <element signature="e#0#9#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/playground.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="675">
+          <caret line="48" selection-start-line="48" selection-end-line="48" />
+          <folding>
+            <element signature="e#0#17#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/e2eflow/core/supervised.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1515">
+          <caret line="110" column="68" selection-start-line="110" selection-start-column="57" selection-end-line="110" selection-end-column="68" />
+          <folding>
+            <element signature="e#0#23#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/e2eflow/core/flownet.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="3330">
+          <caret line="230" column="8" selection-start-line="230" selection-start-column="8" selection-end-line="230" selection-end-column="8" />
+          <folding>
+            <element signature="e#0#23#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/e2eflow/core/losses.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="4620">
+          <caret line="313" column="30" selection-start-line="313" selection-start-column="30" selection-end-line="313" selection-end-column="30" />
+          <folding>
+            <element signature="e#0#23#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/src/run.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="502">
+        <state relative-caret-position="1335">
           <caret line="102" selection-start-line="102" selection-end-line="102" />
           <folding>
             <element signature="e#19#28#0" expanded="true" />
@@ -872,59 +899,36 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/e2eflow/core/train.py">
+    <entry file="file://$PROJECT_DIR$/src/e2eflow/core/data.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="297">
-          <caret line="206" selection-start-line="206" selection-end-line="206" />
-          <folding>
-            <element signature="e#0#9#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="450">
+          <caret line="38" column="17" selection-start-line="38" selection-start-column="17" selection-end-line="38" selection-end-column="17" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/config.ini">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="596">
-          <caret line="154" column="22" selection-start-line="154" selection-start-column="22" selection-end-line="154" selection-end-column="22" />
+        <state relative-caret-position="178">
+          <caret line="156" column="14" selection-start-line="156" selection-start-column="14" selection-end-line="156" selection-end-column="14" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/src/e2eflow/kitti/input.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="4152">
-          <caret line="392" column="47" selection-start-line="392" selection-start-column="47" selection-end-line="392" selection-end-column="47" />
+        <state relative-caret-position="457">
+          <caret line="487" selection-start-line="487" selection-end-line="487" />
           <folding>
             <element signature="e#0#9#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/e2eflow/core/supervised.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="282">
-          <caret line="113" column="43" selection-start-line="113" selection-start-column="43" selection-end-line="113" selection-end-column="43" />
-          <folding>
-            <element signature="e#0#23#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/src/eval_gui.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="331">
-          <caret line="348" column="41" lean-forward="true" selection-start-line="348" selection-start-column="41" selection-end-line="348" selection-end-column="41" />
+        <state relative-caret-position="335">
+          <caret line="151" selection-start-line="151" selection-end-line="151" />
           <folding>
             <element signature="e#0#9#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/e2eflow/core/flownet.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="207">
-          <caret line="238" column="40" lean-forward="true" selection-start-line="238" selection-start-column="40" selection-end-line="238" selection-end-column="40" />
-          <folding>
-            <element signature="e#0#23#0" expanded="true" />
           </folding>
         </state>
       </provider>

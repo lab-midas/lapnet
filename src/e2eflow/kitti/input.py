@@ -105,7 +105,7 @@ def _u_generation_2D(img_size, amplitude, motion_type=0):
 def convert2kspace(arr):
     im1_kspace = to_freq_space(arr[..., 0])
     im2_kspace = to_freq_space(arr[..., 1])
-    return np.concatenate((im1_kspace, im2_kspace, arr[..., 2:]), axis=-1)
+    return np.asarray(np.concatenate((im1_kspace, im2_kspace, arr[..., 2:]), axis=-1), dtype=np.float32)
 
 
 def image2kspace(y, normalize=False):
@@ -142,7 +142,7 @@ def to_freq_space(img):
     """
 
     img_f = np.fft.fft2(img)  # FFT
-    img_fshift = np.fft.fftshift(img_f)  # FFT shift
+    img_fshift = np.fft.fftshift(img_f, axes=(-1, -2))  # FFT shift
     img_real = img_fshift.real  # Real part: (im_size1, im_size2)
     img_imag = img_fshift.imag  # Imaginary part: (im_size1, im_size2)
     img_real_imag = np.stack((img_real, img_imag), axis=-1)  # (im_size1, im_size2, 2)
@@ -413,12 +413,6 @@ class MRI_Resp_2D(Input):
             np.random.shuffle(fn_im_paths)
             motion_1_share = augment_type_percent[0] / sum(augment_type_percent[:2])
             motion_2_share = augment_type_percent[1] / sum(augment_type_percent[:2])
-            # batches_augmented = self.augmentation_kspace(fn_im_paths,
-            #                                              [0, 1],
-            #                                              amplitude,
-            #                                              selected_frames,
-            #                                              selected_slices,
-            #                                              data_per_interval)
             batches_augmented = self.augmentation(fn_im_paths,
                                                   [motion_1_share, motion_2_share],
                                                   amplitude,
@@ -473,13 +467,12 @@ class MRI_Resp_2D(Input):
                                           selected_slices)
 
                 if crop:
-                    batch = convert2kspace(batch)
                     batches_augmented = self.crop2D(batch, crop_size=64, box_num=8)
                 #else:
-
+                batch = np.concatenate((convert2kspace(batch), batch[..., :2]), axis=-1)
 
                 # batch = batch[0, ...]  # only take the first sample
-                batch = batch[np.newaxis, ...]
+                # batch = batch[np.newaxis, ...]
                 im1_k_queue = tf.train.slice_input_producer([batch[..., :2]], shuffle=False,
                                                           capacity=len(list(batch[..., 0])), num_epochs=None)
                 im2_k_queue = tf.train.slice_input_producer([batch[..., 2:4]], shuffle=False,

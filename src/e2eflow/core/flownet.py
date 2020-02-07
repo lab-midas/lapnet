@@ -201,9 +201,12 @@ def flownet_s(inputs, channel_mult=1, full_res=False, LAP_layer=False):
 
 
 
-def flownet_s_kspace_cut(inputs, channel_mult=1, full_res=False):
+
+
+def flownet_s_kspace_cut(inputs, input_shape, channel_mult=1, full_res=False):
 
     m = channel_mult
+    # m = 3 / 8
     inputs = nhwc_to_nchw([inputs])[0]
 
     with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
@@ -215,12 +218,23 @@ def flownet_s_kspace_cut(inputs, channel_mult=1, full_res=False):
         conv2 = slim.conv2d(conv1, int(128 * m), 5, stride=2, scope='conv2')
         conv3 = slim.conv2d(conv2, int(256 * m), 5, stride=2, scope='conv3')
         conv3_1 = slim.conv2d(conv3, int(256 * m), 3, stride=1, scope='conv3_1')
+
         conv4 = slim.conv2d(conv3_1, int(512 * m), 3, stride=2, scope='conv4')
+        # TODO: here just for cases 64 & 256, not the rests,
+        #  maybe multiple if & else is not good, need multiple flownet_s_kspace_cut
         conv4_1 = slim.conv2d(conv4, int(512 * m), 3, stride=1, scope='conv4_1')
+
         conv5 = slim.conv2d(conv4_1, int(512 * m), 3, stride=2, scope='conv5')
         conv5_1 = slim.conv2d(conv5, int(512 * m), 3, stride=1, scope='conv5_1')
+
         conv6 = slim.conv2d(conv5_1, int(1024 * m), 3, stride=2, scope='conv6')
         conv6_1 = slim.conv2d(conv6, int(1024 * m), 3, stride=1, scope='conv6_1')
+        #     else:
+        #         conv5 = slim.conv2d(conv4_1, int(512 * m), 3, stride=1, scope='conv5')
+        #         conv5_1 = slim.conv2d(conv5, int(512 * m), 3, stride=1, scope='conv5_1')
+        #         conv6 = slim.conv2d(conv5_1, int(1024 * m), 3, stride=1, scope='conv6')
+        #         conv6_1 = slim.conv2d(conv6, int(1024 * m), 3, stride=1, scope='conv6_1')
+
     pool = slim.max_pool2d(conv6_1, 4, data_format='NCHW')
     flatten_conv6_1 = slim.flatten(pool)
 
@@ -232,20 +246,20 @@ def flownet_s_kspace_cut(inputs, channel_mult=1, full_res=False):
     # dp1 = slim.dropout(fc1, 0.5, is_training=True,
     #                    scope='dropout6')
 
-    fc2 = slim.fully_connected(flatten_conv6_1,
-                               2,
-                               activation_fn=None,
-                               normalizer_fn=None,
-                               biases_initializer=tf.compat.v1.zeros_initializer(),
-                               scope='fc2')
-    # fc2 = slim.conv2d(pool,
-    #                   2, [1, 1],
-    #                   activation_fn=None,
-    #                   normalizer_fn=None,
-    #                   biases_initializer=tf.compat.v1.zeros_initializer(),
-    #                   data_format='NCHW',
-    #                   scope='fc2')
-    # fc2 = tf.squeeze(fc2, name='fc8/squeezed')
+    # fc2 = slim.fully_connected(flatten_conv6_1,
+    #                            2,
+    #                            weights_initializer=layers.variance_scaling_initializer(),
+    #                            biases_initializer=tf.zeros_initializer(),
+    #                            activation_fn=None,
+    #                            scope='fc2')
+    fc2 = slim.conv2d(pool,
+                      2, [1, 1],
+                      activation_fn=None,
+                      normalizer_fn=None,
+                      biases_initializer=tf.compat.v1.zeros_initializer(),
+                      data_format='NCHW',
+                      scope='fc2')
+    fc2 = tf.squeeze(fc2, name='fc8/squeezed', axis=[-1, -2])
 
     return fc2
 

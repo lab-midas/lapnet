@@ -6,6 +6,7 @@ from .augment import random_photometric
 from .flow_util import flow_to_color
 from .losses import charbonnier_loss
 from .flownet import flownet, flownet_s_kspace_cut
+from .automap import automap
 from .unsupervised import _track_image, _track_loss, FLOW_SCALE
 
 def _track_param(op, name):
@@ -104,17 +105,42 @@ def supervised_loss(batch, params, normalization=None, augment=False):
         _track_loss(final_loss, 'loss/combined')
     else:
         inputs = tf.concat([im1_photo, im2_photo], 3)
-        with tf.variable_scope('flownet_s'):
-            final_flow_fw = flownet_s_kspace_cut(inputs,
-                                                 channel_mult=1)
-        flow_x, _ = tf.split(axis=1, num_or_size_splits=2, value=final_flow_fw)
-        mean_flow_x = tf.reduce_mean(flow_x)
-        flow_x_gt, _ = tf.split(axis=1, num_or_size_splits=2, value=flow_gt)
-        mean_flow_x_gt = tf.reduce_mean(flow_x_gt)
-        _track_loss(mean_flow_x, 'mean_flow_x')
-        _track_loss(mean_flow_x_gt, 'mean_flow_x_gt')
-        error = final_flow_fw - flow_gt
-        final_loss = tf.reduce_mean(tf.square(error))
+        if not params.get('automap'):
+            with tf.variable_scope('flownet_s'):
+                final_flow_fw = flownet_s_kspace_cut(inputs,
+                                                     im1.get_shape().as_list(),
+                                                     channel_mult=1)
+                flow_x, _ = tf.split(axis=1, num_or_size_splits=2, value=final_flow_fw)
+                error = final_flow_fw - flow_gt
+                final_loss = tf.reduce_mean(tf.square(error))
+                # regularization_loss = tf.add_n(slim.losses.get_regularization_losses())
+                # final_loss += regularization_loss
+
+                _track_loss(final_loss, 'loss/combined')
+                mean_flow_x = tf.reduce_mean(flow_x)
+                flow_x_gt, _ = tf.split(axis=1, num_or_size_splits=2, value=flow_gt)
+                mean_flow_x_gt = tf.reduce_mean(flow_x_gt)
+                _track_loss(mean_flow_x, 'mean_flow_x')
+                _track_loss(mean_flow_x_gt, 'mean_flow_x_gt')
+        else:
+            with tf.variable_scope('flownet_s'):
+                final_flow_fw = automap(inputs)
+                final_flow_fw = tf.image.resize_bilinear(final_flow_fw, im_shape) * FLOW_SCALE * 2
+                flow_x, _ = tf.split(axis=3, num_or_size_splits=2, value=final_flow_fw)
+                mean_flow_x = tf.reduce_mean(flow_x)
+                flow_x_gt, _ = tf.split(axis=3, num_or_size_splits=2, value=flow_gt)
+                mean_flow_x_gt = tf.reduce_mean(flow_x_gt)
+                _track_loss(mean_flow_x, 'mean_flow_x')
+                _track_loss(mean_flow_x_gt, 'mean_flow_x_gt')
+                flow_gt = tf.cast(flow_gt, dtype=tf.float32)
+
+                error = final_flow_fw - flow_gt
+                final_loss = tf.reduce_mean(tf.square(error))
+
+                # regularization_loss = tf.add_n(slim.losses.get_regularization_losses())
+                # final_loss += regularization_loss
+                # _track_loss(regularization_loss, 'loss/regularization')
+                _track_loss(final_loss, 'loss/combined')
 
     return final_loss, final_flow_fw
 

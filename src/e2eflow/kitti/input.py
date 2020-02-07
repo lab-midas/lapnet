@@ -9,6 +9,7 @@ import random
 import scipy.io as sio
 from skimage.transform import warp
 import h5py
+from skimage.util.shape import view_as_windows
 import pylab
 import matplotlib.pyplot as plt
 
@@ -101,6 +102,12 @@ def _u_generation_2D(img_size, amplitude, motion_type=0):
     return u
 
 
+def convert2kspace(arr):
+    im1_kspace = to_freq_space(arr[..., 0])
+    im2_kspace = to_freq_space(arr[..., 1])
+    return np.concatenate((im1_kspace, im2_kspace, arr[..., 2:]), axis=-1)
+
+
 def image2kspace(y, normalize=False):
     """
     Prepares frequency data from image data: applies to_freq_space,
@@ -117,6 +124,16 @@ def image2kspace(y, normalize=False):
     return x
 
 
+
+def to_freq_space_tf(img):
+    img_f = tf.signal.fft2d(img)  # FFT
+    img_fshift = tf.signal.fftshift(img_f)  # FFT shift
+    img_real = img_fshift.real  # Real part: (im_size1, im_size2)
+    img_imag = img_fshift.imag  # Imaginary part: (im_size1, im_size2)
+    img_real_imag = np.dstack((img_real, img_imag))  # (im_size1, im_size2, 2)
+
+    return img_real_imag
+
 def to_freq_space(img):
     """ Performs FFT of an image
     :param img: input 2D image
@@ -128,7 +145,7 @@ def to_freq_space(img):
     img_fshift = np.fft.fftshift(img_f)  # FFT shift
     img_real = img_fshift.real  # Real part: (im_size1, im_size2)
     img_imag = img_fshift.imag  # Imaginary part: (im_size1, im_size2)
-    img_real_imag = np.dstack((img_real, img_imag))  # (im_size1, im_size2, 2)
+    img_real_imag = np.stack((img_real, img_imag), axis=-1)  # (im_size1, im_size2, 2)
 
     return img_real_imag
 
@@ -158,6 +175,17 @@ class MRI_Resp_2D(Input):
                             continue
                         fn_im_paths.append(os.path.join(img_dir, img_file, img_mat))
         return fn_im_paths
+
+    def crop2D(self, arr, crop_size, box_num):
+        arr_cropped_augmented = np.zeros((arr.shape[0] * box_num, crop_size, crop_size, 4), dtype=np.float32)
+        for i in range(box_num):
+            x_pos = np.random.randint(0, self.dims[0] - crop_size, arr.shape[0])
+            y_pos = np.random.randint(0, self.dims[1] - crop_size, arr.shape[0])
+            w = view_as_windows(arr, (1, crop_size, crop_size, 1))[..., 0, :, :, 0]
+            out = w[np.arange(arr.shape[0]), x_pos, y_pos]
+            out = out.transpose(0, 2, 3, 1)
+            arr_cropped_augmented[i * arr.shape[0]:(i + 1) * arr.shape[0], ...] = out
+        return arr_cropped_augmented
 
     def load_real_simulated_data(self, fn_im_paths, selected_slices, max_num_to_take=2000):
         batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
@@ -343,7 +371,9 @@ class MRI_Resp_2D(Input):
                          augment_type_percent,
                          amplitude,
                          train_in_kspace,
-                         cross_test=False):
+                         crop=False,
+                         cross_test=False,
+                         ):
 
         if not train_in_kspace:
             batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
@@ -378,16 +408,28 @@ class MRI_Resp_2D(Input):
             # num_queue = tf.train.slice_input_producer([patient_num], shuffle=False,
             #                                            capacity=len(list(patient_num)), num_epochs=None)
         else:
-            batches = np.zeros((0, self.dims[0], self.dims[1], 8), dtype=np.float32)
+            batches = np.zeros((0, self.dims[0], self.dims[1], 6), dtype=np.float32)
             fn_im_paths = self.get_data_paths(img_dirs)
             np.random.shuffle(fn_im_paths)
-            batches_augmented = self.augmentation_kspace(fn_im_paths,
-                                                  [1, 0],
+            motion_1_share = augment_type_percent[0] / sum(augment_type_percent[:2])
+            motion_2_share = augment_type_percent[1] / sum(augment_type_percent[:2])
+            # batches_augmented = self.augmentation_kspace(fn_im_paths,
+            #                                              [0, 1],
+            #                                              amplitude,
+            #                                              selected_frames,
+            #                                              selected_slices,
+            #                                              data_per_interval)
+            batches_augmented = self.augmentation(fn_im_paths,
+                                                  [motion_1_share, motion_2_share],
                                                   amplitude,
                                                   selected_frames,
                                                   selected_slices,
                                                   data_per_interval)
-            batches = np.concatenate((batches, batches_augmented), axis=0)
+            if crop:
+                batches_augmented = self.crop2D(batches_augmented, crop_size=64, box_num=8)
+            batches = convert2kspace(batches_augmented)
+
+            #batches = np.concatenate((batches, batches_augmented), axis=0)
             np.random.shuffle(batches)
             flow = batches[:, 0, 0, 4:6]
             im1_queue = tf.train.slice_input_producer([batches[..., :2]], shuffle=False,
@@ -408,6 +450,7 @@ class MRI_Resp_2D(Input):
                         selected_frames,
                         selected_slices,
                         amplitude,
+                        crop,
                         test_in_kspace,
                         cross_test=False):
         batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
@@ -423,12 +466,19 @@ class MRI_Resp_2D(Input):
                 # batch = batch[np.newaxis, ...]
 
                 fn_im_paths = self.get_data_paths(img_dir)
-                batch = self.augmentation_kspace(fn_im_paths,
-                                                 [1, 0],
-                                                 amplitude,
-                                                 selected_frames,
-                                                 selected_slices)
-                batch = batch[0, ...]  # only take the first sample
+                batch = self.augmentation(fn_im_paths,
+                                          [1, 0],
+                                          amplitude,
+                                          selected_frames,
+                                          selected_slices)
+
+                if crop:
+                    batch = convert2kspace(batch)
+                    batches_augmented = self.crop2D(batch, crop_size=64, box_num=8)
+                #else:
+
+
+                # batch = batch[0, ...]  # only take the first sample
                 batch = batch[np.newaxis, ...]
                 im1_k_queue = tf.train.slice_input_producer([batch[..., :2]], shuffle=False,
                                                           capacity=len(list(batch[..., 0])), num_epochs=None)

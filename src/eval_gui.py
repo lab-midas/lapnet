@@ -310,7 +310,7 @@ def main(argv=None):
     selected_frames = [0, 3]
     #selected_slices = list(range(15, 55))
     selected_slices = [40]
-    amplitude = 20
+    amplitude = 10
     LAP_layer = True
 
     print("-- evaluating: on {} pairs from {}"
@@ -356,6 +356,7 @@ def main(argv=None):
                                                                                       selected_frames=selected_frames,
                                                                                       selected_slices=selected_slices,
                                                                                       amplitude=10,
+                                                                                      crop=True,
                                                                                       test_in_kspace=params.get('k_space'))
                                                    )
         results.append(result)

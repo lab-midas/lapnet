@@ -245,9 +245,9 @@ def _evaluate_experiment(name, data):
                     sys.stdout.flush()
                     print()
                     # print('charbonnier_loss = ' + str(loss_res))
-                    # if params.get('k_space'):
-                    #     print('flow_gt = ' + str(flow_gt[0, 0, 0, 0]) + ', ' + str(flow_gt[0, 0, 0, 1]))
-                    #     print('flow_pred = ' + str(flow[0, 0, 0, 0]) + ', ' + str(flow[0, 0, 0, 1]))
+                    if params.get('k_space'):
+                        print('flow_gt = ' + str(flow_gt[0, 0, 0, 0]) + ', ' + str(flow_gt[0, 0, 0, 1]))
+                        print('flow_pred = ' + str(flow[0, 0, 0, 0]) + ', ' + str(flow[0, 0, 0, 1]))
             except tf.errors.OutOfRangeError:
                 pass
 

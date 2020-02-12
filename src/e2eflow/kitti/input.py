@@ -72,6 +72,7 @@ def _u_generation_2D(img_size, amplitude, motion_type=0):
     if motion_type == 0:
         #u_C = 2 * np.random.rand(2)
         u_C = -1 + 2 * np.random.rand(2)  # interval [-1, 1]
+        u_C = [1, 0]
         amplitude = amplitude / np.linalg.norm(u_C, 2)
         u = amplitude * np.ones((M, N, 2))
         u[..., 0] = u_C[0] * u[..., 0]
@@ -438,13 +439,16 @@ class MRI_Resp_2D(Input):
 
             #batches = np.concatenate((batches, batches_augmented), axis=0)
             np.random.shuffle(batches)
+
             flow = batches[:, 0, 0, 4:6]
+            # np.save('/home/jpa19/PycharmProjects/MA/UnFlow/same_data_for_test', batches)
+            # batches = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/same_data_for_test.npy')
             im1_queue = tf.train.slice_input_producer([batches[..., :2]], shuffle=False,
                                                       capacity=len(list(batches[..., 0])), num_epochs=None)
             im2_queue = tf.train.slice_input_producer([batches[..., 2:4]], shuffle=False,
                                                       capacity=len(list(batches[..., 1])), num_epochs=None)
-            flow_queue = tf.train.slice_input_producer([flow], shuffle=False,
-                                                       capacity=len(list(flow)), num_epochs=None)
+            flow_queue = tf.train.slice_input_producer([batches[..., 4:6]], shuffle=False,
+                                                       capacity=len(list(batches[..., 4:6])), num_epochs=None)
 
         return tf.train.batch([im1_queue, im2_queue, flow_queue],
                               batch_size=self.batch_size,
@@ -482,10 +486,11 @@ class MRI_Resp_2D(Input):
                 # batch: batch_size * im_size[0] * im_size[1] * 8,
                 # 8: [fft.real &  imag of im1, fft.real &  imag of im2, u1, u2, im1, im2]
 
-                if crop:
-                    batch = self.crop2D(batch, crop_size=64, box_num=1, pos=[[100], [100]])
-                #else:
                 batch = np.concatenate((imgpair2kspace(batch[..., :2]), batch[..., 2:], batch[..., :2]), axis=-1)
+                if crop:
+                    batch = self.crop2D(batch, crop_size=64, box_num=1, pos=[[0], [0]])
+                #else:
+
 
 
                 # batch = batch[0, ...]  # only take the first sample

@@ -121,8 +121,8 @@ def supervised_loss(batch, params, normalization=None, augment=False):
 
                 error = final_flow_fw - flow_gt
                 final_loss = tf.reduce_mean(tf.square(error))
-                # regularization_loss = tf.add_n(slim.losses.get_regularization_losses())
-                # final_loss += regularization_loss
+                regularization_loss = tf.add_n(slim.losses.get_regularization_losses())
+                final_loss += regularization_loss
 
                 _track_loss(final_loss, 'loss/combined')
                 mean_flow_x = tf.reduce_mean(flow_x)
@@ -145,9 +145,9 @@ def supervised_loss(batch, params, normalization=None, augment=False):
                 error = final_flow_fw - flow_gt
                 final_loss = tf.reduce_mean(tf.square(error))
 
-                # regularization_loss = tf.add_n(slim.losses.get_regularization_losses())
-                # final_loss += regularization_loss
-                # _track_loss(regularization_loss, 'loss/regularization')
+                regularization_loss = tf.add_n(slim.losses.get_regularization_losses())
+                final_loss += regularization_loss
+                _track_loss(regularization_loss, 'loss/regularization')
                 _track_loss(final_loss, 'loss/combined')
 
     return final_loss, final_flow_fw

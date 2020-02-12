@@ -21,7 +21,7 @@ tf.app.flags.DEFINE_string('ex', 'default',
                            'training will be continued from the latest checkpoint.')
 tf.app.flags.DEFINE_boolean('debug', False,
                             'Enable image summaries and disable checkpoint writing for debugging.')
-tf.app.flags.DEFINE_boolean('ow', True,
+tf.app.flags.DEFINE_boolean('ow', False,
                             'Overwrites a previous experiment with the same name (if present)'
                             'instead of attempting to continue from its latest checkpoint.')
 FLAGS = tf.app.flags.FLAGS

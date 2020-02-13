@@ -221,7 +221,7 @@ class Trainer():
                     run_metadata = tf.RunMetadata()
                 else:
                     summary_writer = tf.summary.FileWriter(self.train_summaries_dir)
-                    summary_writer.add_graph(sess.graph)
+                    # summary_writer.add_graph(sess.graph)
                     run_options = None
                     run_metadata = None
 

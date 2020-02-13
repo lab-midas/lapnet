@@ -69,6 +69,7 @@ def _u_generation_2D(img_size, amplitude, motion_type=0):
     :return:
     """
     M, N = img_size
+    # amplitude = np.random.randint(0, amplitude_in)
     if motion_type == 0:
         #u_C = 2 * np.random.rand(2)
         u_C = -1 + 2 * np.random.rand(2)  # interval [-1, 1]
@@ -103,9 +104,10 @@ def _u_generation_2D(img_size, amplitude, motion_type=0):
     return u
 
 
-def imgpair2kspace(arr):
+def imgpair2kspace(arr, normalize=False):
     im1_kspace = to_freq_space(arr[..., 0])
     im2_kspace = to_freq_space(arr[..., 1])
+
     return np.asarray(np.concatenate((im1_kspace, im2_kspace), axis=-1), dtype=np.float32)
 
 
@@ -127,7 +129,10 @@ def image2kspace(y, normalize=False):
 
 def to_freq_space_tf(img):
     img_f = tf.signal.fft2d(img)  # FFT
-    img_fshift = tf.signal.fftshift(img_f)  # FFT shift
+    img_fshift = tf.signal.fftshift(img_f, axes=(-1, -2))  # FFT shift todo: test this shift!
+    # sess = tf.InteractiveSession()
+    # a = img_fshift.eval()
+    # b = img_f.eval()
     img_real = img_fshift.real  # Real part: (im_size1, im_size2)
     img_imag = img_fshift.imag  # Imaginary part: (im_size1, im_size2)
     img_real_imag = np.dstack((img_real, img_imag))  # (im_size1, im_size2, 2)
@@ -147,7 +152,7 @@ def to_freq_space(img):
     img_real = img_fshift.real  # Real part: (im_size1, im_size2)
     img_imag = img_fshift.imag  # Imaginary part: (im_size1, im_size2)
     img_real_imag = np.stack((img_real, img_imag), axis=-1)  # (im_size1, im_size2, 2)
-
+    # img_real_imag = (img_real_imag.transpose() - np.mean(img_real_imag, axis=(1, 2, 3))).transpose()  # normalize
     return img_real_imag
 
 
@@ -193,7 +198,7 @@ class MRI_Resp_2D(Input):
                 y_pos = np.random.randint(0, self.dims[1] - crop_size, arr.shape[0])
             else:
                 x_pos = pos[0]
-                y_pos = pos[0]
+                y_pos = pos[1]
 
             w = view_as_windows(arr, (1, crop_size, crop_size, 1))[..., 0, :, :, 0]
             out = w[np.arange(arr.shape[0]), x_pos, y_pos]
@@ -256,7 +261,7 @@ class MRI_Resp_2D(Input):
                      amplitude,
                      selected_frames,
                      selected_slices,
-                     max_num_to_take=2000,
+                     max_num_to_take=4000,
                      cross_test=False):
         batches = []
         # # Debug: to visualize a certain image here
@@ -434,7 +439,7 @@ class MRI_Resp_2D(Input):
                                                   selected_slices,
                                                   data_per_interval)
             if crop:
-                batches_augmented = self.crop2D(batches_augmented, crop_size=64, box_num=8)
+                batches_augmented = self.crop2D(batches_augmented, crop_size=64, box_num=1, pos=[[96], [96]])
             batches = np.concatenate((imgpair2kspace(batches_augmented[..., :2]), batches_augmented[..., 2:]), axis=-1)
 
             #batches = np.concatenate((batches, batches_augmented), axis=0)
@@ -488,7 +493,7 @@ class MRI_Resp_2D(Input):
 
                 batch = np.concatenate((imgpair2kspace(batch[..., :2]), batch[..., 2:], batch[..., :2]), axis=-1)
                 if crop:
-                    batch = self.crop2D(batch, crop_size=64, box_num=1, pos=[[0], [0]])
+                    batch = self.crop2D(batch, crop_size=64, box_num=1, pos=[[128], [128]])
                 #else:
 
 

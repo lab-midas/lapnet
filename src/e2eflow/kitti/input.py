@@ -182,6 +182,35 @@ class MRI_Resp_2D(Input):
                         fn_im_paths.append(os.path.join(img_dir, img_file, img_mat))
         return fn_im_paths
 
+    def crop2D_FixPts(self, arr, crop_size, box_num, pos):
+        """
+
+        :param arr: shape:[batch_size, img_size, img_size, n]
+        :param crop_size:
+        :param box_num:
+        :param pos:
+        :return:
+        """
+        arr_cropped_augmented = np.zeros((np.shape(arr)[0] * box_num, crop_size, crop_size, np.shape(arr)[-1]),
+                                         dtype=np.float32)
+        # if len(arr.shape()) is 4:
+        #     arr = arr[0, ...]
+        # elif len(arr.shape()) is 2:
+        #     arr = arr[..., np.newaxis]
+        # elif len(arr.shape()) is 3:
+        #     pass
+        # else:
+        #     raise ImportError
+        for batch in range(np.shape(arr)[0]):
+            for i in range(box_num):
+                arr_cropped_augmented[batch * box_num + i, ...] = arr[0,
+                                                                      pos[0][i]:pos[0][i] + crop_size,
+                                                                      pos[1][i]:pos[1][i] + crop_size,
+                                                                      :]
+
+        return arr_cropped_augmented
+
+
     def crop2D(self, arr, crop_size, box_num, pos=None):
         """
 
@@ -324,62 +353,61 @@ class MRI_Resp_2D(Input):
 
         return np.asarray(batches, dtype=np.float32)
 
-    def augmentation_kspace(self,
-                     fn_im_paths,
-                     motion_shares,
-                     amplitude,
-                     selected_frames,
-                     selected_slices,
-                     max_num_to_take=2000,
-                     cross_test=False):
-        batches = []
-        # # Debug: to visualize a certain image here
-        # dset = load_mat_file('../data/resp/patient/029/Ph4_Tol100_t000_Ext00_EspOff_closest_recon.mat')
-        # dset = dset['dImg']
-        # dset = np.array(dset, dtype=np.float32)
-        # dset = np.transpose(dset, (2, 3, 1, 0))
-        # pylab.imshow(dset[:, :, 51, 0])
-        for fn_im_path in fn_im_paths:
-            dset = load_mat_file(fn_im_path)
-            dset = dset['dImg']
-            try:
-                dset = np.array(dset, dtype=np.float32)
-                # dset = tf.constant(dset, dtype=tf.float32)
-            except ImportError:
-                print("File {} is defective and cannot be read!".format(fn_im_path))
-                continue
-            dset = np.transpose(dset, (2, 3, 1, 0))
-            dset = dset[..., selected_frames]
-            dset = dset[..., selected_slices, :]
-
-            for frame in range(np.shape(dset)[3]):
-                for slice in range(np.shape(dset)[2]):
-                    if not cross_test:
-                        img = dset[..., slice, :][..., frame]
-                        img = np.flip(img, axis=0)  # todo
-                        # img = (img - np.mean(img)) / np.std(img)
-                        img = (img - np.amin(img)) / (np.amax(img) - np.amin(img))
-                        img_size = np.shape(img)
-                        motion_type = np.random.choice(np.arange(0, 2), p=motion_shares)
-                        u = _u_generation_2D(img_size, amplitude, motion_type=motion_type)
-                        warped_img = np_warp_2D(img, u)
-                        img_kspace = image2kspace(img, normalize=False)
-                        warped_img_kspace = image2kspace(warped_img, normalize=False)
-                        img = img[..., np.newaxis]
-                        warped_img = warped_img[..., np.newaxis]
-                        batch = np.concatenate([img_kspace, warped_img_kspace, u, img, warped_img], 2)
-                        batches.append(batch)
-
-                        # batch = batch[np.newaxis, ...]
-                        # #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
-                        # batches = np.concatenate((batches, batch), axis=0) # this step is too slow
-                        if len(batches) >= max_num_to_take:
-                            batches = batches[:max_num_to_take]
-                            print("{} augmented data with synthetic flows are generated".format((len(batches))))
-
-                            return np.asarray(batches, dtype=np.float32)
-        return np.asarray(batches, dtype=np.float32)
-
+    # def augmentation_kspace(self,
+    #                  fn_im_paths,
+    #                  motion_shares,
+    #                  amplitude,
+    #                  selected_frames,
+    #                  selected_slices,
+    #                  max_num_to_take=2000,
+    #                  cross_test=False):
+    #     batches = []
+    #     # # Debug: to visualize a certain image here
+    #     # dset = load_mat_file('../data/resp/patient/029/Ph4_Tol100_t000_Ext00_EspOff_closest_recon.mat')
+    #     # dset = dset['dImg']
+    #     # dset = np.array(dset, dtype=np.float32)
+    #     # dset = np.transpose(dset, (2, 3, 1, 0))
+    #     # pylab.imshow(dset[:, :, 51, 0])
+    #     for fn_im_path in fn_im_paths:
+    #         dset = load_mat_file(fn_im_path)
+    #         dset = dset['dImg']
+    #         try:
+    #             dset = np.array(dset, dtype=np.float32)
+    #             # dset = tf.constant(dset, dtype=tf.float32)
+    #         except ImportError:
+    #             print("File {} is defective and cannot be read!".format(fn_im_path))
+    #             continue
+    #         dset = np.transpose(dset, (2, 3, 1, 0))
+    #         dset = dset[..., selected_frames]
+    #         dset = dset[..., selected_slices, :]
+    #
+    #         for frame in range(np.shape(dset)[3]):
+    #             for slice in range(np.shape(dset)[2]):
+    #                 if not cross_test:
+    #                     img = dset[..., slice, :][..., frame]
+    #                     img = np.flip(img, axis=0)  # todo
+    #                     # img = (img - np.mean(img)) / np.std(img)
+    #                     img = (img - np.amin(img)) / (np.amax(img) - np.amin(img))
+    #                     img_size = np.shape(img)
+    #                     motion_type = np.random.choice(np.arange(0, 2), p=motion_shares)
+    #                     u = _u_generation_2D(img_size, amplitude, motion_type=motion_type)
+    #                     warped_img = np_warp_2D(img, u)
+    #                     img_kspace = image2kspace(img, normalize=False)
+    #                     warped_img_kspace = image2kspace(warped_img, normalize=False)
+    #                     img = img[..., np.newaxis]
+    #                     warped_img = warped_img[..., np.newaxis]
+    #                     batch = np.concatenate([img_kspace, warped_img_kspace, u, img, warped_img], 2)
+    #                     batches.append(batch)
+    #
+    #                     # batch = batch[np.newaxis, ...]
+    #                     # #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
+    #                     # batches = np.concatenate((batches, batch), axis=0) # this step is too slow
+    #                     if len(batches) >= max_num_to_take:
+    #                         batches = batches[:max_num_to_take]
+    #                         print("{} augmented data with synthetic flows are generated".format((len(batches))))
+    #
+    #                         return np.asarray(batches, dtype=np.float32)
+    #     return np.asarray(batches, dtype=np.float32)
 
     def input_train_data(self,
                          img_dirs,
@@ -391,6 +419,8 @@ class MRI_Resp_2D(Input):
                          amplitude,
                          train_in_kspace,
                          crop=False,
+                         random_crop=False,
+                         crop_size=33,
                          cross_test=False,
                          ):
 
@@ -427,7 +457,7 @@ class MRI_Resp_2D(Input):
             # num_queue = tf.train.slice_input_producer([patient_num], shuffle=False,
             #                                            capacity=len(list(patient_num)), num_epochs=None)
         else:
-            batches = np.zeros((0, self.dims[0], self.dims[1], 6), dtype=np.float32)
+            # batches = np.zeros((0, self.dims[0], self.dims[1], 6), dtype=np.float32)
             fn_im_paths = self.get_data_paths(img_dirs)
             np.random.shuffle(fn_im_paths)
             motion_1_share = augment_type_percent[0] / sum(augment_type_percent[:2])
@@ -439,21 +469,31 @@ class MRI_Resp_2D(Input):
                                                   selected_slices,
                                                   data_per_interval)
             if crop:
-                batches_augmented = self.crop2D(batches_augmented, crop_size=64, box_num=1, pos=[[96], [96]])
+                if random_crop:
+                    batches_augmented = self.crop2D(batches_augmented, crop_size=64, box_num=8)
+                else:
+                    x = np.arange(0, self.dims[0] - crop_size, 4)  # stride = 4
+                    y = np.arange(0, self.dims[0] - crop_size, 4)
+                    vx, vy = np.meshgrid(x, y)
+                    vx = vx.reshape(vx.shape[1] * vx.shape[0])
+                    vy = vy.reshape(vy.shape[1] * vy.shape[0])
+                    pos = np.stack((vx, vy), axis=0)
+                    batches_augmented = self.crop2D_FixPts(batches_augmented, crop_size=crop_size, box_num=np.shape(pos)[1], pos=pos)
+
             batches = np.concatenate((imgpair2kspace(batches_augmented[..., :2]), batches_augmented[..., 2:]), axis=-1)
 
             #batches = np.concatenate((batches, batches_augmented), axis=0)
             np.random.shuffle(batches)
 
-            flow = batches[:, 0, 0, 4:6]
+            flow = batches[:, 16, 16, 4:6]
             # np.save('/home/jpa19/PycharmProjects/MA/UnFlow/same_data_for_test', batches)
             # batches = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/same_data_for_test.npy')
             im1_queue = tf.train.slice_input_producer([batches[..., :2]], shuffle=False,
                                                       capacity=len(list(batches[..., 0])), num_epochs=None)
             im2_queue = tf.train.slice_input_producer([batches[..., 2:4]], shuffle=False,
                                                       capacity=len(list(batches[..., 1])), num_epochs=None)
-            flow_queue = tf.train.slice_input_producer([batches[..., 4:6]], shuffle=False,
-                                                       capacity=len(list(batches[..., 4:6])), num_epochs=None)
+            flow_queue = tf.train.slice_input_producer([flow], shuffle=False,
+                                                       capacity=len(list(flow)), num_epochs=None)
 
         return tf.train.batch([im1_queue, im2_queue, flow_queue],
                               batch_size=self.batch_size,
@@ -490,12 +530,16 @@ class MRI_Resp_2D(Input):
 
                 # batch: batch_size * im_size[0] * im_size[1] * 8,
                 # 8: [fft.real &  imag of im1, fft.real &  imag of im2, u1, u2, im1, im2]
-
+                crop_size = 33
+                x = np.arange(0, self.dims[0] - crop_size, 4)
+                y = np.arange(0, self.dims[0] - crop_size, 4)
+                vx, vy = np.meshgrid(x, y)
+                vx = vx.reshape(vx.shape[1] * vx.shape[0])
+                vy = vy.reshape(vy.shape[1] * vy.shape[0])
+                pos = np.stack((vx, vy), axis=0)
                 batch = np.concatenate((imgpair2kspace(batch[..., :2]), batch[..., 2:], batch[..., :2]), axis=-1)
                 if crop:
-                    batch = self.crop2D(batch, crop_size=64, box_num=1, pos=[[128], [128]])
-                #else:
-
+                    batch = self.crop2D_FixPts(batch, crop_size=crop_size, box_num=np.shape(pos)[1], pos=pos)
 
 
                 # batch = batch[0, ...]  # only take the first sample

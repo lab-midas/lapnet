@@ -5,7 +5,7 @@ import numpy as np
 from .augment import random_photometric
 from .flow_util import flow_to_color
 from .losses import charbonnier_loss
-from .flownet import flownet, flownet_s_kspace_cut_full, flownet_s_kspace_cut_down_4
+from .flownet import flownet, flownet_s_kspace_cut_full, flownet_s_kspace_cut_64, flownet_s_kspace_cut_33
 from .automap import automap
 from .unsupervised import _track_image, _track_loss, FLOW_SCALE
 
@@ -114,7 +114,9 @@ def supervised_loss(batch, params, normalization=None, augment=False):
                 if im1.get_shape().as_list()[2] is 256:
                     final_flow_fw = flownet_s_kspace_cut_full(inputs, channel_mult=1)
                 elif im1.get_shape().as_list()[2] is 64:
-                    final_flow_fw = flownet_s_kspace_cut_down_4(inputs, channel_mult=1)
+                    final_flow_fw = flownet_s_kspace_cut_64(inputs, channel_mult=1)
+                elif im1.get_shape().as_list()[2] is 33:
+                    final_flow_fw = flownet_s_kspace_cut_33(inputs, channel_mult=1)
                 flow_x, _ = tf.split(axis=1, num_or_size_splits=2, value=final_flow_fw)
                 if len(flow_gt.get_shape()) is 4:
                     flow_gt = flow_gt[:, 0, 0, :]

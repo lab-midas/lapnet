@@ -87,6 +87,9 @@ def main(argv=None):
         ftconfig.update(experiment.config['train_resp_2D'])
         convert_input_strings(ftconfig, dirs)
         ftiters = ftconfig.get('num_iters', 0)
+        middle_slices = 40
+        slices_num_half = int(ftconfig.get('selected_slices') / 2)
+        slices_to_take = list(range(middle_slices - slices_num_half, middle_slices + slices_num_half))
         ftinput = MRI_Resp_2D(data=kdata,
                            batch_size=gpu_batch_size,
                            normalize=False,
@@ -96,11 +99,13 @@ def main(argv=None):
                                              img_dirs_real_simulated=['resp/matlab_simulated_data'],
                                              data_per_interval=ftconfig.get('data_per_interval'),
                                              selected_frames=[0, 3],
-                                             selected_slices=list(range(20, 60)),
+                                             selected_slices=slices_to_take,
                                              augment_type_percent=ftconfig.get('augment_type_percent'),
                                              amplitude=ftconfig.get('flow_amplitude'),
                                              train_in_kspace=ftconfig.get('k_space'),
-                                             crop=ftconfig.get('crop')),
+                                             crop=ftconfig.get('crop'),
+                                             random_crop=ftconfig.get('random_crop'),
+                                             crop_size=ftconfig.get('crop_size')),
             lambda: einput.input_train_2015(40),
             supervised=True,
             params=ftconfig,

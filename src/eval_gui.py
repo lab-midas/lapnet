@@ -137,8 +137,14 @@ def _evaluate_experiment(name, data):
 
         if params.get('k_space'):
             flow_x, flow_y = tf.split(axis=1, num_or_size_splits=2, value=flow)
-            flow1 = tf.ones([1, tf.shape(im1)[1], tf.shape(im1)[1], 1])
-            flow2 = tf.ones([1, tf.shape(im1)[1], tf.shape(im1)[1], 1])
+            flow1 = tf.ones([tf.shape(im1)[0], tf.shape(im1)[1], tf.shape(im1)[1], 1])
+            flow2 = tf.ones([tf.shape(im1)[0], tf.shape(im1)[1], tf.shape(im1)[1], 1])
+
+            # flow_x = tf.expand_dims(flow_x, 2)  # TODO
+            # flow_x = tf.expand_dims(flow_x, 2)
+            # flow_y = tf.expand_dims(flow_y, 2)
+            # flow_y = tf.expand_dims(flow_y, 2)
+
             flow1 = flow_x * flow1
             flow2 = flow_y * flow2
             flow = tf.concat((flow1, flow2), axis=3)
@@ -329,7 +335,7 @@ def main(argv=None):
     elif FLAGS.dataset == 'resp_2D':
         kdata = KITTIData(data_dir=dirs['data'], development=True)
         data_input = MRI_Resp_2D(data=kdata,
-                                 batch_size=len(test_types),
+                                 batch_size=1,
                                  normalize=False,
                                  dims=(256, 256))
         FLAGS.num = 1

@@ -470,7 +470,8 @@ class MRI_Resp_2D(Input):
                                                   data_per_interval)
             if crop:
                 if random_crop:
-                    batches_augmented = self.crop2D(batches_augmented, crop_size=64, box_num=8)
+                    batches_augmented = self.crop2D(batches_augmented, crop_size=33, box_num=200)
+
                 else:
                     x = np.arange(0, self.dims[0] - crop_size, 4)  # stride = 4
                     y = np.arange(0, self.dims[0] - crop_size, 4)
@@ -537,10 +538,11 @@ class MRI_Resp_2D(Input):
                 vx = vx.reshape(vx.shape[1] * vx.shape[0])
                 vy = vy.reshape(vy.shape[1] * vy.shape[0])
                 pos = np.stack((vx, vy), axis=0)
-                batch = np.concatenate((imgpair2kspace(batch[..., :2]), batch[..., 2:], batch[..., :2]), axis=-1)
-                if crop:
-                    batch = self.crop2D_FixPts(batch, crop_size=crop_size, box_num=np.shape(pos)[1], pos=pos)
 
+                if crop:
+                    batch = self.crop2D(batch, crop_size=64, box_num=1)
+                    # batch = self.crop2D_FixPts(batch, crop_size=crop_size, box_num=np.shape(pos)[1], pos=pos)
+                batch = np.concatenate((imgpair2kspace(batch[..., :2]), batch[..., 2:], batch[..., :2]), axis=-1)
 
                 # batch = batch[0, ...]  # only take the first sample
                 # batch = batch[np.newaxis, ...]

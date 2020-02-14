@@ -412,36 +412,31 @@ class MRI_Resp_2D(Input):
     def input_train_data(self,
                          img_dirs,
                          img_dirs_real_simulated,
-                         data_per_interval,
                          selected_frames,
-                         selected_slices,
-                         augment_type_percent,
-                         amplitude,
-                         train_in_kspace,
-                         crop=False,
-                         random_crop=False,
-                         crop_size=33,
-                         cross_test=False,
-                         ):
+                         params):
 
-        if not train_in_kspace:
+        middle_slices = 40
+        slices_num_half = int(params.get('slices_to_take') / 2)
+        selected_slices = list(range(middle_slices - slices_num_half, middle_slices + slices_num_half))
+
+        if not params.get('k_space'):
             batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
-            real_simulated_data_num = math.floor(data_per_interval * augment_type_percent[2])
+            real_simulated_data_num = math.floor(params.get('data_per_interval') * params.get('augment_type_percent')[2])
             if real_simulated_data_num is not 0:
                 fn_im_paths = self.get_data_paths(img_dirs_real_simulated)
                 np.random.shuffle(fn_im_paths)
                 batches_real_simulated = self.load_real_simulated_data(fn_im_paths, selected_slices, real_simulated_data_num)
                 batches = np.concatenate((batches, batches_real_simulated), axis=0)
 
-            augmented_data_num = math.floor(data_per_interval * sum(augment_type_percent[:2]))
+            augmented_data_num = math.floor(params.get('data_per_interval') * sum(params.get('augment_type_percent')[:2]))
             if augmented_data_num is not 0:
-                motion_1_share = augment_type_percent[0] / sum(augment_type_percent[:2])
-                motion_2_share = augment_type_percent[1] / sum(augment_type_percent[:2])
+                motion_1_share = params.get('augment_type_percent')[0] / sum(params.get('augment_type_percent')[:2])
+                motion_2_share = params.get('augment_type_percent')[1] / sum(params.get('augment_type_percent')[:2])
                 fn_im_paths = self.get_data_paths(img_dirs)
                 np.random.shuffle(fn_im_paths)
                 batches_augmented = self.augmentation(fn_im_paths,
                                                       [motion_1_share, motion_2_share],
-                                                      amplitude,
+                                                      params.get('flow_amplitude'),
                                                       selected_frames,
                                                       selected_slices,
                                                       augmented_data_num)
@@ -460,26 +455,26 @@ class MRI_Resp_2D(Input):
             # batches = np.zeros((0, self.dims[0], self.dims[1], 6), dtype=np.float32)
             fn_im_paths = self.get_data_paths(img_dirs)
             np.random.shuffle(fn_im_paths)
-            motion_1_share = augment_type_percent[0] / sum(augment_type_percent[:2])
-            motion_2_share = augment_type_percent[1] / sum(augment_type_percent[:2])
+            motion_1_share = params.get('augment_type_percent')[0] / sum(params.get('augment_type_percent')[:2])
+            motion_2_share = params.get('augment_type_percent')[1] / sum(params.get('augment_type_percent')[:2])
             batches_augmented = self.augmentation(fn_im_paths,
                                                   [motion_1_share, motion_2_share],
-                                                  amplitude,
+                                                  params.get('flow_amplitude'),
                                                   selected_frames,
                                                   selected_slices,
-                                                  data_per_interval)
-            if crop:
-                if random_crop:
+                                                  params.get('data_per_interval'))
+            if params.get('crop'):
+                if params.get('random_crop'):
                     batches_augmented = self.crop2D(batches_augmented, crop_size=33, box_num=200)
 
                 else:
-                    x = np.arange(0, self.dims[0] - crop_size, 4)  # stride = 4
-                    y = np.arange(0, self.dims[0] - crop_size, 4)
+                    x = np.arange(0, self.dims[0] - params.get('crop_size'), 4)  # stride = 4
+                    y = np.arange(0, self.dims[0] - params.get('crop_size'), 4)
                     vx, vy = np.meshgrid(x, y)
                     vx = vx.reshape(vx.shape[1] * vx.shape[0])
                     vy = vy.reshape(vy.shape[1] * vy.shape[0])
                     pos = np.stack((vx, vy), axis=0)
-                    batches_augmented = self.crop2D_FixPts(batches_augmented, crop_size=crop_size, box_num=np.shape(pos)[1], pos=pos)
+                    batches_augmented = self.crop2D_FixPts(batches_augmented, crop_size=params.get('crop_size'), box_num=np.shape(pos)[1], pos=pos)
 
             batches = np.concatenate((imgpair2kspace(batches_augmented[..., :2]), batches_augmented[..., 2:]), axis=-1)
 
@@ -500,16 +495,18 @@ class MRI_Resp_2D(Input):
                               batch_size=self.batch_size,
                               num_threads=self.num_threads)
 
-    def input_test_data(self,
-                        test_types,
-                        img_dir,
-                        img_dir_matlab_simulated,
-                        selected_frames,
-                        selected_slices,
-                        amplitude,
-                        crop,
-                        test_in_kspace,
-                        cross_test=False):
+    def input_test_data(self, config):
+
+        test_types = config['test_types']
+        img_dir = config['test_dir']
+        img_dir_matlab_simulated = config['test_dir_matlab_simulated']
+        selected_frames = config['selected_frames']
+        selected_slices = config['selected_slices']
+        amplitude = config['amplitude']
+        crop = config['crop']
+        test_in_kspace = config['test_in_kspace']
+        cross_test = config['cross_test']
+
         batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
         for test_type in test_types:
             if test_type is 0:

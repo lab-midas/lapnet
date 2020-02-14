@@ -309,17 +309,21 @@ def show_results(result, save_path=None):
 def main(argv=None):
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+    config = {}
 
-    test_dir = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/001']
-    #test_dir = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/patient/030']
-    test_dir_matlab_simulated = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/001']
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/patient/030']
+    config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
-    test_types = [0]
-    selected_frames = [0, 3]
-    #selected_slices = list(range(15, 55))
-    selected_slices = [40]
-    amplitude = 10
-    LAP_layer = True
+    config['test_types'] = [0]
+    config['selected_frames'] = [0]
+    # config['selected_slices'] = list(range(15, 55))
+    config['selected_slices'] = [40]
+    config['amplitude'] = 10
+    config['crop'] = True
+    config['test_in_kspace'] = True
+    config['cross_test'] = False
+    config['batch_size'] = 1
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))
@@ -330,12 +334,12 @@ def main(argv=None):
     if FLAGS.dataset == 'kitti':
         data = KITTIData(dirs['data'], development=True)
         data_input = KITTIInput(data, batch_size=1, normalize=False,
-                                 dims=(384, 1280))
+                                dims=(384, 1280))
 
     elif FLAGS.dataset == 'resp_2D':
         kdata = KITTIData(data_dir=dirs['data'], development=True)
         data_input = MRI_Resp_2D(data=kdata,
-                                 batch_size=1,
+                                 batch_size=config['batch_size'],
                                  normalize=False,
                                  dims=(256, 256))
         FLAGS.num = 1
@@ -345,28 +349,19 @@ def main(argv=None):
 
     for name in FLAGS.ex.split(','):
 
-        current_config = config_dict('../config.ini')
-        exp_dir = os.path.join(current_config['dirs']['log'], 'ex', name)
-        config_path = os.path.join(exp_dir, 'config.ini')
-        if not os.path.isfile(config_path):
-            config_path = '../config.ini'
-        config = config_dict(config_path)
-        params = config['train']
-        convert_input_strings(params, config_dict('../config.ini')['dirs'])
-        dataset_params_name = 'train_' + FLAGS.dataset
-        if dataset_params_name in config:
-            params.update(config[dataset_params_name])
+        # current_config = config_dict('../config.ini')
+        # exp_dir = os.path.join(current_config['dirs']['log'], 'ex', name)
+        # config_path = os.path.join(exp_dir, 'config.ini')
+        # if not os.path.isfile(config_path):
+        #     config_path = '../config.ini'
+        # config = config_dict(config_path)
+        # params = config['train']
+        # convert_input_strings(params, config_dict('../config.ini')['dirs'])
+        # dataset_params_name = 'train_' + FLAGS.dataset
+        # if dataset_params_name in config:
+        #     params.update(config[dataset_params_name])
 
-        result, image_names = _evaluate_experiment(name,
-                                                   lambda: data_input.input_test_data(test_types=test_types,
-                                                                                      img_dir=test_dir,
-                                                                                      img_dir_matlab_simulated=test_dir_matlab_simulated,
-                                                                                      selected_frames=selected_frames,
-                                                                                      selected_slices=selected_slices,
-                                                                                      amplitude=8,
-                                                                                      crop=True,
-                                                                                      test_in_kspace=params.get('k_space'))
-                                                   )
+        result, image_names = _evaluate_experiment(name, lambda: data_input.input_test_data(config=config))
         results.append(result)
 
     # display(results, image_names)
@@ -377,3 +372,4 @@ def main(argv=None):
 
 if __name__ == '__main__':
     tf.app.run()
+

@@ -4,7 +4,8 @@ out
 data/
 log/
 src/playground.py
-
+*npy
+*npz
 *.ckpt
 *~
 

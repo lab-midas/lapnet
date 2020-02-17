@@ -325,6 +325,7 @@ def main(argv=None):
     config['cross_test'] = False
     config['batch_size'] = 1
 
+
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))
 

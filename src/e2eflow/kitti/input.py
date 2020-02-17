@@ -203,7 +203,7 @@ class MRI_Resp_2D(Input):
         #     raise ImportError
         for batch in range(np.shape(arr)[0]):
             for i in range(box_num):
-                arr_cropped_augmented[batch * box_num + i, ...] = arr[0,
+                arr_cropped_augmented[batch * box_num + i, ...] = arr[batch,
                                                                       pos[0][i]:pos[0][i] + crop_size,
                                                                       pos[1][i]:pos[1][i] + crop_size,
                                                                       :]
@@ -494,6 +494,55 @@ class MRI_Resp_2D(Input):
         return tf.train.batch([im1_queue, im2_queue, flow_queue],
                               batch_size=self.batch_size,
                               num_threads=self.num_threads)
+
+    def input_patch_test_data(self, config):
+        test_types = config['test_types']
+        img_dir = config['test_dir']
+        img_dir_matlab_simulated = config['test_dir_matlab_simulated']
+        selected_frames = config['selected_frames']
+        selected_slices = config['selected_slices']
+        amplitude = config['amplitude']
+        crop = config['crop']
+        test_in_kspace = config['test_in_kspace']
+        cross_test = config['cross_test']
+
+        fn_im_paths = self.get_data_paths(img_dir)
+        orig_batch = self.augmentation(fn_im_paths,
+                                  [test_types, 1 - test_types],
+                                  amplitude,
+                                  selected_frames,
+                                  selected_slices)
+
+        x = np.arange(0, self.dims[0] - config['crop_size'], config['crop_stride'])
+        y = np.arange(0, self.dims[0] - config['crop_size'], config['crop_stride'])
+        vx, vy = np.meshgrid(x, y)
+        vx = vx.reshape(vx.shape[1] * vx.shape[0])
+        vy = vy.reshape(vy.shape[1] * vy.shape[0])
+        pos = np.stack((vx, vy), axis=0)
+
+        batches_cp = self.crop2D_FixPts(orig_batch, crop_size=config['crop_size'], box_num=np.shape(pos)[1], pos=pos)
+        batches_cp = np.concatenate((imgpair2kspace(batches_cp[..., :2]), batches_cp[..., 2:]), axis=-1)
+        flow = batches_cp[:, 16, 16, 4:6]
+
+        im1_patch_k_queue = tf.train.slice_input_producer([batches_cp[..., :2]], shuffle=False,
+                                                    capacity=len(list(batches_cp[..., 0])), num_epochs=None)
+        im2_patch_k_queue = tf.train.slice_input_producer([batches_cp[..., 2:4]], shuffle=False,
+                                                    capacity=len(list(batches_cp[..., 1])), num_epochs=None)
+        flow_patch_gt = tf.train.slice_input_producer([flow], shuffle=False,
+                                                   capacity=len(flow), num_epochs=None)
+
+        im1_orig = orig_batch[..., 0]
+        im2_orig = orig_batch[..., 1]
+        flow_orig = orig_batch[..., 2:]
+
+        test_batch = tf.train.batch([im1_patch_k_queue, im2_patch_k_queue, flow_patch_gt],
+                                    batch_size=self.batch_size,
+                                    num_threads=self.num_threads)
+
+        return test_batch, im1_orig, im2_orig, flow_orig, np.transpose(pos)
+
+
+
 
     def input_test_data(self, config):
 

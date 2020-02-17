@@ -230,11 +230,11 @@ def main(argv=None):
         # if dataset_params_name in config:
         #     params.update(config[dataset_params_name])
 
-        result, image_names = _evaluate_experiment(name, lambda: data_input.input_patch_test_data(config=config))
-        results.append(result)
+         _evaluate_experiment(name, lambda: data_input.input_patch_test_data(config=config))
+        # results.append(result)
 
     # display(results, image_names)
-    show_results(results)
+    # show_results(results)
 
     pass
 

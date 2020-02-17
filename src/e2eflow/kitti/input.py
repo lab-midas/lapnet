@@ -111,6 +111,22 @@ def imgpair2kspace(arr, normalize=False):
     return np.asarray(np.concatenate((im1_kspace, im2_kspace), axis=-1), dtype=np.float32)
 
 
+def arr2kspace(arr, normalize=False):
+    """
+    convert a 4D array (batch_size, x_dim, y_dim, channel) to kspace along the last axis
+    :param arr:
+    :param normalize:
+    :return: (batch_size, x_dim, y_dim, 2 * channel)
+    """
+    arr_kspace = np.zeros((np.shape(arr)[0], np.shape(arr)[1], np.shape(arr)[2], 2*np.shape(arr)[3]), dtype=np.float32)
+    for i in range(np.shape(arr)[-1]):
+        kspace = to_freq_space(arr[..., i], normalize=normalize)
+        arr_kspace[..., 2*i:2*i+2] = kspace
+    return arr_kspace
+
+    # return np.asarray(np.concatenate((im1_kspace, im2_kspace), axis=-1), dtype=np.float32)
+
+
 def image2kspace(y, normalize=False):
     """
     Prepares frequency data from image data: applies to_freq_space,
@@ -140,7 +156,7 @@ def to_freq_space_tf(img):
     return img_real_imag
 
 
-def to_freq_space(img):
+def to_freq_space(img, normalize=False):
     """ Performs FFT of an image
     :param img: input 2D image
     :return: Frequency-space data of the input image, third dimension (size: 2)
@@ -152,7 +168,8 @@ def to_freq_space(img):
     img_real = img_fshift.real  # Real part: (im_size1, im_size2)
     img_imag = img_fshift.imag  # Imaginary part: (im_size1, im_size2)
     img_real_imag = np.stack((img_real, img_imag), axis=-1)  # (im_size1, im_size2, 2)
-    # img_real_imag = (img_real_imag.transpose() - np.mean(img_real_imag, axis=(1, 2, 3))).transpose()  # normalize
+    if normalize:
+        img_real_imag = (img_real_imag.transpose() - np.mean(img_real_imag, axis=(1, 2, 3))).transpose()
     return img_real_imag
 
 
@@ -463,37 +480,57 @@ class MRI_Resp_2D(Input):
                                                   selected_frames,
                                                   selected_slices,
                                                   params.get('data_per_interval'))
-            if params.get('crop'):
-                if params.get('random_crop'):
-                    batches_augmented = self.crop2D(batches_augmented, crop_size=33, box_num=200)
+            if params.get('crop_first'):
+                if params.get('downsampling'):
+                    batches_augmented[..., 2] = downsampling(batches_augmented[..., 2])
+                if params.get('crop'):
+                    if params.get('random_crop'):
+                        batches_augmented = self.crop2D(batches_augmented, crop_size=params.get('crop_size'), box_num=200)
+                    else:
+                        x = np.arange(0, self.dims[0] - params.get('crop_size'), 4)  # stride = 4
+                        y = np.arange(0, self.dims[0] - params.get('crop_size'), 4)
+                        vx, vy = np.meshgrid(x, y)
+                        vx = vx.reshape(vx.shape[1] * vx.shape[0])
+                        vy = vy.reshape(vy.shape[1] * vy.shape[0])
+                        pos = np.stack((vx, vy), axis=0)
+                        batches_augmented = self.crop2D_FixPts(batches_augmented, crop_size=params.get('crop_size'), box_num=np.shape(pos)[1], pos=pos)
 
-                else:
-                    x = np.arange(0, self.dims[0] - params.get('crop_size'), 4)  # stride = 4
-                    y = np.arange(0, self.dims[0] - params.get('crop_size'), 4)
-                    vx, vy = np.meshgrid(x, y)
-                    vx = vx.reshape(vx.shape[1] * vx.shape[0])
-                    vy = vy.reshape(vy.shape[1] * vy.shape[0])
-                    pos = np.stack((vx, vy), axis=0)
-                    batches_augmented = self.crop2D_FixPts(batches_augmented, crop_size=params.get('crop_size'), box_num=np.shape(pos)[1], pos=pos)
+                batches = np.concatenate((imgpair2kspace(batches_augmented[..., :2]), batches_augmented[..., 2:]), axis=-1)
 
-            batches = np.concatenate((imgpair2kspace(batches_augmented[..., :2]), batches_augmented[..., 2:]), axis=-1)
+                #batches = np.concatenate((batches, batches_augmented), axis=0)
+                np.random.shuffle(batches)
+                central_point = int((params.get('crop_size')-1)/2)
+                flow = batches[:, central_point, central_point, 4:6]
+                # np.save('/home/jpa19/PycharmProjects/MA/UnFlow/same_data_for_test', batches)
+                # batches = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/same_data_for_test.npy')
+                im1_queue = tf.train.slice_input_producer([batches[..., :2]], shuffle=False,
+                                                          capacity=len(list(batches[..., 0])), num_epochs=None)
+                im2_queue = tf.train.slice_input_producer([batches[..., 2:4]], shuffle=False,
+                                                          capacity=len(list(batches[..., 1])), num_epochs=None)
+                flow_queue = tf.train.slice_input_producer([flow], shuffle=False,
+                                                           capacity=len(list(flow)), num_epochs=None)
 
-            #batches = np.concatenate((batches, batches_augmented), axis=0)
-            np.random.shuffle(batches)
+                return tf.train.batch([im1_queue, im2_queue, flow_queue],
+                                      batch_size=self.batch_size,
+                                      num_threads=self.num_threads)
+            else:
+                batches_augmented = arr2kspace(batches_augmented)
+                if params.get('crop'):
+                    if params.get('random_crop'):
+                        batches = self.crop2D(batches_augmented, crop_size=33, box_num=200)
+                np.random.shuffle(batches)
+                flow_k = batches[:, (params.get('crop_size')-1)/2, (params.get('crop_size')-1)/2, 4:8]
 
-            flow = batches[:, 16, 16, 4:6]
-            # np.save('/home/jpa19/PycharmProjects/MA/UnFlow/same_data_for_test', batches)
-            # batches = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/same_data_for_test.npy')
-            im1_queue = tf.train.slice_input_producer([batches[..., :2]], shuffle=False,
-                                                      capacity=len(list(batches[..., 0])), num_epochs=None)
-            im2_queue = tf.train.slice_input_producer([batches[..., 2:4]], shuffle=False,
-                                                      capacity=len(list(batches[..., 1])), num_epochs=None)
-            flow_queue = tf.train.slice_input_producer([flow], shuffle=False,
-                                                       capacity=len(list(flow)), num_epochs=None)
+                im1_queue = tf.train.slice_input_producer([batches[..., :2]], shuffle=False,
+                                                          capacity=len(list(batches[..., 0])), num_epochs=None)
+                im2_queue = tf.train.slice_input_producer([batches[..., 2:4]], shuffle=False,
+                                                          capacity=len(list(batches[..., 1])), num_epochs=None)
+                flow_queue = tf.train.slice_input_producer([flow_k], shuffle=False,
+                                                           capacity=len(list(flow_k)), num_epochs=None)
 
-        return tf.train.batch([im1_queue, im2_queue, flow_queue],
-                              batch_size=self.batch_size,
-                              num_threads=self.num_threads)
+                return tf.train.batch([im1_queue, im2_queue, flow_queue],
+                                      batch_size=self.batch_size,
+                                      num_threads=self.num_threads)
 
     def input_patch_test_data(self, config):
         test_types = config['test_types']
@@ -525,11 +562,11 @@ class MRI_Resp_2D(Input):
         flow = batches_cp[:, 16, 16, 4:6]
 
         im1_patch_k_queue = tf.train.slice_input_producer([batches_cp[..., :2]], shuffle=False,
-                                                    capacity=len(list(batches_cp[..., 0])), num_epochs=None)
+                                                          capacity=len(list(batches_cp[..., 0])), num_epochs=None)
         im2_patch_k_queue = tf.train.slice_input_producer([batches_cp[..., 2:4]], shuffle=False,
-                                                    capacity=len(list(batches_cp[..., 1])), num_epochs=None)
+                                                          capacity=len(list(batches_cp[..., 1])), num_epochs=None)
         flow_patch_gt = tf.train.slice_input_producer([flow], shuffle=False,
-                                                   capacity=len(flow), num_epochs=None)
+                                                      capacity=len(flow), num_epochs=None)
 
         im1_orig = orig_batch[..., 0]
         im2_orig = orig_batch[..., 1]

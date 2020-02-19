@@ -9,6 +9,7 @@ import png
 import matplotlib.pyplot as plt
 import pylab
 import operator
+import time
 
 from e2eflow.core.flow_util import flow_to_color, flow_error_avg, outlier_pct, flow_to_color_np
 from e2eflow.core.flow_util import flow_error_image
@@ -120,6 +121,7 @@ def _evaluate_experiment(name, data):
             threads = tf.train.start_queue_runners(sess=sess,
                                                    coord=coord)
             flow_raw = np.zeros((int(np.sqrt(np.shape(pos)[0])), int(np.sqrt(np.shape(pos)[0])), 2), dtype=np.float32)
+            time_start = time.time()
             for i in range(int(np.floor(len(pos)/batch_size)) + 1):
                 flow_pixel, loss_pixel = sess.run([flow, loss])
                 local_pos = pos[batch_size*i:batch_size*i+batch_size, :]
@@ -128,6 +130,8 @@ def _evaluate_experiment(name, data):
                 except Exception:  # for the last patches
                     last_batch_size = len(local_pos)
                     flow_raw[local_pos[:, 0], local_pos[:, 1], :] = flow_pixel[:last_batch_size, :]
+            time_end = time.time()
+            print('time cost: {}s'.format(time_end - time_start))
 
             if crop_stride is not 1:
                 pass
@@ -147,10 +151,13 @@ def _evaluate_experiment(name, data):
                 np.save('/home/jpa19/PycharmProjects/MA/UnFlow/flow_gt.npy', flow_gt_cut)
                 np.save('/home/jpa19/PycharmProjects/MA/UnFlow/flow_pred.npy', flow_raw)
 
+            error_orig = flow_gt_cut
             error_final = flow_final - flow_gt_cut
             error_raw = flow_raw - flow_gt_cut
+            final_loss_orig = np.mean(np.square(error_orig))
             final_loss = np.mean(np.square(error_final))
             final_loss_raw = np.mean(np.square(error_raw))
+            print("Original Flow Loss: {}".format(final_loss_orig))
             print("Smoothing Flow Loss: {}".format(final_loss))
             print("Raw Flow Loss: {}".format(final_loss_raw))
 
@@ -186,7 +193,7 @@ def main(argv=None):
     config['selected_frames'] = [0]
     # config['selected_slices'] = list(range(15, 55))
     config['selected_slices'] = [40]
-    config['amplitude'] = 10
+    config['amplitude'] = 20
     config['crop'] = True
     config['test_in_kspace'] = True
     config['cross_test'] = False

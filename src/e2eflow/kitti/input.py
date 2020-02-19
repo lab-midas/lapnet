@@ -1,7 +1,10 @@
 import os
 import sys
 import math
+
 import time
+import cProfile
+
 
 import numpy as np
 import tensorflow as tf
@@ -17,6 +20,7 @@ from ..core.input import read_png_image, Input
 from ..core.augment import random_crop
 from ..core.flow_util import flow_to_color
 from ..core.image_warp import image_warp
+from ..core.sampling import generate_mask
 
 
 def _read_flow(filenames, num_epochs=None):
@@ -30,6 +34,24 @@ def _read_flow(filenames, num_epochs=None):
     flow = (gt[:, :, 0:2] - 2 ** 15) / 64.0
     mask = gt[:, :, 2:3]
     return flow, mask
+
+
+def np_warp_3D(img, flow):
+
+    img = img.astype('float32')
+    flow = flow.astype('float32')
+    height, width, thick = np.shape(img)[0], np.shape(img)[1], np.shape(img)[2]
+    posx, posy, posz = np.mgrid[:height, :width, :thick]
+    vx = flow[:, :, :, 0]
+    vy = flow[:, :, :, 1]
+    vz = flow[:, :, :, 2]
+
+    coord_x = posx + vx
+    coord_y = posy + vy
+    coord_z = posz + vz
+    coords = np.array([coord_x, coord_y, coord_z])
+    warped = warp(img, coords)
+    return warped
 
 
 def np_warp_2D(img, flow):
@@ -60,6 +82,42 @@ def load_mat_file(fn_im_path):
     return f
 
 
+def _u_generation_3D(img_size, amplitude, motion_type=0):
+
+    M, N, P = img_size
+
+    if motion_type == 0:
+        amplitude = np.random.randint(0, amplitude)
+        u_C = -1 + 2 * np.random.rand(3)  # interval [-1, 1]
+        amplitude = amplitude / np.linalg.norm(u_C, 2)
+        u = amplitude * np.ones((M, N, P, 3))
+        u[..., 0] = u_C[0] * u[..., 0]
+        u[..., 1] = u_C[1] * u[..., 1]
+        u[..., 2] = u_C[2] * u[..., 2]
+    elif motion_type == 1:
+        u = np.random.normal(0, 1, (M, N, P, 3))
+        u[..., 2] = 0
+        cut_off = 0.01
+        w_x_cut = math.floor(cut_off / (1 / M) + (M + 1) / 2)
+        w_y_cut = math.floor(cut_off / (1 / N) + (N + 1) / 2)
+        w_z_cut = math.floor(cut_off / (1 / P) + (P + 1) / 2)
+
+        LowPass_win = np.zeros((M, N, P), dtype=np.float32)
+        LowPass_win[(M - w_x_cut): w_x_cut, (N - w_y_cut): w_y_cut, (P - w_z_cut):w_z_cut] = 1
+
+        u[..., 0] = (np.fft.ifftn(np.fft.fftn(u[..., 0]) * np.fft.ifftshift(LowPass_win))).real
+        u[..., 1] = (np.fft.ifftn(np.fft.fftn(u[..., 1]) * np.fft.ifftshift(LowPass_win))).real
+        u[..., 2] = (np.fft.ifftn(np.fft.fftn(u[..., 2]) * np.fft.ifftshift(LowPass_win))).real
+
+        u1 = u[..., 0].flatten()
+        u2 = u[..., 1].flatten()
+        u3 = u[..., 2].flatten()
+        amplitude = amplitude / max(np.linalg.norm(np.vstack([u1, u2, u3]), axis=0))
+        u = u * amplitude
+
+    return u
+
+
 def _u_generation_2D(img_size, amplitude, motion_type=0):
     """
 
@@ -71,16 +129,17 @@ def _u_generation_2D(img_size, amplitude, motion_type=0):
     M, N = img_size
     # amplitude = np.random.randint(0, amplitude_in)
     if motion_type == 0:
+        amplitude = np.random.randint(0, amplitude)
         #u_C = 2 * np.random.rand(2)
         u_C = -1 + 2 * np.random.rand(2)  # interval [-1, 1]
-        u_C = [1, 0]
         amplitude = amplitude / np.linalg.norm(u_C, 2)
         u = amplitude * np.ones((M, N, 2))
         u[..., 0] = u_C[0] * u[..., 0]
         u[..., 1] = u_C[1] * u[..., 1]
         pass
     elif motion_type == 1:
-        u = np.random.normal(0, 1, (M, N, 2))
+        u = -1 + 2*np.random.rand(M, N, 2)
+        # u = np.random.normal(0, 1, (M, N, 2))
         cut_off = 0.01
         w_x_cut = math.floor(cut_off / (1 / M) + (M + 1) / 2)
         w_y_cut = math.floor(cut_off / (1 / N) + (N + 1) / 2)
@@ -301,6 +360,68 @@ class MRI_Resp_2D(Input):
                 return batches
         return batches
 
+
+    def augmentation_3D(self,
+                        fn_im_paths,
+                        motion_shares,
+                        amplitude,
+                        selected_frames,
+                        selected_slices,
+                        #motion_types,
+                        max_num_to_take=4000,
+                        undersampling=True,
+                        cross_test=False
+                        ):
+        batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
+        for fn_im_path in fn_im_paths:
+            dset_orig = load_mat_file(fn_im_path)
+            dset_orig = dset_orig['dImg']
+            try:
+                dset_orig = np.array(dset_orig, dtype=np.float32)
+                # dset = tf.constant(dset, dtype=tf.float32)
+            except ImportError:
+                print("File {} is defective and cannot be read!".format(fn_im_path))
+                continue
+            for frame in selected_frames:
+                dset = np.transpose(dset_orig, (3, 2, 1, 0))
+                dset = (dset - np.amin(dset)) / (np.amax(dset) - np.amin(dset))
+                dset = dset[..., frame]
+                img_size = np.shape(dset)
+                if img_size[2] is not 72:
+                    continue
+                motion_type = 1
+                u = _u_generation_3D(img_size, amplitude, motion_type=motion_type)  # TODO: This step too time-consuming
+                warped_dset = np_warp_3D(dset, u)
+
+                mask = np.transpose(generate_mask(nSegments=25, acc=30), (2, 1, 0))
+                k_dset = np.multiply(np.fft.fftn(dset), np.fft.ifftshift(mask))
+                k_warped_dset = np.multiply(np.fft.fftn(warped_dset), np.fft.ifftshift(mask))
+                dset_us = (np.fft.ifftn(k_dset)).real
+                warped_dset_us = (np.fft.ifftn(k_warped_dset)).real
+
+                dset_us, warped_dset_us = dset_us[..., np.newaxis], warped_dset_us[..., np.newaxis]
+
+                batch = np.concatenate((dset_us, warped_dset_us, u[..., :2]), axis=-1)
+                batch = np.transpose(batch, (2, 0, 1, 3))
+                batch = batch[selected_slices, ...]
+                batches = np.concatenate((batches, batch), axis=0)
+
+                # fig, ax = plt.subplots(1, 2, figsize=(8, 4))
+                # ax[0].imshow(warped_dset[..., 30])  # ref
+                # ax[0].set_title('Flow GT')
+                # ax[1].imshow(warped_dset_us[..., 30, 0])  # mov
+                # ax[1].set_title('Flow Pred Raw')
+                # # ax[2].imshow(np_warp_3D(warped_img, -u)[..., 30])
+                # # ax[2].set_title('Flow Pred Smooth')
+                # plt.show()
+                pass
+                if len(batches) >= max_num_to_take:
+                    batches = batches[:max_num_to_take, ...]
+                    return batches
+        return batches
+
+
+
     def augmentation(self,
                      fn_im_paths,
                      motion_shares,
@@ -340,6 +461,16 @@ class MRI_Resp_2D(Input):
                         motion_type = np.random.choice(np.arange(0, 2), p=motion_shares)
                         u = _u_generation_2D(img_size, amplitude, motion_type=motion_type)
                         warped_img = np_warp_2D(img, u)
+
+                        # fig, ax = plt.subplots(1, 3, figsize=(8, 4))
+                        # ax[0].imshow(img)  # ref
+                        # ax[0].set_title('Flow GT')
+                        # ax[1].imshow(warped_img)  # mov
+                        # ax[1].set_title('Flow Pred Raw')
+                        # ax[2].imshow(np_warp_2D(warped_img, -u))
+                        # ax[2].set_title('Flow Pred Smooth')
+                        # plt.show()
+
                         img, warped_img, = img[..., np.newaxis], warped_img[..., np.newaxis]
                         batch = np.concatenate([img, warped_img, u], 2)
                         batches.append(batch)
@@ -474,12 +605,14 @@ class MRI_Resp_2D(Input):
             np.random.shuffle(fn_im_paths)
             motion_1_share = params.get('augment_type_percent')[0] / sum(params.get('augment_type_percent')[:2])
             motion_2_share = params.get('augment_type_percent')[1] / sum(params.get('augment_type_percent')[:2])
-            batches_augmented = self.augmentation(fn_im_paths,
+            time_start = time.time()
+            batches_augmented = self.augmentation_3D(fn_im_paths,
                                                   [motion_1_share, motion_2_share],
                                                   params.get('flow_amplitude'),
                                                   selected_frames,
                                                   selected_slices,
                                                   params.get('data_per_interval'))
+
             if params.get('crop_first'):
                 if params.get('downsampling'):
                     batches_augmented[..., 2] = downsampling(batches_augmented[..., 2])
@@ -495,7 +628,7 @@ class MRI_Resp_2D(Input):
                         pos = np.stack((vx, vy), axis=0)
                         batches_augmented = self.crop2D_FixPts(batches_augmented, crop_size=params.get('crop_size'), box_num=np.shape(pos)[1], pos=pos)
 
-                batches = np.concatenate((imgpair2kspace(batches_augmented[..., :2]), batches_augmented[..., 2:]), axis=-1)
+                batches = np.concatenate((arr2kspace(batches_augmented[..., :2]), batches_augmented[..., 2:]), axis=-1)
 
                 #batches = np.concatenate((batches, batches_augmented), axis=0)
                 np.random.shuffle(batches)
@@ -519,7 +652,8 @@ class MRI_Resp_2D(Input):
                     if params.get('random_crop'):
                         batches = self.crop2D(batches_augmented, crop_size=33, box_num=200)
                 np.random.shuffle(batches)
-                flow_k = batches[:, (params.get('crop_size')-1)/2, (params.get('crop_size')-1)/2, 4:8]
+                central_point = int((params.get('crop_size') - 1) / 2)
+                flow_k = batches[:, central_point, central_point, 4:8]
 
                 im1_queue = tf.train.slice_input_producer([batches[..., :2]], shuffle=False,
                                                           capacity=len(list(batches[..., 0])), num_epochs=None)

@@ -111,7 +111,7 @@ def supervised_loss(batch, params, normalization=None, augment=False):
         inputs = tf.concat([im1_photo, im2_photo], 3)
         if not params.get('automap'):
             with tf.variable_scope('flownet_s'):
-                if params.get('crop_first'):
+                if 1:
                     if im1.get_shape().as_list()[2] is 256:
                         final_flow_fw = flownet_s_kspace_cut_full(inputs, channel_mult=1)
                     elif im1.get_shape().as_list()[2] is 64:
@@ -144,9 +144,9 @@ def supervised_loss(batch, params, normalization=None, augment=False):
                     final_loss += regularization_loss
 
                     _track_loss(final_loss, 'loss/combined')
-                    flow_xr, _ = tf.split(axis=1, num_or_size_splits=4, value=final_flow_fw)
+                    flow_xr, _, _, _ = tf.split(axis=1, num_or_size_splits=4, value=final_flow_fw)
                     mean_flow_xr = tf.reduce_mean(flow_xr)
-                    flow_xr_gt, _ = tf.split(axis=1, num_or_size_splits=4, value=flow_gt)
+                    flow_xr_gt, _, _, _ = tf.split(axis=1, num_or_size_splits=4, value=flow_gt)
                     mean_flow_xr_gt = tf.reduce_mean(flow_xr_gt)
                     _track_loss(mean_flow_xr, 'mean_flow_x')
                     _track_loss(mean_flow_xr_gt, 'mean_flow_x_gt')

@@ -83,6 +83,7 @@ def main(argv=None):
         tr.run(0, ftiters)
     elif train_dataset == 'resp_2D':
         np.random.seed(0)
+        tf.set_random_seed(0)
         ftconfig = copy.deepcopy(experiment.config['train'])
         ftconfig.update(experiment.config['train_resp_2D'])
         convert_input_strings(ftconfig, dirs)

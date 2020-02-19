@@ -9,6 +9,7 @@ import png
 import matplotlib.pyplot as plt
 import pylab
 import operator
+from skimage.transform import warp
 import time
 
 from e2eflow.core.flow_util import flow_to_color, flow_error_avg, outlier_pct, flow_to_color_np
@@ -17,7 +18,7 @@ from e2eflow.util import config_dict
 from e2eflow.core.image_warp import image_warp
 from e2eflow.kitti.input import KITTIInput
 from e2eflow.kitti.data import KITTIData
-from e2eflow.kitti.input import MRI_Resp_2D
+from e2eflow.kitti.input import MRI_Resp_2D, np_warp_2D
 from e2eflow.core.supervised import supervised_loss
 from e2eflow.core.input import resize_input, resize_output_crop, resize_output, resize_output_flow
 from e2eflow.core.train import restore_networks
@@ -103,7 +104,7 @@ def _evaluate_experiment(name, data):
     smooth_wind_size = 17
 
     with tf.Graph().as_default(): #, tf.device('gpu:' + FLAGS.gpu):
-        test_batch, im1_orig, im2_orig, flow_orig, pos = data()
+        test_batch, im1, im2, flow_orig, im1_orig, im2_orig, pos = data()
 
         loss, flow = supervised_loss(
                              test_batch,
@@ -145,7 +146,22 @@ def _evaluate_experiment(name, data):
                 flow_final = np.copy(flow_raw)
 
             flow_gt = np.squeeze(flow_orig)
-            flow_gt_cut = central_crop(flow_gt[:-1, :-1, :], (np.shape(flow_final)[0], np.shape(flow_final)[1]))
+            im1 = np.squeeze(im1)
+            im2 = np.squeeze(im2)
+            im1_orig = np.squeeze(im1_orig)
+            im2_orig = np.squeeze(im2_orig)
+
+            cut_size = (np.shape(flow_final)[0], np.shape(flow_final)[1])
+            flow_gt_cut = central_crop(flow_gt[:-1, :-1, :], cut_size)
+            im1_cut = central_crop(im1[:-1, :-1], cut_size)
+            im2_cut = central_crop(im2[:-1, :-1], cut_size)
+            im1_orig_cut = central_crop(im1_orig[:-1, :-1], cut_size)
+            im2_orig_cut = central_crop(im2_orig[:-1, :-1], cut_size)
+
+            im1_orig_pred = np_warp_2D(im2_orig_cut, -flow_final)
+            im_error_orig = im1_orig_cut - im2_orig_cut
+            im_error_US = im1_cut - im2_cut
+            im_error_pred = im1_orig_cut - im1_orig_pred
 
             if save_results:
                 np.save('/home/jpa19/PycharmProjects/MA/UnFlow/flow_gt.npy', flow_gt_cut)
@@ -164,20 +180,55 @@ def _evaluate_experiment(name, data):
             flow_raw = flow_to_color_np(flow_raw, convert_to_bgr=False)
             flow_final = flow_to_color_np(flow_final, convert_to_bgr=False)
             flow_gt = flow_to_color_np(flow_gt_cut, convert_to_bgr=False)
+            flow_error = flow_to_color_np(error_final, convert_to_bgr=False)
 
-            fig, ax = plt.subplots(1, 3, figsize=(8, 4))
-            ax[0].imshow(flow_gt)  # ref
-            ax[0].set_title('Flow GT')
-            ax[1].imshow(flow_raw)  # mov
-            ax[1].set_title('Flow Pred Raw')
-            ax[2].imshow(flow_final)
-            ax[2].set_title('Flow Pred Smooth')
-            plt.show()
-            pass
+            results = [im1_orig_cut, im2_orig_cut, im1_cut, im2_cut,
+                       im1_orig_pred,  flow_final, flow_gt,
+                       im_error_pred, im_error_orig, im_error_US]
+
+            results = [np.rot90(i) for i in results]
+
+    return results
+
+            # fig, ax = plt.subplots(1, 3, figsize=(8, 4))
+            # ax[0].imshow(flow_gt)  # ref
+            # ax[0].set_title('Flow GT')
+            # ax[1].imshow(flow_raw)  # mov
+            # ax[1].set_title('Flow Pred Raw')
+            # ax[2].imshow(flow_final)
+            # ax[2].set_title('Flow Pred Smooth')
+            # plt.show()
+            # pass
 
 
+def show_results(results):
+    fig, ax = plt.subplots(3, 4, figsize=(18, 14))
+    ax[0][0].imshow(results[0], cmap='gray')
+    ax[0][0].set_title('Ref Img')
+    ax[0][1].imshow(results[1], cmap='gray')
+    ax[0][1].set_title('Moving Img')
+    ax[0][2].imshow(results[2], cmap='gray')
+    ax[0][2].set_title('Ref US Img')
+    ax[0][3].imshow(results[3], cmap='gray')
+    ax[0][3].set_title('Moving US Img')
 
+    ax[1][0].imshow(results[4], cmap='gray')
+    ax[1][0].set_title('Warped Error')
+    ax[1][1].imshow(results[5])
+    ax[1][1].set_title('Flow Pred')
+    ax[1][2].imshow(results[6])
+    ax[1][2].set_title('Flow GT')
+    fig.delaxes(ax[1, 3])
 
+    ax[2][0].imshow(results[7], cmap='gray')
+    ax[2][0].set_title('Moving Corrected')
+    ax[2][1].imshow(results[8], cmap='gray')
+    ax[2][1].set_title('Original Error')
+    ax[2][2].imshow(results[9], cmap='gray')
+    ax[2][2].set_title('Undersampled Error')
+    fig.delaxes(ax[2, 3])
+
+    plt.show()
 
 
 def main(argv=None):
@@ -193,13 +244,14 @@ def main(argv=None):
     config['selected_frames'] = [0]
     # config['selected_slices'] = list(range(15, 55))
     config['selected_slices'] = [40]
-    config['amplitude'] = 20
+    config['amplitude'] = 10
     config['crop'] = True
     config['test_in_kspace'] = True
     config['cross_test'] = False
     config['batch_size'] = 64
     config['crop_size'] = 33
     config['crop_stride'] = 1
+    config['given_u'] = True
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))
@@ -236,14 +288,11 @@ def main(argv=None):
         # dataset_params_name = 'train_' + FLAGS.dataset
         # if dataset_params_name in config:
         #     params.update(config[dataset_params_name])
-
-         _evaluate_experiment(name, lambda: data_input.input_patch_test_data(config=config))
+        results = _evaluate_experiment(name, lambda: data_input.input_patch_test_data(config=config))
+        show_results(results)
         # results.append(result)
 
     # display(results, image_names)
-    # show_results(results)
-
-    pass
 
 
 if __name__ == '__main__':

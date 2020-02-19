@@ -367,12 +367,16 @@ class MRI_Resp_2D(Input):
                         amplitude,
                         selected_frames,
                         selected_slices,
+                        given_u=False,
                         #motion_types,
                         max_num_to_take=4000,
                         undersampling=True,
                         cross_test=False
                         ):
-        batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
+        if not given_u:
+            batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
+        else:
+            batches = np.zeros((0, self.dims[0], self.dims[1], 6), dtype=np.float32)
         for fn_im_path in fn_im_paths:
             dset_orig = load_mat_file(fn_im_path)
             dset_orig = dset_orig['dImg']
@@ -390,7 +394,10 @@ class MRI_Resp_2D(Input):
                 if img_size[2] is not 72:
                     continue
                 motion_type = 1
-                u = _u_generation_3D(img_size, amplitude, motion_type=motion_type)  # TODO: This step too time-consuming
+                if not given_u:
+                    u = _u_generation_3D(img_size, amplitude, motion_type=motion_type)  # TODO: This step too time-consuming
+                else:
+                    u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_amp10_3D.npy')
                 warped_dset = np_warp_3D(dset, u)
 
                 mask = np.transpose(generate_mask(nSegments=25, acc=30), (2, 1, 0))
@@ -399,27 +406,33 @@ class MRI_Resp_2D(Input):
                 dset_us = (np.fft.ifftn(k_dset)).real
                 warped_dset_us = (np.fft.ifftn(k_warped_dset)).real
 
+                # fig, ax = plt.subplots(2, 2, figsize=(8, 8))
+                # ax[0][0].imshow(np.rot90(dset[..., selected_slices[0]]))  # ref
+                # ax[0][0].set_title('Ref Img')
+                # ax[0][1].imshow(np.rot90(warped_dset[..., selected_slices[0]]))  # mov
+                # ax[0][1].set_title('Moving Img')
+                # ax[1][0].imshow(np.rot90(dset_us[..., selected_slices[0]]))
+                # ax[1][0].set_title('Ref US Img')
+                # ax[1][1].imshow(np.rot90(warped_dset_us[..., selected_slices[0]]))
+                # ax[1][1].set_title('Moving US Img')
+                # plt.show()
+                # pass
+
                 dset_us, warped_dset_us = dset_us[..., np.newaxis], warped_dset_us[..., np.newaxis]
 
-                batch = np.concatenate((dset_us, warped_dset_us, u[..., :2]), axis=-1)
+                if not given_u:
+                    batch = np.concatenate((dset_us, warped_dset_us, u[..., :2]), axis=-1)
+                else:
+                    dset, warped_dset = dset[..., np.newaxis], warped_dset[..., np.newaxis]
+                    batch = np.concatenate((dset_us, warped_dset_us, u[..., :2], dset, warped_dset), axis=-1)
                 batch = np.transpose(batch, (2, 0, 1, 3))
                 batch = batch[selected_slices, ...]
                 batches = np.concatenate((batches, batch), axis=0)
 
-                # fig, ax = plt.subplots(1, 2, figsize=(8, 4))
-                # ax[0].imshow(warped_dset[..., 30])  # ref
-                # ax[0].set_title('Flow GT')
-                # ax[1].imshow(warped_dset_us[..., 30, 0])  # mov
-                # ax[1].set_title('Flow Pred Raw')
-                # # ax[2].imshow(np_warp_3D(warped_img, -u)[..., 30])
-                # # ax[2].set_title('Flow Pred Smooth')
-                # plt.show()
-                pass
                 if len(batches) >= max_num_to_take:
                     batches = batches[:max_num_to_take, ...]
                     return batches
         return batches
-
 
 
     def augmentation(self,
@@ -428,6 +441,7 @@ class MRI_Resp_2D(Input):
                      amplitude,
                      selected_frames,
                      selected_slices,
+                     given_u=False,
                      max_num_to_take=4000,
                      cross_test=False):
         batches = []
@@ -459,7 +473,11 @@ class MRI_Resp_2D(Input):
                         img = (img - np.amin(img)) / (np.amax(img) - np.amin(img))
                         img_size = np.shape(img)
                         motion_type = np.random.choice(np.arange(0, 2), p=motion_shares)
-                        u = _u_generation_2D(img_size, amplitude, motion_type=motion_type)
+                        if not given_u:
+                            u = _u_generation_2D(img_size, amplitude, motion_type=motion_type)
+                        else:
+                            u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_amp10_3D.npy')
+                            u = u[:, :, selected_slices[0], :2]
                         warped_img = np_warp_2D(img, u)
 
                         # fig, ax = plt.subplots(1, 3, figsize=(8, 4))
@@ -587,7 +605,8 @@ class MRI_Resp_2D(Input):
                                                       params.get('flow_amplitude'),
                                                       selected_frames,
                                                       selected_slices,
-                                                      augmented_data_num)
+                                                      given_u=False,
+                                                      max_num_to_take=augmented_data_num)
                 batches = np.concatenate((batches, batches_augmented), axis=0)
                 np.random.shuffle(batches)
 
@@ -599,6 +618,9 @@ class MRI_Resp_2D(Input):
                                                        capacity=len(list(batches[..., 2:4])), num_epochs=None)
             # num_queue = tf.train.slice_input_producer([patient_num], shuffle=False,
             #                                            capacity=len(list(patient_num)), num_epochs=None)
+            return tf.train.batch([im1_queue, im2_queue, flow_queue],
+                                  batch_size=self.batch_size,
+                                  num_threads=self.num_threads)
         else:
             # batches = np.zeros((0, self.dims[0], self.dims[1], 6), dtype=np.float32)
             fn_im_paths = self.get_data_paths(img_dirs)
@@ -611,7 +633,8 @@ class MRI_Resp_2D(Input):
                                                   params.get('flow_amplitude'),
                                                   selected_frames,
                                                   selected_slices,
-                                                  params.get('data_per_interval'))
+                                                  given_u=False,
+                                                  max_num_to_take=params.get('data_per_interval'))
 
             if params.get('crop_first'):
                 if params.get('downsampling'):
@@ -676,13 +699,15 @@ class MRI_Resp_2D(Input):
         crop = config['crop']
         test_in_kspace = config['test_in_kspace']
         cross_test = config['cross_test']
+        given_u = config['given_u']
 
         fn_im_paths = self.get_data_paths(img_dir)
-        orig_batch = self.augmentation(fn_im_paths,
+        orig_batch = self.augmentation_3D(fn_im_paths,
                                   [test_types, 1 - test_types],
                                   amplitude,
                                   selected_frames,
-                                  selected_slices)
+                                  selected_slices,
+                                          given_u)
 
         x = np.arange(0, self.dims[0] - config['crop_size'], config['crop_stride'])
         y = np.arange(0, self.dims[0] - config['crop_size'], config['crop_stride'])
@@ -692,7 +717,7 @@ class MRI_Resp_2D(Input):
         pos = np.stack((vx, vy), axis=0)
 
         batches_cp = self.crop2D_FixPts(orig_batch, crop_size=config['crop_size'], box_num=np.shape(pos)[1], pos=pos)
-        batches_cp = np.concatenate((imgpair2kspace(batches_cp[..., :2]), batches_cp[..., 2:]), axis=-1)
+        batches_cp = np.concatenate((imgpair2kspace(batches_cp[..., :2]), batches_cp[..., 2:4]), axis=-1)
         flow = batches_cp[:, 16, 16, 4:6]
 
         im1_patch_k_queue = tf.train.slice_input_producer([batches_cp[..., :2]], shuffle=False,
@@ -702,15 +727,16 @@ class MRI_Resp_2D(Input):
         flow_patch_gt = tf.train.slice_input_producer([flow], shuffle=False,
                                                       capacity=len(flow), num_epochs=None)
 
-        im1_orig = orig_batch[..., 0]
-        im2_orig = orig_batch[..., 1]
-        flow_orig = orig_batch[..., 2:]
-
+        im1 = orig_batch[..., 0]
+        im2 = orig_batch[..., 1]
+        flow_orig = orig_batch[..., 2:4]
+        im1_orig = orig_batch[..., 4]
+        im2_orig = orig_batch[..., 5]
         test_batch = tf.train.batch([im1_patch_k_queue, im2_patch_k_queue, flow_patch_gt],
                                     batch_size=self.batch_size,
                                     num_threads=self.num_threads)
 
-        return test_batch, im1_orig, im2_orig, flow_orig, np.transpose(pos)
+        return test_batch, im1, im2, flow_orig, im1_orig, im2_orig, np.transpose(pos)
 
 
 

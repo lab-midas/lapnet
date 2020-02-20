@@ -11,7 +11,7 @@ from e2eflow.core.train import Trainer
 from e2eflow.experiment import Experiment
 from e2eflow.util import convert_input_strings
 
-from e2eflow.kitti.input import KITTIInput, MRI_Resp_3D, MRI_Resp_2D
+from e2eflow.kitti.input import KITTIInput, MRI_Resp_2D  # MRI_Resp_3D
 from e2eflow.kitti.data import KITTIData
 
 

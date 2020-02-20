@@ -1,21 +1,43 @@
 import tensorflow as tf
 import numpy as np
-
-def image_warp_np(im, flow):
-    height, width = np.shape(im)[0], np.shape(im)[1]
-    max_x, max_y = width - 1, height - 1
-    zero = a
-
-    im_flat = im.reshape((-1, 1))
-    flow_flat = flow.reshape((-1, 2))
-    flow_floor = np.floor(flow).astape(int)
-    bilinear_weights = flow_flat - np.floor(flow)
+from skimage.transform import warp
 
 
+def np_warp_3D(img, flow):
+
+    img = img.astype('float32')
+    flow = flow.astype('float32')
+    height, width, thick = np.shape(img)[0], np.shape(img)[1], np.shape(img)[2]
+    posx, posy, posz = np.mgrid[:height, :width, :thick]
+    vx = flow[:, :, :, 0]
+    vy = flow[:, :, :, 1]
+    vz = flow[:, :, :, 2]
+
+    coord_x = posx + vx
+    coord_y = posy + vy
+    coord_z = posz + vz
+    coords = np.array([coord_x, coord_y, coord_z])
+    warped = warp(img, coords)
+    return warped
 
 
+def np_warp_2D(img, flow):
+    img = img.astype('float32')
+    flow = flow.astype('float32')
+    height, width = np.shape(img)[0], np.shape(img)[1]
+    posx, posy = np.mgrid[:height, :width]
+    # flow=np.reshape(flow, [-1, 3])
+    vx = flow[:, :, 0]
+    vy = flow[:, :, 1]
+
+    coord_x = posx + vx
+    coord_y = posy + vy
+    coords = np.array([coord_x, coord_y])
+    warped = warp(img, coords, order=1)  # order=1 for bi-linear
+    return warped
 
 
+# for tf warp
 def image_warp(im, flow):
     """Performs a backward warp of an image using the predicted flow.
 

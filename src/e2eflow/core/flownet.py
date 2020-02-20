@@ -200,7 +200,7 @@ def flownet_s(inputs, channel_mult=1, full_res=False, LAP_layer=False):
         return nchw_to_nhwc(res)
 
 
-def flownet_s_kspace_cut_33_out_4(inputs, channel_mult=1, full_res=False):
+def flownet_s_kspace_in_33_out_4(inputs, channel_mult=1, full_res=False):
 
     m = channel_mult
     # m = 3 / 8
@@ -248,7 +248,7 @@ def flownet_s_kspace_cut_33_out_4(inputs, channel_mult=1, full_res=False):
     return fc2
 
 
-def flownet_s_kspace_cut_33(inputs, channel_mult=1, full_res=False):
+def flownet_s_kspace_in_33(inputs, channel_mult=1, full_res=False):
 
     m = channel_mult
     # m = 3 / 8
@@ -296,7 +296,7 @@ def flownet_s_kspace_cut_33(inputs, channel_mult=1, full_res=False):
     return fc2
 
 
-def flownet_s_kspace_cut_64(inputs, channel_mult=1, full_res=False):
+def flownet_s_kspace_in_64(inputs, channel_mult=1, full_res=False):
 
     m = channel_mult
     # m = 3 / 8
@@ -344,7 +344,7 @@ def flownet_s_kspace_cut_64(inputs, channel_mult=1, full_res=False):
     return fc2
 
 
-def flownet_s_kspace_cut_full(inputs, channel_mult=1, full_res=False):
+def flownet_s_kspace_in_full(inputs, channel_mult=1, full_res=False):
 
     m = channel_mult
     # m = 3 / 8

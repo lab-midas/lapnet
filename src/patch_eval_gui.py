@@ -24,9 +24,8 @@ from e2eflow.core.input import resize_input, resize_output_crop, resize_output, 
 from e2eflow.core.train import restore_networks
 from e2eflow.ops import forward_warp
 from e2eflow.gui import display
-from e2eflow.core.losses import DISOCC_THRESH, occlusion, create_outgoing_mask
 from e2eflow.util import convert_input_strings
-from e2eflow.kitti.input import np_warp_2D
+from e2eflow.core.image_warp import np_warp_2D, np_warp_3D
 
 
 tf.app.flags.DEFINE_string('dataset', 'resp_2D',
@@ -182,23 +181,25 @@ def _evaluate_experiment(name, data):
             flow_gt = flow_to_color_np(flow_gt_cut, convert_to_bgr=False)
             flow_error = flow_to_color_np(error_final, convert_to_bgr=False)
 
+            compare_the_flow = False
+            if compare_the_flow:
+                # compare the raw and smoothed flow
+                fig, ax = plt.subplots(1, 3, figsize=(8, 4))
+                ax[0].imshow(flow_gt)  # ref
+                ax[0].set_title('Flow GT')
+                ax[1].imshow(flow_raw)  # mov
+                ax[1].set_title('Flow Pred Raw')
+                ax[2].imshow(flow_final)
+                ax[2].set_title('Flow Pred Smooth')
+                plt.show()
+
             results = [im1_orig_cut, im2_orig_cut, im1_cut, im2_cut,
                        im1_orig_pred,  flow_final, flow_gt,
                        im_error_pred, im_error_orig, im_error_US]
 
-            results = [np.rot90(i) for i in results]
+            # results = [np.rot90(i) for i in results]
 
     return results
-
-            # fig, ax = plt.subplots(1, 3, figsize=(8, 4))
-            # ax[0].imshow(flow_gt)  # ref
-            # ax[0].set_title('Flow GT')
-            # ax[1].imshow(flow_raw)  # mov
-            # ax[1].set_title('Flow Pred Raw')
-            # ax[2].imshow(flow_final)
-            # ax[2].set_title('Flow Pred Smooth')
-            # plt.show()
-            # pass
 
 
 def show_results(results):
@@ -213,7 +214,7 @@ def show_results(results):
     ax[0][3].set_title('Moving US Img')
 
     ax[1][0].imshow(results[4], cmap='gray')
-    ax[1][0].set_title('Warped Error')
+    ax[1][0].set_title('Moving Corrected')
     ax[1][1].imshow(results[5])
     ax[1][1].set_title('Flow Pred')
     ax[1][2].imshow(results[6])
@@ -221,7 +222,7 @@ def show_results(results):
     fig.delaxes(ax[1, 3])
 
     ax[2][0].imshow(results[7], cmap='gray')
-    ax[2][0].set_title('Moving Corrected')
+    ax[2][0].set_title('Warped error')
     ax[2][1].imshow(results[8], cmap='gray')
     ax[2][1].set_title('Original Error')
     ax[2][2].imshow(results[9], cmap='gray')
@@ -245,8 +246,7 @@ def main(argv=None):
     # config['selected_slices'] = list(range(15, 55))
     config['selected_slices'] = [40]
     config['amplitude'] = 10
-    config['crop'] = True
-    config['test_in_kspace'] = True
+    config['network'] = 'ftflownet'
     config['cross_test'] = False
     config['batch_size'] = 64
     config['crop_size'] = 33

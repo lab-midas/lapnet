@@ -5,7 +5,7 @@ import numpy as np
 from .augment import random_photometric
 from .flow_util import flow_to_color
 from .losses import charbonnier_loss
-from .flownet import flownet, flownet_s_kspace_cut_full, flownet_s_kspace_cut_64, flownet_s_kspace_cut_33, flownet_s_kspace_cut_33_out_4
+from .flownet import flownet, flownet_s_kspace_in_full, flownet_s_kspace_in_64, flownet_s_kspace_in_33, flownet_s_kspace_in_33_out_4
 from .automap import automap
 from .unsupervised import _track_image, _track_loss, FLOW_SCALE
 
@@ -68,7 +68,7 @@ def supervised_loss(batch, params, normalization=None, augment=False):
     train_all = params.get('train_all')
     # -------------------------------------------------------------------------
 
-    if not params.get('k_space'):
+    if params.get('network') == 'flownet':
         # FlowNet
         flows_fw = flownet(im1_photo, im2_photo,
                            flownet_spec=flownet_spec,
@@ -107,17 +107,17 @@ def supervised_loss(batch, params, normalization=None, augment=False):
         final_loss += regularization_loss
         _track_loss(regularization_loss, 'loss/regularization')
         _track_loss(final_loss, 'loss/combined')
-    else:
+    elif params.get('network') == 'ftflownet':
         inputs = tf.concat([im1_photo, im2_photo], 3)
         if not params.get('automap'):
             with tf.variable_scope('flownet_s'):
-                if 1:
+                if not params.get('whole_kspace_training'):
                     if im1.get_shape().as_list()[2] is 256:
-                        final_flow_fw = flownet_s_kspace_cut_full(inputs, channel_mult=1)
+                        final_flow_fw = flownet_s_kspace_in_full(inputs, channel_mult=1)
                     elif im1.get_shape().as_list()[2] is 64:
-                        final_flow_fw = flownet_s_kspace_cut_64(inputs, channel_mult=1)
+                        final_flow_fw = flownet_s_kspace_in_64(inputs, channel_mult=1)
                     elif im1.get_shape().as_list()[2] is 33:
-                        final_flow_fw = flownet_s_kspace_cut_33(inputs, channel_mult=1)
+                        final_flow_fw = flownet_s_kspace_in_33(inputs, channel_mult=1)
 
                     if len(flow_gt.get_shape()) is 4:
                         flow_gt = flow_gt[:, 0, 0, :]
@@ -136,7 +136,7 @@ def supervised_loss(batch, params, normalization=None, augment=False):
                     _track_loss(mean_flow_x_gt, 'mean_flow_x_gt')
                 else:
                     if im1.get_shape().as_list()[2] is 33:
-                        final_flow_fw = flownet_s_kspace_cut_33_out_4(inputs, channel_mult=1)
+                        final_flow_fw = flownet_s_kspace_in_33_out_4(inputs, channel_mult=1)
 
                     error = final_flow_fw - flow_gt
                     final_loss = tf.reduce_mean(tf.square(error))

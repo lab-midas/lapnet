@@ -112,11 +112,11 @@ def _evaluate_experiment(name, data):
 
     with tf.Graph().as_default(): #, tf.device('gpu:' + FLAGS.gpu):
         input_fn = data()
-        im1_ori = input_fn[3]
-        im2_ori = input_fn[4]
-        im1_ori = tf.transpose(im1_ori, [0, 2, 3, 1])
-        im2_ori = tf.transpose(im2_ori, [0, 2, 3, 1])
-        input_fn = input_fn[:3]
+        # im1_ori = input_fn[3]
+        # im2_ori = input_fn[4]
+        # im1_ori = tf.transpose(im1_ori, [0, 2, 3, 1])
+        # im2_ori = tf.transpose(im2_ori, [0, 2, 3, 1])
+        # input_fn = input_fn[:3]
         im1, im2, flow_gt = input_fn
         height = tf.shape(im1)[1]
         width = tf.shape(im1)[2]
@@ -155,16 +155,16 @@ def _evaluate_experiment(name, data):
 
         flow_fw_int16 = flow_to_int16(flow)
 
-        im1_pred = image_warp(im2_ori, -flow)  # todo
-        im1_diff = tf.abs(im1_ori - im1_pred)
-        ori_diff = tf.abs(im1_ori - im2_ori)
+        im1_pred = image_warp(im2, -flow)  # todo
+        im1_diff = tf.abs(im1 - im1_pred)
+        ori_diff = tf.abs(im1 - im2)
         # flow_diff = tf.abs(flow - flow_gt)
 
         # flow_gt = resize_output_crop(flow_gt, height, width, 2)
         # mask = resize_output_crop(mask, height, width, 1)
 
-        image_slots = [(im1_ori / 255, 'first image'),
-                       (im2_ori / 255, 'second image'),
+        image_slots = [(im1 / 255, 'first image'),
+                       (im2 / 255, 'second image'),
                        (im1_pred, 'warped second image'),
                        (ori_diff, 'original error'),
                        (im1_diff, 'warping error'),
@@ -277,6 +277,7 @@ def _evaluate_experiment(name, data):
 
 def show_results(result, save_path=None):
 
+    # result[0][0] = [np.rot90(i, axes=(1, 2)) for i in result[0][0]]
     for exp in range(len(result)):
         for num in range(np.shape(result[0][0][0])[0]):
             fig, ax = plt.subplots(2, 4, figsize=(15, 8))
@@ -315,15 +316,16 @@ def main(argv=None):
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/patient/030']
     config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
-    config['test_types'] = [0]
+    config['test_types'] = [1]
     config['selected_frames'] = [0]
     # config['selected_slices'] = list(range(15, 55))
     config['selected_slices'] = [40]
     config['amplitude'] = 10
     config['crop'] = True
-    config['test_in_kspace'] = True
+    config['test_in_kspace'] = False
     config['cross_test'] = False
     config['batch_size'] = 1
+    config['given_u'] = True
 
 
     print("-- evaluating: on {} pairs from {}"

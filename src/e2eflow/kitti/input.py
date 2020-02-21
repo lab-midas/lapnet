@@ -293,10 +293,11 @@ class MRI_Resp_2D(Input):
         :return:
         """
         arr_cropped_augmented = np.zeros((arr.shape[0] * box_num, crop_size, crop_size, arr.shape[-1]), dtype=np.float32)
+        x_dim, y_dim = np.shape(arr)[1:3]
         for i in range(box_num):
             if pos is None:
-                x_pos = np.random.randint(0, self.dims[0] - crop_size, arr.shape[0])
-                y_pos = np.random.randint(0, self.dims[1] - crop_size, arr.shape[0])
+                x_pos = np.random.randint(0, x_dim - crop_size + 1, arr.shape[0])
+                y_pos = np.random.randint(0, y_dim - crop_size + 1, arr.shape[0])
             else:
                 x_pos = pos[0]
                 y_pos = pos[1]
@@ -368,13 +369,12 @@ class MRI_Resp_2D(Input):
                         undersampling=True,
                         cross_test=False
                         ):
-        if not given_u:
-            batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
-        else:
-            batches = np.zeros((0, self.dims[0], self.dims[1], 6), dtype=np.float32)
+
+        batches = np.zeros((0, self.dims[0], self.dims[1], 6), dtype=np.float32)
         for fn_im_path in fn_im_paths:
             dset_orig = load_mat_file(fn_im_path)
             dset_orig = dset_orig['dImg']
+            # dset_orig = dset_orig['dMBCSHDPROST']
             try:
                 dset_orig = np.array(dset_orig, dtype=np.float32)
                 # dset = tf.constant(dset, dtype=tf.float32)
@@ -415,12 +415,9 @@ class MRI_Resp_2D(Input):
                 # pass
 
                 dset_us, warped_dset_us = dset_us[..., np.newaxis], warped_dset_us[..., np.newaxis]
+                dset, warped_dset = dset[..., np.newaxis], warped_dset[..., np.newaxis]
 
-                if not given_u:
-                    batch = np.concatenate((dset_us, warped_dset_us, u[..., :2]), axis=-1)
-                else:
-                    dset, warped_dset = dset[..., np.newaxis], warped_dset[..., np.newaxis]
-                    batch = np.concatenate((dset_us, warped_dset_us, u[..., :2], dset, warped_dset), axis=-1)
+                batch = np.concatenate((dset_us, warped_dset_us, u[..., :2], dset, warped_dset), axis=-1)
                 batch = np.transpose(batch, (2, 0, 1, 3))
                 batch = batch[selected_slices, ...]
                 batches = np.concatenate((batches, batch), axis=0)
@@ -453,6 +450,8 @@ class MRI_Resp_2D(Input):
             if np.shape(dset)[2] is not 72:
                 continue
             dset = dset[..., selected_frames]
+
+
             dset = dset[..., selected_slices, :]
 
             for frame in range(np.shape(dset)[3]):
@@ -592,13 +591,14 @@ class MRI_Resp_2D(Input):
                                                       given_u=False,
                                                       max_num_to_take=augmented_data_num)
                 batches = np.concatenate((batches, batches_augmented), axis=0)
+                # batches = np.concatenate((arr2kspace(batches[..., :2]), batches[..., 2:]), axis=-1)
                 np.random.shuffle(batches)
 
             im1_queue = tf.train.slice_input_producer([batches[..., 0]], shuffle=False,
                                                       capacity=len(list(batches[..., 0])), num_epochs=None)
             im2_queue = tf.train.slice_input_producer([batches[..., 1]], shuffle=False,
                                                       capacity=len(list(batches[..., 1])), num_epochs=None)
-            flow_queue = tf.train.slice_input_producer([batches[..., 2:4]], shuffle=False,
+            flow_queue = tf.train.slice_input_producer([batches[..., 2:]], shuffle=False,
                                                        capacity=len(list(batches[..., 2:4])), num_epochs=None)
             # num_queue = tf.train.slice_input_producer([patient_num], shuffle=False,
             #                                            capacity=len(list(patient_num)), num_epochs=None)
@@ -620,27 +620,33 @@ class MRI_Resp_2D(Input):
                                                   max_num_to_take=params.get('data_per_interval'))
 
             if not params.get('whole_kspace_training'):
+                radius = int((params.get('crop_size') - 1) / 2)
                 # if params.get('downsampling'):
                 #     batches_augmented[..., 2] = downsampling_2D(batches_augmented[..., 2])  # TODO
+                if params.get('padding'):
+                    batches_augmented = np.pad(batches_augmented,
+                                               ((0, 0), (radius, radius), (radius, radius), (0, 0)),
+                                               constant_values=0)
                 if params.get('random_crop'):
-                    batches_augmented = self.crop2D(batches_augmented, crop_size=params.get('crop_size'), box_num=200)
+                    batches_augmented = self.crop2D(batches_augmented, crop_size=params.get('crop_size'), box_num=100)
                 else:
-                    pos = pos_generation_2D(intervall=[[0, self.dims[0] - params.get('crop_size')],
-                                                       [0, self.dims[1] - params.get('crop_size')]], stride=4)
+                    x_dim, y_dim = np.shape(batches_augmented)[1:3]
+                    pos = pos_generation_2D(intervall=[[0, x_dim - params.get('crop_size') + 1],
+                                                       [0, y_dim - params.get('crop_size') + 1]], stride=4)
                     batches_augmented = self.crop2D_FixPts(batches_augmented,
                                                            crop_size=params.get('crop_size'),
                                                            box_num=np.shape(pos)[1], pos=pos)
 
                 batches = np.concatenate((arr2kspace(batches_augmented[..., :2]), batches_augmented[..., 2:]), axis=-1)
                 np.random.shuffle(batches)
-                central_point = int((params.get('crop_size')-1)/2)
-                flow = batches[:, central_point, central_point, 4:6]
+
+                flow = batches[:, radius, radius, 4:6]
 
                 # # take image domain as input, don't forget to change the queue channel number
                 # batches = batches_augmented
                 # np.random.shuffle(batches)
-                # central_point = int((params.get('crop_size') - 1) / 2)
-                # flow = batches[:, central_point, central_point, 2:4]
+                # radius = int((params.get('crop_size') - 1) / 2)
+                # flow = batches[:, radius, radius, 2:4]
 
                 # np.save('/home/jpa19/PycharmProjects/MA/UnFlow/same_data_for_test', batches)
                 # batches = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/same_data_for_test.npy')
@@ -659,8 +665,8 @@ class MRI_Resp_2D(Input):
                 if params.get('random_crop'):
                     batches = self.crop2D(batches_augmented, crop_size=33, box_num=200)
                 np.random.shuffle(batches)
-                central_point = int((params.get('crop_size') - 1) / 2)
-                flow_k = batches[:, central_point, central_point, 4:8]
+                radius = int((params.get('crop_size') - 1) / 2)
+                flow_k = batches[:, radius, radius, 4:8]
 
                 im1_queue = tf.train.slice_input_producer([batches[..., :2]], shuffle=False,
                                                           capacity=len(list(batches[..., 0])), num_epochs=None)
@@ -690,13 +696,19 @@ class MRI_Resp_2D(Input):
                                           selected_slices,
                                           given_u)
         orig_batch[..., :2] = orig_batch[..., 4:]  # no undersampling
+        radius = int((config.get('crop_size') - 1) / 2)
+        if config.get('padding'):
+            orig_batch = np.pad(orig_batch,
+                                ((0, 0), (radius, radius), (radius, radius), (0, 0)),
+                                constant_values=0)
 
-        pos = pos_generation_2D(intervall=[[0, self.dims[0] - config['crop_size']],
-                                           [0, self.dims[1] - config['crop_size']]], stride=config['crop_stride'])
+        x_dim, y_dim = np.shape(orig_batch)[1:3]
+        pos = pos_generation_2D(intervall=[[0, x_dim - config['crop_size'] + 1],
+                                           [0, y_dim - config['crop_size'] + 1]], stride=config['crop_stride'])
 
         batches_cp = self.crop2D_FixPts(orig_batch, crop_size=config['crop_size'], box_num=np.shape(pos)[1], pos=pos)
         batches_cp = np.concatenate((arr2kspace(batches_cp[..., :2]), batches_cp[..., 2:4]), axis=-1)
-        flow = batches_cp[:, 16, 16, 4:6]
+        flow = batches_cp[:, radius, radius, 4:6]
 
         im1_patch_k_queue = tf.train.slice_input_producer([batches_cp[..., :2]], shuffle=False,
                                                           capacity=len(list(batches_cp[..., 0])), num_epochs=None)
@@ -762,7 +774,7 @@ class MRI_Resp_2D(Input):
                 if crop:
                     batch = self.crop2D(batch, crop_size=64, box_num=1)
                     # batch = self.crop2D_FixPts(batch, crop_size=crop_size, box_num=np.shape(pos)[1], pos=pos)
-                batch = np.concatenate((imgpair2kspace(batch[..., :2]), batch[..., 2:], batch[..., :2]), axis=-1)
+                batch = np.concatenate((arr2kspace(batch[..., :2]), batch[..., 2:], batch[..., :2]), axis=-1)
 
                 # batch = batch[0, ...]  # only take the first sample
                 # batch = batch[np.newaxis, ...]

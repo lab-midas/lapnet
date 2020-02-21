@@ -41,7 +41,7 @@ tf.app.flags.DEFINE_integer('num', 1,
                             'Number of examples to evaluate. Set to -1 to evaluate all.')
 tf.app.flags.DEFINE_integer('num_vis', 1,
                             'Number of evalutations to visualize. Set to -1 to visualize all.')
-tf.app.flags.DEFINE_string('gpu', '1',
+tf.app.flags.DEFINE_string('gpu', '0',
                            'GPU device to evaluate on.')
 tf.app.flags.DEFINE_boolean('output_benchmark', False,
                             'Output raw flow files.')
@@ -151,11 +151,11 @@ def _evaluate_experiment(name, data):
             im2_orig = np.squeeze(im2_orig)
 
             cut_size = (np.shape(flow_final)[0], np.shape(flow_final)[1])
-            flow_gt_cut = central_crop(flow_gt[:-1, :-1, :], cut_size)
-            im1_cut = central_crop(im1[:-1, :-1], cut_size)
-            im2_cut = central_crop(im2[:-1, :-1], cut_size)
-            im1_orig_cut = central_crop(im1_orig[:-1, :-1], cut_size)
-            im2_orig_cut = central_crop(im2_orig[:-1, :-1], cut_size)
+            flow_gt_cut = central_crop(flow_gt, cut_size)
+            im1_cut = central_crop(im1, cut_size)
+            im2_cut = central_crop(im2, cut_size)
+            im1_orig_cut = central_crop(im1_orig, cut_size)
+            im2_orig_cut = central_crop(im2_orig, cut_size)
 
             im1_orig_pred = np_warp_2D(im2_orig_cut, -flow_final)
             im_error_orig = im1_orig_cut - im2_orig_cut
@@ -238,6 +238,7 @@ def main(argv=None):
     config = {}
 
     config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/001']
+    #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/data/card/005_GI']
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/patient/030']
     config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
@@ -245,13 +246,14 @@ def main(argv=None):
     config['selected_frames'] = [0]
     # config['selected_slices'] = list(range(15, 55))
     config['selected_slices'] = [40]
-    config['amplitude'] = 10
+    config['amplitude'] = 20
     config['network'] = 'ftflownet'
     config['cross_test'] = False
     config['batch_size'] = 64
-    config['crop_size'] = 33
+    config['crop_size'] = 65
     config['crop_stride'] = 1
     config['given_u'] = True
+    config['padding'] = True
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))

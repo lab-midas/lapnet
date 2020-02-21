@@ -59,7 +59,7 @@ def flownet(im1, im2, flownet_spec='S', full_resolution=False, train_all=False, 
                         inputs = tf.reshape(inputs, [num_batch, height, width, 14])
                     else:
                         inputs = tf.concat([im1, im2], 3)
-                    return flownet_s(inputs,
+                    return flownet_s_kspace(inputs,
                                      full_res=full_res,
                                      channel_mult=channel_mult,
                                      LAP_layer=LAP_layer)
@@ -165,6 +165,55 @@ def nhwc_to_nchw(tensors):
 
 def nchw_to_nhwc(tensors):
     return [tf.transpose(t, [0, 2, 3, 1]) for t in tensors]
+
+
+def flownet_s_kspace(inputs, channel_mult=1, full_res=False, LAP_layer=False):
+    """Given stacked inputs, returns flow predictions in decreasing resolution.
+
+    Uses FlowNetSimple.
+    """
+    m = channel_mult
+    inputs = nhwc_to_nchw([inputs])[0]
+
+    with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
+                        data_format='NCHW',
+                        weights_regularizer=slim.l2_regularizer(0.0004),
+                        weights_initializer=layers.variance_scaling_initializer(),
+                        activation_fn=_leaky_relu):
+        conv1 = slim.conv2d(inputs, int(64 * m), 7, stride=2, scope='conv1')
+        conv2 = slim.conv2d(conv1, int(128 * m), 5, stride=2, scope='conv2')
+        conv3 = slim.conv2d(conv2, int(256 * m), 5, stride=2, scope='conv3')
+        conv3_1 = slim.conv2d(conv3, int(256 * m), 3, stride=1, scope='conv3_1')
+        conv4 = slim.conv2d(conv3_1, int(512 * m), 3, stride=2, scope='conv4')
+        conv4_1 = slim.conv2d(conv4, int(512 * m), 3, stride=1, scope='conv4_1')
+        conv5 = slim.conv2d(conv4_1, int(512 * m), 3, stride=2, scope='conv5')
+        conv5_1 = slim.conv2d(conv5, int(512 * m), 3, stride=1, scope='conv5_1')
+        conv6 = slim.conv2d(conv5_1, int(1024 * m), 3, stride=2, scope='conv6')
+        conv6_1 = slim.conv2d(conv6, int(1024 * m), 3, stride=1, scope='conv6_1')
+
+        if LAP_layer:
+            channels = 3
+        else:
+            channels = 2
+        conv6_1_i = tf.complex(conv6_1[:, :tf.cast(tf.shape(conv6_1)[1]/2, dtype=tf.int32), :, :],
+                               conv6_1[:, tf.cast(tf.shape(conv6_1)[1]/2, dtype=tf.int32):, :, :])
+        conv5_1_i = tf.complex(conv5_1[:, :tf.cast(tf.shape(conv5_1)[1] / 2, dtype=tf.int32), :, :],
+                               conv5_1[:, tf.cast(tf.shape(conv5_1)[1] / 2, dtype=tf.int32):, :, :])
+        conv4_1_i = tf.complex(conv4_1[:, :tf.cast(tf.shape(conv4_1)[1] / 2, dtype=tf.int32), :, :],
+                               conv4_1[:, tf.cast(tf.shape(conv4_1)[1] / 2, dtype=tf.int32):, :, :])
+        conv3_1_i = tf.complex(conv3_1[:, :tf.cast(tf.shape(conv3_1)[1] / 2, dtype=tf.int32), :, :],
+                               conv3_1[:, tf.cast(tf.shape(conv3_1)[1] / 2, dtype=tf.int32):, :, :])
+        conv2_i = tf.complex(conv2[:, :tf.cast(tf.shape(conv2)[1] / 2, dtype=tf.int32), :, :],
+                             conv2[:, tf.cast(tf.shape(conv2)[1] / 2, dtype=tf.int32):, :, :])
+
+        conv6_1_r = tf.math.real(tf.signal.ifft2d(tf.signal.ifftshift(conv6_1_i, axes=(-2, -1))))
+        conv5_1_r = tf.math.real(tf.signal.ifft2d(tf.signal.ifftshift(conv5_1_i, axes=(-2, -1))))
+        conv4_1_r = tf.math.real(tf.signal.ifft2d(tf.signal.ifftshift(conv4_1_i, axes=(-2, -1))))
+        conv3_1_r = tf.math.real(tf.signal.ifft2d(tf.signal.ifftshift(conv3_1_i, axes=(-2, -1))))
+        conv2_r = tf.math.real(tf.signal.ifft2d(tf.signal.ifftshift(conv2_i, axes=(-2, -1))))
+        res = _flownet_upconv(conv6_1_r, conv5_1_r, conv4_1_r, conv3_1_r, conv2_r, conv1, inputs,
+                              channel_mult=channel_mult, full_res=full_res, channels=channels)
+        return nchw_to_nhwc(res)
 
 
 def flownet_s(inputs, channel_mult=1, full_res=False, LAP_layer=False):
@@ -296,7 +345,7 @@ def flownet_s_kspace_in_33(inputs, channel_mult=1, full_res=False):
     return fc2
 
 
-def flownet_s_kspace_in_64(inputs, channel_mult=1, full_res=False):
+def flownet_s_kspace_in_65(inputs, channel_mult=1, full_res=False):
 
     m = channel_mult
     # m = 3 / 8
@@ -315,7 +364,7 @@ def flownet_s_kspace_in_64(inputs, channel_mult=1, full_res=False):
         conv4 = slim.conv2d(conv3_1, int(1024 * m), 3, stride=2, scope='conv4')
         conv4_1 = slim.conv2d(conv4, int(1024 * m), 3, stride=1, scope='conv4_1')
 
-    pool = slim.max_pool2d(conv4_1, 4, data_format='NCHW')
+    pool = slim.max_pool2d(conv4_1, 5, data_format='NCHW')
     flatten_conv6_1 = slim.flatten(pool)
 
     # fc1 = slim.fully_connected(flatten_conv6_1,

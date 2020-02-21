@@ -5,7 +5,7 @@ import numpy as np
 from .augment import random_photometric
 from .flow_util import flow_to_color
 from .losses import charbonnier_loss
-from .flownet import flownet, flownet_s_kspace_in_full, flownet_s_kspace_in_64, flownet_s_kspace_in_33, flownet_s_kspace_in_33_out_4
+from .flownet import flownet, flownet_s_kspace_in_full, flownet_s_kspace_in_65, flownet_s_kspace_in_33, flownet_s_kspace_in_33_out_4
 from .automap import automap
 from .unsupervised import _track_image, _track_loss, FLOW_SCALE
 
@@ -114,8 +114,8 @@ def supervised_loss(batch, params, normalization=None, augment=False):
                 if not params.get('whole_kspace_training'):
                     if im1.get_shape().as_list()[2] is 256:
                         final_flow_fw = flownet_s_kspace_in_full(inputs, channel_mult=1)
-                    elif im1.get_shape().as_list()[2] is 64:
-                        final_flow_fw = flownet_s_kspace_in_64(inputs, channel_mult=1)
+                    elif im1.get_shape().as_list()[2] is 65:
+                        final_flow_fw = flownet_s_kspace_in_65(inputs, channel_mult=1)
                     elif im1.get_shape().as_list()[2] is 33:
                         final_flow_fw = flownet_s_kspace_in_33(inputs, channel_mult=1)
 

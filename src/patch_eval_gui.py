@@ -158,9 +158,14 @@ def _evaluate_experiment(name, data):
             im2_orig_cut = central_crop(im2_orig, cut_size)
 
             im1_orig_pred = np_warp_2D(im2_orig_cut, -flow_final)
+
             im_error_orig = im1_orig_cut - im2_orig_cut
             im_error_US = im1_cut - im2_cut
             im_error_pred = im1_orig_cut - im1_orig_pred
+
+            # warped error of GT
+            im1_orig_gt = np_warp_2D(im2_orig_cut, -flow_gt_cut)
+            im1_error_gt = im1_orig_cut - im1_orig_gt
 
             if save_results:
                 np.save('/home/jpa19/PycharmProjects/MA/UnFlow/flow_gt.npy', flow_gt_cut)
@@ -226,7 +231,7 @@ def show_results(results):
     ax[2][1].imshow(results[8], cmap='gray')
     ax[2][1].set_title('Original Error')
     ax[2][2].imshow(results[9], cmap='gray')
-    ax[2][2].set_title('Undersampled Error')
+    ax[2][2].set_title('US Error')
     fig.delaxes(ax[2, 3])
 
     plt.show()
@@ -236,21 +241,21 @@ def main(argv=None):
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     config = {}
-
     config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/001']
     #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/data/card/005_GI']
-    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/patient/030']
-    config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
+    #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/volunteer/21_tk']
+    # config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
+    config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/matlab_simulated_data']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
     config['test_types'] = 0
-    config['selected_frames'] = [0]
+    config['selected_frames'] = [0, 3]
     # config['selected_slices'] = list(range(15, 55))
-    config['selected_slices'] = [40]
-    config['amplitude'] = 20
+    config['selected_slices'] = [36]
+    config['amplitude'] = 10
     config['network'] = 'ftflownet'
-    config['cross_test'] = False
+    config['cross_test'] = True
     config['batch_size'] = 64
-    config['crop_size'] = 65
+    config['crop_size'] = 33
     config['crop_stride'] = 1
     config['given_u'] = True
     config['padding'] = True

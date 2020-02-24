@@ -313,39 +313,48 @@ class MRI_Resp_2D(Input):
         for fn_im_path in fn_im_paths:
             f = load_mat_file(fn_im_path)
             im1 = f['I1_real'][..., selected_slices]
-            # pylab.imshow(im1[:, :, 35])
+            #im1 = np.rot90(im1, axes=(0, 1))
             im1 = im1[np.newaxis, ...]
             im2 = f['I1_Real_hat'][..., selected_slices]
+            #im2 = np.rot90(im2, axes=(0, 1))
             im2 = im2[np.newaxis, ...]
-            u0 = f['u_Real_est_1'][..., selected_slices]
+            u0 = -f['u_Real_est_1'][..., selected_slices]
+            #u0 = np.rot90(u0, axes=(0, 1))
             u0 = u0[np.newaxis, ...]
-            u1 = f['u_Real_est_2'][..., selected_slices]
+            u1 = -f['u_Real_est_2'][..., selected_slices]
+            #u1 = np.rot90(u1, axes=(0, 1))
             u1 = u1[np.newaxis, ...]
 
-            # im1 = np.squeeze(im1[..., 20])
-            # im2 = np.squeeze(im2[..., 20])
-            # u0 = u0[..., 20]
-            # u1 = u1[..., 20]
+            # im1 = np.squeeze(im1[..., 0])
+            # im2 = np.squeeze(im2[..., 0])
+            # im1 = (im1 - np.amin(im1)) / (np.amax(im1) - np.amin(im1))
+            # im2 = (im2 - np.amin(im2)) / (np.amax(im2) - np.amin(im2))
+            # u0 = u0[..., 0]
+            # u1 = u1[..., 0]
             # u = np.concatenate((u0, u1), axis=0)
             # u = np.swapaxes(u, 0, 2)
+            # u_swap = np.swapaxes(u, 0, 1)
+            # pass
             # im1_hat = np_warp_2D(im2, -u)
-            # im1_hat_hat = np_warp_2D(im2, u)
+            # im1_hat_2 = np_warp_2D(im2, -u_swap)  # THIS ONE IS RIGHT!!!
+            # im1_hat_3 = np_warp_2D(im2, u)
+            # im1_hat_4 = np_warp_2D(im2, u_swap)
+            # # im1_hat_hat = np_warp_2D(im2, u)
             # ori_error = im1 - im2
             #
             # warped_error_1 = im1 - im1_hat
-            # warped_error_2 = im1 - im1_hat_hat
-            # fig, ax = plt.subplots(1, 3, figsize=(15, 8))
-            #
-            # ax[0].imshow(ori_error, cmap='gray')  # ref
-            #
-            # ax[1].imshow(warped_error_1, cmap='gray')  # mov
-            #
+            # warped_error_2 = im1 - im1_hat_2
+            # warped_error_3 = im1 - im1_hat_3
+            # warped_error_4 = im1 - im1_hat_4
+            # fig, ax = plt.subplots(2, 3, figsize=(15, 8))
+            # ax[0][0].imshow(ori_error, cmap='gray')  # ref
+            # ax[0][1].imshow(warped_error_1, cmap='gray')  # mov
+            # ax[0][2].imshow(warped_error_2, cmap='gray')
+            # ax[1][1].imshow(warped_error_3, cmap='gray')  # mov
+            # ax[1][2].imshow(warped_error_4, cmap='gray')
+
+
             # ax[2].imshow(warped_error_2, cmap='gray')  # mov
-            #
-            #
-            # pylab.imshow(ori_error, cmap='gray')
-            # pylab.figure()
-            # pylab.imshow(warped_error, cmap='gray')
 
             batch = np.concatenate((im1, im2, u0, u1), axis=0)
             batch = np.swapaxes(batch, 0, 3)
@@ -381,50 +390,75 @@ class MRI_Resp_2D(Input):
             except ImportError:
                 print("File {} is defective and cannot be read!".format(fn_im_path))
                 continue
-            for frame in selected_frames:
-                dset = np.transpose(dset_orig, (3, 2, 1, 0))
-                dset = (dset - np.amin(dset)) / (np.amax(dset) - np.amin(dset))
-                dset = dset[..., frame]
-                dset = np.rot90(dset, axes=(0, 1))
-                img_size = np.shape(dset)
-                if img_size[2] is not 72:
-                    continue
-                motion_type = 1
-                if not given_u:
-                    u = _u_generation_3D(img_size, amplitude, motion_type=motion_type)  # TODO: This step too time-consuming
-                else:
-                    u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_amp10_3D.npy')
-                warped_dset = np_warp_3D(dset, u)
+            if not cross_test:
+                for frame in selected_frames:
+                    dset = np.transpose(dset_orig, (3, 2, 1, 0))
+                    dset = (dset - np.amin(dset)) / (np.amax(dset) - np.amin(dset))
+                    dset = dset[..., frame]
+                    dset = np.rot90(dset, axes=(0, 1))
+                    img_size = np.shape(dset)
+                    if img_size[2] is not 72:
+                        continue
+                    motion_type = 1
+                    if not given_u:
+                        u = _u_generation_3D(img_size, amplitude, motion_type=motion_type)  # TODO: This step too time-consuming
+                    else:
+                        u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_amp10_3D.npy')
+                    warped_dset = np_warp_3D(dset, u)
 
+                    mask = np.transpose(generate_mask(nSegments=25, acc=30), (2, 1, 0))
+                    k_dset = np.multiply(np.fft.fftn(dset), np.fft.ifftshift(mask))
+                    k_warped_dset = np.multiply(np.fft.fftn(warped_dset), np.fft.ifftshift(mask))
+                    dset_us = (np.fft.ifftn(k_dset)).real
+                    warped_dset_us = (np.fft.ifftn(k_warped_dset)).real
+
+                    # fig, ax = plt.subplots(2, 2, figsize=(8, 8))
+                    # ax[0][0].imshow(dset[..., selected_slices[0]])  # ref
+                    # ax[0][0].set_title('Ref Img')
+                    # ax[0][1].imshow(warped_dset[..., selected_slices[0]])  # mov
+                    # ax[0][1].set_title('Moving Img')
+                    # ax[1][0].imshow(dset_us[..., selected_slices[0]])
+                    # ax[1][0].set_title('Ref US Img')
+                    # ax[1][1].imshow(warped_dset_us[..., selected_slices[0]])
+                    # ax[1][1].set_title('Moving US Img')
+                    # plt.show()
+                    # pass
+
+                    dset_us, warped_dset_us = dset_us[..., np.newaxis], warped_dset_us[..., np.newaxis]
+                    dset, warped_dset = dset[..., np.newaxis], warped_dset[..., np.newaxis]
+
+                    batch = np.concatenate((dset_us, warped_dset_us, u[..., :2], dset, warped_dset), axis=-1)
+                    batch = np.transpose(batch, (2, 0, 1, 3))
+                    batch = batch[selected_slices, ...]
+                    batches = np.concatenate((batches, batch), axis=0)
+                    if len(batches) >= max_num_to_take:
+                        batches = batches[:max_num_to_take, ...]
+                        return batches
+            else:
+                dset_orig = np.transpose(dset_orig, (3, 2, 1, 0))
+                dset_orig = (dset_orig - np.amin(dset_orig)) / (np.amax(dset_orig) - np.amin(dset_orig))
+                dset_orig = dset_orig[..., selected_frames]
+                dset = dset_orig[..., 0]
+                warped_dset = dset_orig[..., 1]
+                dset = np.rot90(dset, axes=(0, 1))
+                warped_dset = np.rot90(warped_dset, axes=(0, 1))
+                img_size = np.shape(dset)
                 mask = np.transpose(generate_mask(nSegments=25, acc=30), (2, 1, 0))
                 k_dset = np.multiply(np.fft.fftn(dset), np.fft.ifftshift(mask))
                 k_warped_dset = np.multiply(np.fft.fftn(warped_dset), np.fft.ifftshift(mask))
                 dset_us = (np.fft.ifftn(k_dset)).real
                 warped_dset_us = (np.fft.ifftn(k_warped_dset)).real
-
-                # fig, ax = plt.subplots(2, 2, figsize=(8, 8))
-                # ax[0][0].imshow(dset[..., selected_slices[0]])  # ref
-                # ax[0][0].set_title('Ref Img')
-                # ax[0][1].imshow(warped_dset[..., selected_slices[0]])  # mov
-                # ax[0][1].set_title('Moving Img')
-                # ax[1][0].imshow(dset_us[..., selected_slices[0]])
-                # ax[1][0].set_title('Ref US Img')
-                # ax[1][1].imshow(warped_dset_us[..., selected_slices[0]])
-                # ax[1][1].set_title('Moving US Img')
-                # plt.show()
-                # pass
-
                 dset_us, warped_dset_us = dset_us[..., np.newaxis], warped_dset_us[..., np.newaxis]
                 dset, warped_dset = dset[..., np.newaxis], warped_dset[..., np.newaxis]
-
+                u = np.zeros((*img_size, 2))
                 batch = np.concatenate((dset_us, warped_dset_us, u[..., :2], dset, warped_dset), axis=-1)
                 batch = np.transpose(batch, (2, 0, 1, 3))
                 batch = batch[selected_slices, ...]
                 batches = np.concatenate((batches, batch), axis=0)
-
                 if len(batches) >= max_num_to_take:
                     batches = batches[:max_num_to_take, ...]
                     return batches
+
         return batches
 
     def augmentation(self,
@@ -450,8 +484,6 @@ class MRI_Resp_2D(Input):
             if np.shape(dset)[2] is not 72:
                 continue
             dset = dset[..., selected_frames]
-
-
             dset = dset[..., selected_slices, :]
 
             for frame in range(np.shape(dset)[3]):
@@ -471,6 +503,17 @@ class MRI_Resp_2D(Input):
                             u = u[:, :, selected_slices[0], :2]
                         warped_img = np_warp_2D(img, u)
 
+                        # # show the warp error
+                        # img_hat = np_warp_2D(warped_img, -u)
+                        # ori_error = img - warped_img
+                        # warped_error_1 = img - img_hat
+                        # ori_error = (ori_error - np.amin(ori_error)) / (np.amax(ori_error) - np.amin(ori_error))
+                        # warped_error_1 = (warped_error_1 - np.amin(warped_error_1)) / (
+                        #             np.amax(warped_error_1) - np.amin(warped_error_1))
+                        # fig, ax = plt.subplots(1, 2, figsize=(15, 8))
+                        # ax[0].imshow(ori_error, cmap='gray')  # ref
+                        # ax[1].imshow(warped_error_1, cmap='gray')  # mov
+
                         img, warped_img, = img[..., np.newaxis], warped_img[..., np.newaxis]
                         batch = np.concatenate([img, warped_img, u], 2)
                         batches.append(batch)
@@ -484,12 +527,13 @@ class MRI_Resp_2D(Input):
 
                             return np.asarray(batches, dtype=np.float32)
                     else:
+                        dset = (dset - np.amin(dset)) / (np.amax(dset) - np.amin(dset))
                         im1 = dset[..., slice, 0]
                         im2 = dset[..., slice, 1]
-                        im1 = np.flip(im1, axis=0)  # todo
-                        im2 = np.flip(im2, axis=0)  # todo
-                        im1 = (im1 - np.amin(im1)) / (np.amax(im1) - np.amin(im1))
-                        im2 = (im2 - np.amin(im2)) / (np.amax(im2) - np.amin(im2))
+                        im1 = np.rot90(im1)
+                        im2 = np.rot90(im2)
+                        # im1 = (im1 - np.amin(im1)) / (np.amax(im1) - np.amin(im1))
+                        # im2 = (im2 - np.amin(im2)) / (np.amax(im2) - np.amin(im2))
                         # im1 = (im1 - np.mean(im1)) / np.std(im1)
                         # im2 = (im2 - np.mean(im2)) / np.std(im2)
                         img_size = np.shape(im1)
@@ -498,6 +542,7 @@ class MRI_Resp_2D(Input):
                         batch = np.concatenate([im1, im2, u], 2)
                         #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
                         batches.append(batch)
+                        return np.asarray(batches, dtype=np.float32)
 
         return np.asarray(batches, dtype=np.float32)
 
@@ -688,14 +733,21 @@ class MRI_Resp_2D(Input):
         cross_test = config['cross_test']
         given_u = config['given_u']
 
+
         fn_im_paths = self.get_data_paths(img_dir)
         orig_batch = self.augmentation_3D(fn_im_paths,
-                                          [test_types, 1 - test_types],
+                                          [1-test_types, test_types],
                                           amplitude,
                                           selected_frames,
                                           selected_slices,
-                                          given_u)
-        orig_batch[..., :2] = orig_batch[..., 4:]  # no undersampling
+                                          given_u,
+                                          cross_test=config['cross_test'])
+        #orig_batch[..., :2] = orig_batch[..., 4:]  # no undersampling
+
+        # fn_im_paths = self.get_data_paths(img_dir_matlab_simulated)
+        # orig_batch = self.load_real_simulated_data(fn_im_paths, selected_slices,
+        #                                                        max_num_to_take=1)
+
         radius = int((config.get('crop_size') - 1) / 2)
         if config.get('padding'):
             orig_batch = np.pad(orig_batch,

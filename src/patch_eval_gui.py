@@ -41,7 +41,7 @@ tf.app.flags.DEFINE_integer('num', 1,
                             'Number of examples to evaluate. Set to -1 to evaluate all.')
 tf.app.flags.DEFINE_integer('num_vis', 1,
                             'Number of evalutations to visualize. Set to -1 to visualize all.')
-tf.app.flags.DEFINE_string('gpu', '0',
+tf.app.flags.DEFINE_string('gpu', '1',
                            'GPU device to evaluate on.')
 tf.app.flags.DEFINE_boolean('output_benchmark', False,
                             'Output raw flow files.')
@@ -244,21 +244,21 @@ def main(argv=None):
     config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/001']
     #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/data/card/005_GI']
     #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/volunteer/21_tk']
-    # config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
-    config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/matlab_simulated_data']
+    config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
-    config['test_types'] = 0
-    config['selected_frames'] = [0, 3]
+    config['test_types'] = 1
+    config['selected_frames'] = [0]
     # config['selected_slices'] = list(range(15, 55))
-    config['selected_slices'] = [36]
+    config['selected_slices'] = [40]
     config['amplitude'] = 10
     config['network'] = 'ftflownet'
-    config['cross_test'] = True
+    config['cross_test'] = False
     config['batch_size'] = 64
     config['crop_size'] = 33
     config['crop_stride'] = 1
     config['given_u'] = True
     config['padding'] = True
+    config['undersample'] = True
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))

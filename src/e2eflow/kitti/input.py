@@ -84,8 +84,9 @@ def _u_generation_3D(img_size, amplitude, motion_type=0):
 
     M, N, P = img_size
     if motion_type == 0:
-        amplitude = np.random.randint(0, amplitude)
+        # amplitude = np.random.randint(0, amplitude)
         u_C = -1 + 2 * np.random.rand(3)  # interval [-1, 1]
+        u_C[2] = 0  # todo
         amplitude = amplitude / np.linalg.norm(u_C, 2)
         u = amplitude * np.ones((M, N, P, 3))
         u[..., 0] = u_C[0] * u[..., 0]
@@ -93,7 +94,7 @@ def _u_generation_3D(img_size, amplitude, motion_type=0):
         u[..., 2] = u_C[2] * u[..., 2]
     elif motion_type == 1:
         u = np.random.normal(0, 1, (M, N, P, 3))
-        u[..., 2] = 0
+        u[..., 2] = 0  # todo
         cut_off = 0.01
         w_x_cut = math.floor(cut_off / (1 / M) + (M + 1) / 2)
         w_y_cut = math.floor(cut_off / (1 / N) + (N + 1) / 2)
@@ -312,17 +313,26 @@ class MRI_Resp_2D(Input):
         batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
         for fn_im_path in fn_im_paths:
             f = load_mat_file(fn_im_path)
-            im1 = f['I1_real'][..., selected_slices]
-            #im1 = np.rot90(im1, axes=(0, 1))
+            if np.shape(f['I1_real'])[2] != 72:
+                continue
+            ref = f['I1_real']
+            mov = f['I1_Real_hat']
+
+            # mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
+            # k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
+            # k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
+            # ref = (np.fft.ifftn(k_dset)).real
+            # mov = (np.fft.ifftn(k_warped_dset)).real
+
+            u0 = -f['u_Real_est_1']
+            u1 = -f['u_Real_est_2']
+            im1 = ref[..., selected_slices]
             im1 = im1[np.newaxis, ...]
-            im2 = f['I1_Real_hat'][..., selected_slices]
-            #im2 = np.rot90(im2, axes=(0, 1))
+            im2 = mov[..., selected_slices]
             im2 = im2[np.newaxis, ...]
-            u0 = -f['u_Real_est_1'][..., selected_slices]
-            #u0 = np.rot90(u0, axes=(0, 1))
+            u0 = u0[..., selected_slices]
             u0 = u0[np.newaxis, ...]
-            u1 = -f['u_Real_est_2'][..., selected_slices]
-            #u1 = np.rot90(u1, axes=(0, 1))
+            u1 = u1[..., selected_slices]
             u1 = u1[np.newaxis, ...]
 
             # im1 = np.squeeze(im1[..., 0])
@@ -373,7 +383,6 @@ class MRI_Resp_2D(Input):
                         selected_frames,
                         selected_slices,
                         given_u=False,
-                        #motion_types,
                         max_num_to_take=4000,
                         undersampling=True,
                         cross_test=False
@@ -399,14 +408,18 @@ class MRI_Resp_2D(Input):
                     img_size = np.shape(dset)
                     if img_size[2] is not 72:
                         continue
-                    motion_type = 1
                     if not given_u:
+                        motion_type = np.random.choice(np.arange(0, 2), p=motion_shares)
                         u = _u_generation_3D(img_size, amplitude, motion_type=motion_type)  # TODO: This step too time-consuming
+                        #np.save('/home/jpa19/PycharmProjects/MA/UnFlow/new_u_amp10_3D', u)
                     else:
-                        u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_amp10_3D.npy')
+                        u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
                     warped_dset = np_warp_3D(dset, u)
 
-                    mask = np.transpose(generate_mask(nSegments=25, acc=30), (2, 1, 0))
+                    acc = np.random.randint(4, 30)
+                    acc = 30
+                    mask = np.transpose(generate_mask(nSegments=25, acc=acc, nRep=1), (2, 1, 0))
+                    # mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
                     k_dset = np.multiply(np.fft.fftn(dset), np.fft.ifftshift(mask))
                     k_warped_dset = np.multiply(np.fft.fftn(warped_dset), np.fft.ifftshift(mask))
                     dset_us = (np.fft.ifftn(k_dset)).real
@@ -651,19 +664,33 @@ class MRI_Resp_2D(Input):
                                   batch_size=self.batch_size,
                                   num_threads=self.num_threads)
         elif params.get('network') == 'ftflownet':
-            # batches = np.zeros((0, self.dims[0], self.dims[1], 6), dtype=np.float32)
-            fn_im_paths = self.get_data_paths(img_dirs)
-            np.random.shuffle(fn_im_paths)
-            motion_1_share = params.get('augment_type_percent')[0] / sum(params.get('augment_type_percent')[:2])
-            motion_2_share = params.get('augment_type_percent')[1] / sum(params.get('augment_type_percent')[:2])
-            batches_augmented = self.augmentation(fn_im_paths,
-                                                  [motion_1_share, motion_2_share],
-                                                  params.get('flow_amplitude'),
-                                                  selected_frames,
-                                                  selected_slices,
-                                                  given_u=False,
-                                                  max_num_to_take=params.get('data_per_interval'))
+            batches = np.zeros((0, self.dims[0], self.dims[1], 6), dtype=np.float32)
+            real_simulated_data_num = math.floor(
+                params.get('data_per_interval') * params.get('augment_type_percent')[2])
+            if real_simulated_data_num is not 0:
+                fn_im_paths = self.get_data_paths(img_dirs_real_simulated)
+                np.random.shuffle(fn_im_paths)
+                batches_real_simulated = self.load_real_simulated_data(fn_im_paths, selected_slices,
+                                                                       real_simulated_data_num)
+                batches = np.concatenate((batches, batches_real_simulated), axis=0)
 
+            augmented_data_num = math.floor(
+                params.get('data_per_interval') * sum(params.get('augment_type_percent')[:2]))
+            if augmented_data_num is not 0:
+                # batches = np.zeros((0, self.dims[0], self.dims[1], 6), dtype=np.float32)
+                fn_im_paths = self.get_data_paths(img_dirs)
+                np.random.shuffle(fn_im_paths)
+                motion_1_share = params.get('augment_type_percent')[0] / sum(params.get('augment_type_percent')[:2])
+                motion_2_share = params.get('augment_type_percent')[1] / sum(params.get('augment_type_percent')[:2])
+                batches_augmented = self.augmentation_3D(fn_im_paths,
+                                                      [motion_1_share, motion_2_share],
+                                                      params.get('flow_amplitude'),
+                                                      selected_frames,
+                                                      selected_slices,
+                                                      given_u=False,
+                                                      max_num_to_take=augmented_data_num)
+                batches_augmented[..., :2] = batches_augmented[..., 4:]  # no undersampling
+                batches_augmented = np.concatenate((batches_augmented, batches), axis=0)
             if not params.get('whole_kspace_training'):
                 radius = int((params.get('crop_size') - 1) / 2)
                 # if params.get('downsampling'):
@@ -673,7 +700,7 @@ class MRI_Resp_2D(Input):
                                                ((0, 0), (radius, radius), (radius, radius), (0, 0)),
                                                constant_values=0)
                 if params.get('random_crop'):
-                    batches_augmented = self.crop2D(batches_augmented, crop_size=params.get('crop_size'), box_num=100)
+                    batches_augmented = self.crop2D(batches_augmented, crop_size=params.get('crop_size'), box_num=200)
                 else:
                     x_dim, y_dim = np.shape(batches_augmented)[1:3]
                     pos = pos_generation_2D(intervall=[[0, x_dim - params.get('crop_size') + 1],
@@ -733,26 +760,23 @@ class MRI_Resp_2D(Input):
         cross_test = config['cross_test']
         given_u = config['given_u']
 
-
         fn_im_paths = self.get_data_paths(img_dir)
         orig_batch = self.augmentation_3D(fn_im_paths,
                                           [1-test_types, test_types],
                                           amplitude,
                                           selected_frames,
                                           selected_slices,
-                                          given_u,
+                                          given_u=given_u,
                                           cross_test=config['cross_test'])
         #orig_batch[..., :2] = orig_batch[..., 4:]  # no undersampling
 
         # fn_im_paths = self.get_data_paths(img_dir_matlab_simulated)
-        # orig_batch = self.load_real_simulated_data(fn_im_paths, selected_slices,
-        #                                                        max_num_to_take=1)
+        # orig_batch = self.load_real_simulated_data(fn_im_paths, selected_slices, max_num_to_take=1)
 
         radius = int((config.get('crop_size') - 1) / 2)
         if config.get('padding'):
             orig_batch = np.pad(orig_batch,
-                                ((0, 0), (radius, radius), (radius, radius), (0, 0)),
-                                constant_values=0)
+                                ((0, 0), (radius, radius), (radius, radius), (0, 0)), constant_values=0)
 
         x_dim, y_dim = np.shape(orig_batch)[1:3]
         pos = pos_generation_2D(intervall=[[0, x_dim - config['crop_size'] + 1],

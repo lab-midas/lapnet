@@ -319,10 +319,13 @@ class MRI_Resp_2D(Input):
             mov = f['I1_Real_hat']
 
             # mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
-            # k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
-            # k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
-            # ref = (np.fft.ifftn(k_dset)).real
-            # mov = (np.fft.ifftn(k_warped_dset)).real
+            acc = np.random.choice(np.arange(1, 32, 6))
+            acc = 30
+            mask = np.transpose(generate_mask(nSegments=25, acc=acc, nRep=4), (2, 1, 0))
+            k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
+            k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
+            ref = (np.fft.ifftn(k_dset)).real
+            mov = (np.fft.ifftn(k_warped_dset)).real
 
             u0 = -f['u_Real_est_1']
             u1 = -f['u_Real_est_2']
@@ -415,13 +418,12 @@ class MRI_Resp_2D(Input):
                     else:
                         u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
                     warped_dset = np_warp_3D(dset, u)
-
-                    acc = np.random.randint(4, 30)
+                    acc = np.random.choice(np.arange(1, 32, 6))
                     acc = 30
-                    mask = np.transpose(generate_mask(nSegments=25, acc=acc, nRep=1), (2, 1, 0))
+                    mask = np.transpose(generate_mask(nSegments=25, acc=acc, nRep=4), (2, 1, 0))
                     # mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
-                    k_dset = np.multiply(np.fft.fftn(dset), np.fft.ifftshift(mask))
-                    k_warped_dset = np.multiply(np.fft.fftn(warped_dset), np.fft.ifftshift(mask))
+                    k_dset = np.multiply(np.fft.fftn(dset), np.fft.ifftshift(mask[0, ...]))
+                    k_warped_dset = np.multiply(np.fft.fftn(warped_dset), np.fft.ifftshift(mask[3, ...]))
                     dset_us = (np.fft.ifftn(k_dset)).real
                     warped_dset_us = (np.fft.ifftn(k_warped_dset)).real
 
@@ -446,6 +448,7 @@ class MRI_Resp_2D(Input):
                     batches = np.concatenate((batches, batch), axis=0)
                     if len(batches) >= max_num_to_take:
                         batches = batches[:max_num_to_take, ...]
+                        print("{} augmented data with synthetic flows are generated".format((len(batches))))
                         return batches
             else:
                 dset_orig = np.transpose(dset_orig, (3, 2, 1, 0))
@@ -664,7 +667,7 @@ class MRI_Resp_2D(Input):
                                   batch_size=self.batch_size,
                                   num_threads=self.num_threads)
         elif params.get('network') == 'ftflownet':
-            batches = np.zeros((0, self.dims[0], self.dims[1], 6), dtype=np.float32)
+            batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
             real_simulated_data_num = math.floor(
                 params.get('data_per_interval') * params.get('augment_type_percent')[2])
             if real_simulated_data_num is not 0:
@@ -689,7 +692,7 @@ class MRI_Resp_2D(Input):
                                                       selected_slices,
                                                       given_u=False,
                                                       max_num_to_take=augmented_data_num)
-                batches_augmented[..., :2] = batches_augmented[..., 4:]  # no undersampling
+                batches_augmented = batches_augmented[..., :4]  # no undersampling
                 batches_augmented = np.concatenate((batches_augmented, batches), axis=0)
             if not params.get('whole_kspace_training'):
                 radius = int((params.get('crop_size') - 1) / 2)

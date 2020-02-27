@@ -962,8 +962,10 @@ class MRI_Resp_2D(Input):
             if US:
                 if US_acc == 30:
                     mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
-                else:
+                elif US_acc == 8:
                     mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc8.npy')
+                elif US_acc == 0:
+                    mask = np.transpose(generate_mask(nSegments=25, acc=0, nRep=4), (2, 1, 0))
                 # acc = np.random.choice(np.arange(1, 32, 6))
                 # acc = 30
                 # mask = np.transpose(generate_mask(nSegments=25, acc=acc, nRep=4), (2, 1, 0))
@@ -996,8 +998,10 @@ class MRI_Resp_2D(Input):
             if US:
                 if US_acc == 30:
                     mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
-                else:
+                elif US_acc == 8:
                     mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc8.npy')
+                elif US_acc == 0:
+                    mask = np.transpose(generate_mask(nSegments=25, acc=0, nRep=4), (2, 1, 0))
                 # acc = np.random.choice(np.arange(1, 32, 6))
                 # acc = 30
                 # mask = np.transpose(generate_mask(nSegments=25, acc=acc, nRep=4), (2, 1, 0))

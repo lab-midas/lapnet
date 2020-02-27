@@ -99,6 +99,8 @@ def _evaluate_experiment(name, data, config):
     batch_size = config['batch_size']
     crop_stride = config['crop_stride']
     smooth_wind_size = config['smooth_wind_size']
+    height = params['height']
+    width = params['width']
 
     with tf.Graph().as_default(): #, tf.device('gpu:' + FLAGS.gpu):
         test_batch, im1, im2, flow_orig, pos = data()
@@ -118,35 +120,54 @@ def _evaluate_experiment(name, data, config):
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(sess=sess,
                                                    coord=coord)
-            flow_raw = np.zeros((int(np.sqrt(np.shape(pos)[0])), int(np.sqrt(np.shape(pos)[0])), 2), dtype=np.float32)
+            flow_raw = np.zeros((height, width, 2), dtype=np.float32)
+
+            # flow_raw = np.zeros((int(np.sqrt(np.shape(pos)[0])), int(np.sqrt(np.shape(pos)[0])), 2), dtype=np.float32)
+            # for i in range(int(np.floor(len(pos)/batch_size)) + 1):
+            #     flow_pixel, loss_pixel = sess.run([flow, loss])
+            #     local_pos = pos[batch_size*i:batch_size*i+batch_size, :]
+            #     try:
+            #         flow_raw[local_pos[:, 0], local_pos[:, 1], :] = flow_pixel
+            #     except Exception:  # for the last patches
+            #         last_batch_size = len(local_pos)
+            #         flow_raw[local_pos[:, 0], local_pos[:, 1], :] = flow_pixel[:last_batch_size, :]
+            #
+            #
+            #
+            # if crop_stride is not 1:
+            #    pass
+            #
+            # if smooth_wind_size is not None:
+            #     smooth_wind = 1/smooth_wind_size/smooth_wind_size * \
+            #                   np.ones((smooth_wind_size, smooth_wind_size), dtype=np.float32)
+            #     flow_final_x = signal.convolve2d(flow_raw[..., 0], smooth_wind, mode='same')
+            #     flow_final_y = signal.convolve2d(flow_raw[..., 1], smooth_wind, mode='same')
+            #     flow_final = np.stack((flow_final_x, flow_final_y), axis=-1)
+            # else:
+            #     flow_final = np.copy(flow_raw)
+
             time_start = time.time()
+            smooth_radius = int((smooth_wind_size - 1) / 2)
+            counter_mask = np.zeros((height, width, 2), dtype=np.float32)
             for i in range(int(np.floor(len(pos)/batch_size)) + 1):
                 flow_pixel, loss_pixel = sess.run([flow, loss])
                 local_pos = pos[batch_size*i:batch_size*i+batch_size, :]
-                try:
-                    flow_raw[local_pos[:, 0], local_pos[:, 1], :] = flow_pixel
-                except Exception:  # for the last patches
-                    last_batch_size = len(local_pos)
-                    flow_raw[local_pos[:, 0], local_pos[:, 1], :] = flow_pixel[:last_batch_size, :]
+                for j in range(len(local_pos)):
+                    lower_bound_x = max(0, local_pos[j, 0]-smooth_radius)
+                    upper_bound_x = min(height, local_pos[j, 0]+smooth_radius+1)
+                    lower_bound_y = max(0, local_pos[j, 1]-smooth_radius)
+                    upper_bound_y = min(width, local_pos[j, 1]+smooth_radius+1)
+                    flow_raw[lower_bound_x:upper_bound_x, lower_bound_y:upper_bound_y, :] += flow_pixel[j, :]
+                    counter_mask[lower_bound_x:upper_bound_x, lower_bound_y:upper_bound_y, :] += 1
+            flow_final = flow_raw/counter_mask
             time_end = time.time()
             print('time cost: {}s'.format(time_end - time_start))
-
-            if crop_stride is not 1:
-                pass
-            if smooth_wind_size is not None:
-                smooth_wind = 1/smooth_wind_size/smooth_wind_size * \
-                              np.ones((smooth_wind_size, smooth_wind_size), dtype=np.float32)
-                flow_final_x = signal.convolve2d(flow_raw[..., 0], smooth_wind, mode='same')
-                flow_final_y = signal.convolve2d(flow_raw[..., 1], smooth_wind, mode='same')
-                flow_final = np.stack((flow_final_x, flow_final_y), axis=-1)
-            else:
-                flow_final = np.copy(flow_raw)
 
             flow_gt = np.squeeze(flow_orig)
             im1 = np.squeeze(im1)
             im2 = np.squeeze(im2)
 
-            cut_size = (np.shape(flow_final)[0], np.shape(flow_final)[1])
+            cut_size = (height, width)
             flow_gt_cut = central_crop(flow_gt, cut_size)
             im1_cut = central_crop(im1, cut_size)
             im2_cut = central_crop(im2, cut_size)
@@ -171,7 +192,8 @@ def _evaluate_experiment(name, data, config):
             print("Raw Flow Loss: {}".format(final_loss_raw))
 
             f = open("/home/jpa19/PycharmProjects/MA/UnFlow/{}.txt".format(name), "a")
-            f.write("\nSmoothing Flow Loss is {}".format(final_loss))
+            # f.write("\nSmoothing Flow Loss is {}".format(final_loss))
+            f.write("\n{}".format(final_loss))
             f.close()
             if save_results:
                 np.save('/home/jpa19/PycharmProjects/MA/UnFlow/flow_gt.npy', flow_gt_cut)
@@ -235,8 +257,8 @@ def main(argv=None):
     #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/volunteer/21_tk']
     # config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
-    config['test_types'] = [2, 2, 2]
-    config['US'] = [True, True, True]
+    config['test_types'] = [1]
+    config['US'] = [False]
     config['US_acc'] = [0, 8, 30]
     config['selected_frames'] = [0]
     # config['selected_slices'] = list(range(15, 55))
@@ -246,7 +268,7 @@ def main(argv=None):
     config['batch_size'] = 64
     config['smooth_wind_size'] = 17  # None for no smoothing
     config['save_results'] = False
-    config['crop_stride'] = 1
+    config['crop_stride'] = 2
 
 
     print("-- evaluating: on {} pairs from {}"
@@ -300,7 +322,7 @@ def main(argv=None):
                         # input_cf['use_given_US_mask'] = config['new_US_mask'][i]
 
                         results = _evaluate_experiment(name, lambda: data_input.test_2D_slice(config=input_cf), config)
-                        # show_results(results)
+                        show_results(results)
                         pass
 
 if __name__ == '__main__':

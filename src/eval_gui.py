@@ -365,7 +365,7 @@ def main(argv=None):
         #     params.update(config[dataset_params_name])
 
         result, image_names = _evaluate_experiment(name, lambda: data_input.input_test_data(config=config))
-        results.append(result)
+        # results.append(result)
 
     # display(results, image_names)
     show_results(results)

@@ -3,6 +3,8 @@ import random
 
 import numpy as np
 import tensorflow as tf
+import scipy.io as sio
+import h5py
 
 from .augment import random_crop
 
@@ -216,3 +218,15 @@ def read_png_image(filenames, num_epochs=None):
     image_uint8 = tf.image.decode_png(value, channels=3)
     image = tf.cast(image_uint8, tf.float32)
     return image
+
+
+def load_mat_file(fn_im_path):
+    try:
+        f = sio.loadmat(fn_im_path)
+    except Exception:
+        try:
+            f = h5py.File(fn_im_path, 'r')
+        except IOError:
+            # print("File {} is defective and cannot be read!".format(fn_im_path))
+            raise IOError("File {} is defective and cannot be read!".format(fn_im_path))
+    return f

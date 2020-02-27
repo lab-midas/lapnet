@@ -9,14 +9,11 @@ import cProfile
 import numpy as np
 import tensorflow as tf
 import random
-import scipy.io as sio
-
-import h5py
 from skimage.util.shape import view_as_windows
 import pylab
 import matplotlib.pyplot as plt
 
-from ..core.input import read_png_image, Input
+from ..core.input import read_png_image, Input, load_mat_file
 from ..core.augment import random_crop
 from ..core.flow_util import flow_to_color
 from ..core.image_warp import np_warp_2D, np_warp_3D
@@ -34,18 +31,6 @@ def _read_flow(filenames, num_epochs=None):
     flow = (gt[:, :, 0:2] - 2 ** 15) / 64.0
     mask = gt[:, :, 2:3]
     return flow, mask
-
-
-def load_mat_file(fn_im_path):
-    try:
-        f = sio.loadmat(fn_im_path)
-    except Exception:
-        try:
-            f = h5py.File(fn_im_path, 'r')
-        except IOError:
-            # print("File {} is defective and cannot be read!".format(fn_im_path))
-            raise IOError("File {} is defective and cannot be read!".format(fn_im_path))
-    return f
 
 
 def pos_generation_2D(intervall, stride):
@@ -176,6 +161,8 @@ def arr2kspace(arr, normalize=False):
     :param normalize:
     :return: (batch_size, x_dim, y_dim, 2 * channel)
     """
+    if arr.dtype == np.float64:
+        arr = arr.astype(dtype=np.float32)
     arr_kspace = np.zeros((np.shape(arr)[0], np.shape(arr)[1], np.shape(arr)[2], 2*np.shape(arr)[3]), dtype=np.float32)
     for i in range(np.shape(arr)[-1]):
         kspace = to_freq_space(arr[..., i], normalize=normalize)
@@ -241,6 +228,9 @@ class MRI_Resp_2D(Input):
     def get_data_paths(self, img_dirs):
         fn_im_paths = []
         for img_dir in img_dirs:
+            if os.path.isfile(img_dir):
+                fn_im_paths.append(img_dir)
+                continue
             img_dir = os.path.join(self.data.current_dir, img_dir)
             img_files = os.listdir(img_dir)
             for img_file in img_files:
@@ -256,6 +246,7 @@ class MRI_Resp_2D(Input):
                             continue
                         fn_im_paths.append(os.path.join(img_dir, img_file, img_mat))
         return fn_im_paths
+
 
     def crop2D_FixPts(self, arr, crop_size, box_num, pos):
         """
@@ -754,7 +745,7 @@ class MRI_Resp_2D(Input):
                                       num_threads=self.num_threads)
 
     def input_patch_test_data(self, config):
-        test_types = config['test_types']
+        test_types = config['test_types'][0]
         img_dir = config['test_dir']
         img_dir_matlab_simulated = config['test_dir_matlab_simulated']
         selected_frames = config['selected_frames']
@@ -913,212 +904,113 @@ class MRI_Resp_2D(Input):
                               batch_size=self.batch_size,
                               num_threads=self.num_threads)
 
-    # def input_train_gt(self):
-    #     img_dirs = ['resp/patient',
-    #                 'resp/volunteer']
-    #     selected_frames = [0, 3]
-    #     selected_slices = list(range(15, 55))
-    #     amplitude = 30
-    #     flow_augment_type = ['constant', 'smooth']
-    #
-    #     fn_im_paths = self.get_data_paths(img_dirs)
-    #
-    #     data_info_list = []
-    #     # length_data = len(fn_im_paths) * len(selected_frames) * len(selected_slices)
-    #
-    #     for fn_im_path in fn_im_paths:
-    #         for frame in selected_frames:
-    #             for slice in selected_slices:
-    #                 # data_info_list.append([fn_im_path, frame, slice, random.choice(flow_augment_type)])
-    #                 data_info_list.append(fn_im_path + ',' + str(frame) + ','
-    #                                       + str(slice) + ',' + random.choice(flow_augment_type))
-    #
-    #     random.seed(0)
-    #     random.shuffle(data_info_list)
-    #
-    #     dataset = tf.data.TFRecordDataset(data_info_list)
-    #
-    #     dataset = dataset.map(map_func=lambda file_path: self.load_batch(self.convert2list(file_path)), num_parallel_calls=True)
-    #
-    #     return tf.train.batch(
-    #         dataset,
-    #         batch_size=self.batch_size,
-    #         num_threads=self.num_threads)
+    def test_2D_slice(self, config):
 
-    # # deprecated
-    # def convert2list(self, file_path):
-    #     file_element = file_path.split(',')
-    #     return file_element[0], int(file_element[1]), int(file_element[2]), file_element[3]
+        batch = self.test_set_generation(config)
+        batch = batch[np.newaxis, ...]
 
-    #  # deprecated
-    # def load_batch(self, fn_im_path, frame, slice, flow_augment_type):
-    #     with h5py.File(fn_im_path, 'r') as f:
-    #         # fn_im_raw = sio.loadmat(fn_im_path)
-    #         dset = f['dImg']
-    #         try:
-    #             dset = np.array(dset, dtype=np.float32)
-    #             # dset = tf.constant(dset, dtype=tf.float32)
-    #         except Exception:
-    #             print("File {} is defective and cannot be read!".format(fn_im_path))
-    #         dset = np.transpose(dset, (2, 3, 1, 0))
-    #         img = dset[..., slice, :][..., frame]
-    #         img_size = np.shape(img)
-    #         u = self._u_generation_2D(img_size, amplitude, motion_type=flow_augment_type)
-    #         warped_img = self._np_warp_2D(img, u)
-    #         img, warped_img, = img[..., np.newaxis], warped_img[..., np.newaxis]
-    #         mask = np.zeros(img_size)
-    #     return [img, warped_img, u, mask]
+        radius = int((config['crop_size'] - 1) / 2)
+        if config['padding']:
+            batch = np.pad(batch, ((0, 0), (radius, radius), (radius, radius), (0, 0)), constant_values=0)
+        x_dim, y_dim = np.shape(batch)[1:3]
+        pos = pos_generation_2D(intervall=[[0, x_dim - config['crop_size'] + 1],
+                                           [0, y_dim - config['crop_size'] + 1]], stride=config['crop_stride'])
 
-# # haven't get started
-# class MRI_Resp_3D(Input):
-#     def __init__(self, data, batch_size, dims, *,
-#                  num_threads=1, normalize=True,
-#                  skipped_frames=False):
-#         super().__init__(data, batch_size, dims, num_threads=num_threads,
-#                          normalize=normalize, skipped_frames=skipped_frames)
-#
-#     def u_generation_3D(self, img_size, amplitude, motion_type='constant'):
-#         [M, N, P] = img_size
-#         if motion_type == 'constant':
-#             u_C = np.random.rand(3)
-#             amplitude = amplitude / np.linalg.norm(u_C, 2)
-#             u = amplitude * np.ones((M, N, P, 3))
-#             u[..., 0] = u_C[0] * u[..., 0]
-#             u[..., 1] = u_C[1] * u[..., 1]
-#             u[..., 2] = u_C[2] * u[..., 2]
-#         elif motion_type == 'smooth':
-#
-#             u = np.random.rand(M, N, P, 3)
-#
-#             cut_off = 0.01
-#             w_x_cut = math.floor(cut_off / (1 / M) + (M + 1) / 2)
-#             w_y_cut = math.floor(cut_off / (1 / N) + (N + 1) / 2)
-#             w_z_cut = math.floor(cut_off / (1 / P) + (P + 1) / 2)
-#
-#             LowPass_win = np.zeros((M, N, P))
-#             LowPass_win[(M - w_x_cut): w_x_cut, (N - w_y_cut): w_y_cut, (P - w_z_cut): w_z_cut] = 1
-#
-#             u[..., 0] = (np.fft.ifftn(np.fft.fftn(u[..., 0]) * np.fft.ifftshift(LowPass_win))).real
-#             u[..., 1] = (np.fft.ifftn(np.fft.fftn(u[..., 1]) * np.fft.ifftshift(LowPass_win))).real
-#             u[..., 2] = (np.fft.ifftn(np.fft.fftn(u[..., 2]) * np.fft.ifftshift(LowPass_win))).real
-#
-#         elif motion_type == 'realistic':
-#             pass
-#
-#         return u
-#
-#     def warp_3D(self, img, flow):
-#         img = img.astype('float32')
-#         flow = flow.astype('float32')
-#         height, width, depth = self.dims
-#         posx, posy, posz = np.mgrid[:height, :width, :depth]
-#         # flow=np.reshape(flow, [-1, 3])
-#         vx = flow[:, :, 0]
-#         vy = flow[:, :, 1]
-#         vz = flow[:, :, 2]
-#
-#         coord_x = posx + vx
-#         coord_y = posy + vy
-#         coord_z = posz + vz
-#         coords = np.array([coord_x, coord_y, coord_z])
-#         warped = warp(img, coords, order=1)  # order=1 for bi-linear
-#
-#         return warped
-#
-#
-#     def input_train_gt(self, hold_out):
-#         img_dirs = ['resp/patient',
-#                     'resp/volunteer']
-#         selected_frames = [0, 3]
-#         amplitude = 30
-#
-#         height, width = self.dims
-#         filenames = []
-#         dataset_filenames = []
-#         for img_dir in img_dirs:
-#             img_dir = os.path.join(self.data.current_dir, img_dir)
-#             img_files = os.listdir(img_dir)
-#             for img_file in img_files:
-#                 if not img_file.startswith('.'):
-#                     try:
-#                         img_mat = os.listdir(os.path.join(img_dir, img_file))[0]
-#
-#                         fn_im_path = os.path.join(img_dir, img_file, img_mat)
-#                         with h5py.File(fn_im_path, 'r') as f:
-#                             # fn_im_raw = sio.loadmat(fn_im_path)
-#                             dset = f['dImg']
-#                             dset = np.array(dset, dtype=np.float32)
-#                             dset = np.transpose(dset, (2, 3, 1, 0))
-#                             dset = dset[..., selected_frames]
-#                         for frame in range(np.shape(dset)[3]):
-#                             img_size = np.shape(dset[..., frame])
-#                             u = self.u_generation_3D(img_size, amplitude, motion_type='smooth')
-#
-#                             pass
-#
-#
-#
-#                         dataset_filenames.append(fn_im_path)
-#                     except Exception:
-#                         print("File {} is empty!".format(img_file))
-#                         pass
-#
-#         for img_dir, gt_dir in zip(img_dirs, gt_dirs):
-#             dataset_filenames = []
-#             img_dir = os.path.join(self.data.current_dir, img_dir)
-#             gt_dir = os.path.join(self.data.current_dir, gt_dir)
-#             img_files = os.listdir(img_dir)
-#             gt_files = os.listdir(gt_dir)
-#             img_files.sort()
-#             gt_files.sort()
-#             assert len(img_files) % 2 == 0 and len(img_files) / 2 == len(gt_files)
-#
-#             for i in range(len(gt_files)):
-#                 fn_im1 = os.path.join(img_dir, img_files[2 * i])
-#                 fn_im2 = os.path.join(img_dir, img_files[2 * i + 1])
-#                 fn_gt = os.path.join(gt_dir, gt_files[i])
-#                 dataset_filenames.append((fn_im1, fn_im2, fn_gt))
-#
-#             random.seed(0)
-#             random.shuffle(dataset_filenames)
-#             dataset_filenames = dataset_filenames[hold_out:]
-#             filenames.extend(dataset_filenames)
-#
-#         random.seed(0)
-#         random.shuffle(filenames)
-#
-#         #shift = shift % len(filenames)
-#         #filenames_ = list(np.roll(filenames, shift))
-#
-#         fns_im1, fns_im2, fns_gt = zip(*filenames)
-#         fns_im1 = list(fns_im1)
-#         fns_im2 = list(fns_im2)
-#         fns_gt = list(fns_gt)
-#
-#         im1 = read_png_image(fns_im1)
-#         im2 = read_png_image(fns_im2)
-#         flow_gt, mask_gt = _read_flow(fns_gt)
-#
-#         gt_queue = tf.train.string_input_producer(fns_gt,
-#             shuffle=False, capacity=len(fns_gt), num_epochs=None)
-#         reader = tf.WholeFileReader()
-#         _, gt_value = reader.read(gt_queue)
-#         gt_uint16 = tf.image.decode_png(gt_value, dtype=tf.uint16)
-#         gt = tf.cast(gt_uint16, tf.float32)
-#
-#         im1, im2, gt = random_crop([im1, im2, gt],
-#                                    [height, width, 3])
-#         flow_gt = (gt[:, :, 0:2] - 2 ** 15) / 64.0
-#         mask_gt = gt[:, :, 2:3]
-#
-#         if self.normalize:
-#             im1 = self._normalize_image(im1)
-#             im2 = self._normalize_image(im2)
-#
-#         return tf.train.batch(
-#             [im1, im2, flow_gt, mask_gt],
-#             batch_size=self.batch_size,
-#             num_threads=self.num_threads)
+        batches_cp = self.crop2D_FixPts(batch, crop_size=config['crop_size'], box_num=np.shape(pos)[1], pos=pos)
+        batches_cp = np.concatenate((arr2kspace(batches_cp[..., :2]), batches_cp[..., 2:4]), axis=-1)
+        flow = batches_cp[:, radius, radius, 4:6]
+
+        im1_patch_k_queue = tf.train.slice_input_producer([batches_cp[..., :2]], shuffle=False,
+                                                          capacity=len(list(batches_cp[..., 0])), num_epochs=None)
+        im2_patch_k_queue = tf.train.slice_input_producer([batches_cp[..., 2:4]], shuffle=False,
+                                                          capacity=len(list(batches_cp[..., 1])), num_epochs=None)
+        flow_patch_gt = tf.train.slice_input_producer([flow], shuffle=False,
+                                                      capacity=len(flow), num_epochs=None)
+
+        im1 = batch[..., 0]
+        im2 = batch[..., 1]
+        flow_orig = batch[..., 2:4]
+
+        test_batch = tf.train.batch([im1_patch_k_queue, im2_patch_k_queue, flow_patch_gt],
+                                    batch_size=self.batch_size,
+                                    num_threads=self.num_threads)
+
+        return test_batch, im1, im2, flow_orig, np.transpose(pos)
+
+    def test_set_generation(self, config):
+        path = config['path']
+        frame = config['frame']
+        slice = config['slice']
+        u_type = config['u_type']
+        use_given_u = config['use_given_u']
+        US = config['US']
+        US_acc = config['US_acc']
+        use_given_US_mask = config['use_given_US_mask']
+
+
+        paths = self.get_data_paths(path)
+
+        if u_type == 2:
+            if 'simu' in paths[0]:
+                dset = load_mat_file(paths[0])
+            else:
+                dset = load_mat_file(paths[1])
+            ref = np.array(dset['I1_real'], dtype=np.float32)
+            mov = np.array(dset['I1_Real_hat'], dtype=np.float32)
+            u0 = np.array(-dset['u_Real_est_1'], dtype=np.float32)
+            u1 = np.array(-dset['u_Real_est_2'], dtype=np.float32)
+            if US:
+                if US_acc == 30:
+                    mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
+                else:
+                    mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc8.npy')
+                # acc = np.random.choice(np.arange(1, 32, 6))
+                # acc = 30
+                # mask = np.transpose(generate_mask(nSegments=25, acc=acc, nRep=4), (2, 1, 0))
+                k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
+                k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
+                ref = (np.fft.ifftn(k_dset)).real
+                mov = (np.fft.ifftn(k_warped_dset)).real
+
+            im1, im2, u0, u1 = ref[..., slice], mov[..., slice], u0[..., slice], u1[..., slice]
+            im1, im2, u0, u1 = im1[np.newaxis, ...], im2[np.newaxis, ...], u0[np.newaxis, ...], u1[np.newaxis, ...]
+            batch = np.concatenate((im1, im2, u0, u1), axis=0)
+            batch = np.moveaxis(batch, 0, -1)
+        elif u_type == 0 or u_type == 1:
+            if 'simu' not in paths[0]:
+                dset = load_mat_file(paths[0])
+            else:
+                dset = load_mat_file(paths[1])
+            dset = np.array(dset['dImg'], dtype=np.float32)
+            dset = np.transpose(dset, (3, 2, 1, 0))
+
+            dset = (dset - np.amin(dset)) / (np.amax(dset) - np.amin(dset))
+            dset = dset[..., frame]
+            ref = np.rot90(dset, axes=(0, 1))
+            img_size = np.shape(dset)
+            if u_type == 0:
+                u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_constant_amp10_3D.npy')
+            elif u_type == 1:
+                u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
+            mov = np_warp_3D(ref, u)
+            if US:
+                if US_acc == 30:
+                    mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
+                else:
+                    mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc8.npy')
+                # acc = np.random.choice(np.arange(1, 32, 6))
+                # acc = 30
+                # mask = np.transpose(generate_mask(nSegments=25, acc=acc, nRep=4), (2, 1, 0))
+                k_ref = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
+                k_mov = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
+                ref = (np.fft.ifftn(k_ref)).real
+                mov = (np.fft.ifftn(k_mov)).real
+            im1, im2 = ref[..., np.newaxis], mov[..., np.newaxis]
+
+            batch = np.concatenate((im1, im2, u[..., :2]), axis=-1)
+            batch = np.transpose(batch, (2, 0, 1, 3))
+            batch = batch[slice, ...]
+        return batch
 
 
 # for original Kitti data

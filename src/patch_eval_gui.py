@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import pylab
 import operator
 from skimage.transform import warp
+from scipy.interpolate import griddata
 import time
 
 from e2eflow.core.flow_util import flow_to_color, flow_error_avg, outlier_pct, flow_to_color_np
@@ -75,6 +76,7 @@ def central_crop(img, bounding):
     slices = tuple(map(slice, start, end))
     return img[slices]
 
+
 def _evaluate_experiment(name, data, config):
 
     current_config = config_dict('../config.ini')
@@ -95,7 +97,6 @@ def _evaluate_experiment(name, data, config):
         raise RuntimeError("Error: experiment must contain a checkpoint")
     ckpt_path = exp_dir + "/" + os.path.basename(ckpt.model_checkpoint_path)
 
-    save_results = config['save_results']
     batch_size = config['batch_size']
     crop_stride = config['crop_stride']
     smooth_wind_size = config['smooth_wind_size']
@@ -120,48 +121,65 @@ def _evaluate_experiment(name, data, config):
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(sess=sess,
                                                    coord=coord)
-            flow_raw = np.zeros((height, width, 2), dtype=np.float32)
 
-            # flow_raw = np.zeros((int(np.sqrt(np.shape(pos)[0])), int(np.sqrt(np.shape(pos)[0])), 2), dtype=np.float32)
-            # for i in range(int(np.floor(len(pos)/batch_size)) + 1):
-            #     flow_pixel, loss_pixel = sess.run([flow, loss])
-            #     local_pos = pos[batch_size*i:batch_size*i+batch_size, :]
-            #     try:
-            #         flow_raw[local_pos[:, 0], local_pos[:, 1], :] = flow_pixel
-            #     except Exception:  # for the last patches
-            #         last_batch_size = len(local_pos)
-            #         flow_raw[local_pos[:, 0], local_pos[:, 1], :] = flow_pixel[:last_batch_size, :]
-            #
-            #
-            #
-            # if crop_stride is not 1:
-            #    pass
-            #
-            # if smooth_wind_size is not None:
-            #     smooth_wind = 1/smooth_wind_size/smooth_wind_size * \
-            #                   np.ones((smooth_wind_size, smooth_wind_size), dtype=np.float32)
-            #     flow_final_x = signal.convolve2d(flow_raw[..., 0], smooth_wind, mode='same')
-            #     flow_final_y = signal.convolve2d(flow_raw[..., 1], smooth_wind, mode='same')
-            #     flow_final = np.stack((flow_final_x, flow_final_y), axis=-1)
-            # else:
-            #     flow_final = np.copy(flow_raw)
+            methods = ['smmoth', 'average', 'interp']
+            method = methods[1]
+            if method is 'smooth':
+                flow_raw = np.zeros((height, width, 2), dtype=np.float32)
+                # flow_raw = np.zeros((int(np.sqrt(np.shape(pos)[0])), int(np.sqrt(np.shape(pos)[0])), 2), dtype=np.float32)
+                for i in range(int(np.floor(len(pos)/batch_size)) + 1):
+                    flow_pixel, loss_pixel = sess.run([flow, loss])
+                    local_pos = pos[batch_size*i:batch_size*i+batch_size, :]
+                    try:
+                        flow_raw[local_pos[:, 0], local_pos[:, 1], :] = flow_pixel
+                    except Exception:  # for the last patches
+                        last_batch_size = len(local_pos)
+                        flow_raw[local_pos[:, 0], local_pos[:, 1], :] = flow_pixel[:last_batch_size, :]
 
-            time_start = time.time()
-            smooth_radius = int((smooth_wind_size - 1) / 2)
-            counter_mask = np.zeros((height, width, 2), dtype=np.float32)
-            for i in range(int(np.floor(len(pos)/batch_size)) + 1):
-                flow_pixel, loss_pixel = sess.run([flow, loss])
-                local_pos = pos[batch_size*i:batch_size*i+batch_size, :]
-                for j in range(len(local_pos)):
-                    lower_bound_x = max(0, local_pos[j, 0]-smooth_radius)
-                    upper_bound_x = min(height, local_pos[j, 0]+smooth_radius+1)
-                    lower_bound_y = max(0, local_pos[j, 1]-smooth_radius)
-                    upper_bound_y = min(width, local_pos[j, 1]+smooth_radius+1)
-                    flow_raw[lower_bound_x:upper_bound_x, lower_bound_y:upper_bound_y, :] += flow_pixel[j, :]
-                    counter_mask[lower_bound_x:upper_bound_x, lower_bound_y:upper_bound_y, :] += 1
-            flow_final = flow_raw/counter_mask
-            time_end = time.time()
-            print('time cost: {}s'.format(time_end - time_start))
+                if crop_stride is not 1:
+                   pass
+
+                if smooth_wind_size is not None:
+                    smooth_wind = 1/smooth_wind_size/smooth_wind_size * \
+                                  np.ones((smooth_wind_size, smooth_wind_size), dtype=np.float32)
+                    flow_final_x = signal.convolve2d(flow_raw[..., 0], smooth_wind, mode='same')
+                    flow_final_y = signal.convolve2d(flow_raw[..., 1], smooth_wind, mode='same')
+                    flow_final = np.stack((flow_final_x, flow_final_y), axis=-1)
+                else:
+                    flow_final = np.copy(flow_raw)
+            elif method is 'interp':
+                flow_raw = np.zeros((np.shape(pos)[0], np.shape(pos)[1]), dtype=np.float32)
+                time_start = time.time()
+                for i in range(int(np.floor(len(pos)/batch_size)) + 1):
+                    flow_pixel, loss_pixel = sess.run([flow, loss])
+                    if batch_size*i+batch_size <= len(pos):
+                        flow_raw[batch_size*i:batch_size*i+batch_size, :] = flow_pixel
+                    else:
+                        flow_raw[batch_size*i:batch_size*i+batch_size, :] = flow_pixel[:len(pos)-batch_size*i, :]
+
+                grid_x, grid_y = np.mgrid[0:256:1, 0:256:1]
+                flow_final = griddata(pos, flow_raw, (grid_x, grid_y), method='cubic', fill_value=0)
+                time_end = time.time()
+                print('time cost: {}s'.format(time_end - time_start))
+            elif method is 'average':
+                flow_raw = np.zeros((height, width, 2), dtype=np.float32)
+                time_start = time.time()
+                smooth_radius = int((smooth_wind_size - 1) / 2)
+                counter_mask = np.zeros((height, width, 2), dtype=np.float32)
+                for i in range(int(np.floor(len(pos)/batch_size)) + 1):
+                    flow_pixel, loss_pixel = sess.run([flow, loss])
+                    local_pos = pos[batch_size*i:batch_size*i+batch_size, :]
+                    for j in range(len(local_pos)):
+                        lower_bound_x = max(0, local_pos[j, 0]-smooth_radius)
+                        upper_bound_x = min(height, local_pos[j, 0]+smooth_radius+1)
+                        lower_bound_y = max(0, local_pos[j, 1]-smooth_radius)
+                        upper_bound_y = min(width, local_pos[j, 1]+smooth_radius+1)
+                        flow_raw[lower_bound_x:upper_bound_x, lower_bound_y:upper_bound_y, :] += flow_pixel[j, :]
+                        counter_mask[lower_bound_x:upper_bound_x, lower_bound_y:upper_bound_y, :] += 1
+                flow_final = flow_raw/counter_mask
+                time_end = time.time()
+                print('time cost: {}s'.format(time_end - time_start))
+
 
             flow_gt = np.squeeze(flow_orig)
             im1 = np.squeeze(im1)
@@ -183,25 +201,15 @@ def _evaluate_experiment(name, data, config):
 
             error_orig = flow_gt_cut
             error_final = flow_final - flow_gt_cut
-            error_raw = flow_raw - flow_gt_cut
+            # error_raw = flow_raw - flow_gt_cut
             final_loss_orig = np.mean(np.square(error_orig))
             final_loss = np.mean(np.square(error_final))
-            final_loss_raw = np.mean(np.square(error_raw))
-            print("Original Flow Loss: {}".format(final_loss_orig))
-            print("Smoothing Flow Loss: {}".format(final_loss))
-            print("Raw Flow Loss: {}".format(final_loss_raw))
+            # final_loss_raw = np.mean(np.square(error_raw))
+            # print("Raw Flow Loss: {}".format(final_loss_raw))
 
-            f = open("/home/jpa19/PycharmProjects/MA/UnFlow/{}.txt".format(name), "a")
-            # f.write("\nSmoothing Flow Loss is {}".format(final_loss))
-            f.write("\n{}".format(final_loss))
-            f.close()
-            if save_results:
-                np.save('/home/jpa19/PycharmProjects/MA/UnFlow/flow_gt.npy', flow_gt_cut)
-                np.save('/home/jpa19/PycharmProjects/MA/UnFlow/flow_pred.npy', flow_final)
-
-            flow_raw = flow_to_color_np(flow_raw, convert_to_bgr=False)
-            flow_final = flow_to_color_np(flow_final, convert_to_bgr=False)
-            flow_gt = flow_to_color_np(flow_gt_cut, convert_to_bgr=False)
+            # flow_raw = flow_to_color_np(flow_raw, convert_to_bgr=False)
+            color_flow_final = flow_to_color_np(flow_final, convert_to_bgr=False)
+            color_flow_gt = flow_to_color_np(flow_gt_cut, convert_to_bgr=False)
             flow_error = flow_to_color_np(error_final, convert_to_bgr=False)
 
             compare_the_flow = False
@@ -216,33 +224,69 @@ def _evaluate_experiment(name, data, config):
                 ax[2].set_title('Flow Pred Smooth')
                 plt.show()
 
-            results = [im1_cut, im2_cut,
-                       im1_pred, flow_final, flow_gt,
-                       im_error_pred, im_error, im1_error_gt]
+            results = dict()
+            results['img_ref'] = im1_cut
+            results['img_mov'] = im2_cut
+            results['mov_corr'] = im1_pred
+            results['color_flow_pred'] = color_flow_final
+            results['color_flow_gt'] = color_flow_gt
+            results['err_pred'] = im_error_pred
+            results['err_orig'] = im_error
+            results['err_gt'] = im1_error_gt
+            results['flow_pred'] = flow_final
+            results['flow_gt'] = flow_gt_cut
+            results['loss_pred'] = final_loss
+            results['loss_orig'] = final_loss_orig
+
             # results = [np.rot90(i) for i in results]
+
+            if config['save_results']:
+                output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name)
+                if not os.path.exists(output_dir):
+                    os.mkdir(output_dir)
+                save_results(output_dir, results, config)
+
     return results
+
+
+def save_results(output_dir, results, config):
+    if config['save_loss']:
+        print("Original Flow Loss: {}".format(results['loss_orig']))
+        print("Smoothing Flow Loss: {}".format(results['loss_pred']))
+        output_file_loss = os.path.join(output_dir, 'loss.txt')
+        f = open(output_file_loss, "a")
+        # f.write("{}\n".format(results['loss_orig']))
+        f.write("{}\n".format(results['loss_pred']))
+        f.close()
+    if config['save_flow_npy']:  # todo: include the patient, frame, slice info to the file name
+        np.save('/home/jpa19/PycharmProjects/MA/UnFlow/flow_gt.npy', results['flow_gt'])
+        np.save('/home/jpa19/PycharmProjects/MA/UnFlow/flow_pred.npy', results['flow_pred'])
+    if config['save_png']:
+        pass
+    if config['save_pdf']:
+        pass
 
 
 def show_results(results):
     fig, ax = plt.subplots(3, 3, figsize=(14, 14))
-    ax[0][0].imshow(results[0], cmap='gray')
+    ax[0][0].imshow(results['img_ref'], cmap='gray')
     ax[0][0].set_title('Ref Img')
-    ax[0][1].imshow(results[1], cmap='gray')
+    ax[0][1].imshow(results['img_mov'], cmap='gray')
     ax[0][1].set_title('Moving Img')
     fig.delaxes(ax[0, 2])
 
-    ax[1][0].imshow(results[2], cmap='gray')
+    ax[1][0].imshow(results['mov_corr'], cmap='gray')
     ax[1][0].set_title('Moving Corrected')
-    ax[1][1].imshow(results[3])
+    ax[1][1].imshow(results['color_flow_pred'])
     ax[1][1].set_title('Flow Pred')
-    ax[1][2].imshow(results[4])
+    ax[1][2].imshow(results['color_flow_gt'])
     ax[1][2].set_title('Flow GT')
 
-    ax[2][0].imshow(results[5], cmap='gray')
+    ax[2][0].imshow(results['err_pred'], cmap='gray')
     ax[2][0].set_title('Warped error')
-    ax[2][1].imshow(results[6], cmap='gray')
+    ax[2][1].imshow(results['err_orig'], cmap='gray')
     ax[2][1].set_title('Original Error')
-    ax[2][2].imshow(results[7], cmap='gray')
+    ax[2][2].imshow(results['err_gt'], cmap='gray')
     ax[2][2].set_title('GT Error')
 
     plt.show()
@@ -257,9 +301,9 @@ def main(argv=None):
     #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/volunteer/21_tk']
     # config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
-    config['test_types'] = [1]
-    config['US'] = [False]
-    config['US_acc'] = [0, 8, 30]
+    config['test_types'] = [1, 1, 1, 2, 2]
+    config['US'] = [False, True, True, True, True]
+    config['US_acc'] = [1, 8, 30, 8, 30]
     config['selected_frames'] = [0]
     # config['selected_slices'] = list(range(15, 55))
     config['selected_slices'] = [40]
@@ -267,9 +311,13 @@ def main(argv=None):
     config['network'] = 'ftflownet'
     config['batch_size'] = 64
     config['smooth_wind_size'] = 17  # None for no smoothing
-    config['save_results'] = False
     config['crop_stride'] = 2
 
+    config['save_results'] = True
+    config['save_flow_npy'] = False
+    config['save_loss'] = True
+    config['save_pdf'] = False
+    config['save_png'] = False
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))
@@ -306,8 +354,7 @@ def main(argv=None):
     input_cf['cross_test'] = False
 
     for name in FLAGS.ex.split(','):
-        f = open("/home/jpa19/PycharmProjects/MA/UnFlow/{}.txt".format(name), "a")
-        f.close()
+
         for patient in config['test_dir']:
             for frame in config['selected_frames']:
                 for i, u_type in enumerate(config['test_types']):
@@ -324,6 +371,7 @@ def main(argv=None):
                         results = _evaluate_experiment(name, lambda: data_input.test_2D_slice(config=input_cf), config)
                         show_results(results)
                         pass
+
 
 if __name__ == '__main__':
     tf.app.run()

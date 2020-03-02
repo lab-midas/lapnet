@@ -11,6 +11,7 @@ import tensorflow as tf
 import random
 from skimage.util.shape import view_as_windows
 import pylab
+from multiprocessing import Pool
 import matplotlib.pyplot as plt
 
 from ..core.input import read_png_image, Input, load_mat_file
@@ -18,6 +19,7 @@ from ..core.augment import random_crop
 from ..core.flow_util import flow_to_color
 from ..core.image_warp import np_warp_2D, np_warp_3D
 from ..core.sampling import generate_mask
+from ..core.sampling_2 import generate_mask_2
 
 
 def _read_flow(filenames, num_epochs=None):
@@ -144,7 +146,6 @@ def _u_generation_2D(img_size, amplitude, motion_type=0):
         pass
 
     return u
-
 
 # # deprecated
 # def imgpair2kspace(arr, normalize=False):
@@ -311,8 +312,8 @@ class MRI_Resp_2D(Input):
 
             # mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
             acc = np.random.choice(np.arange(1, 32, 6))
-            acc = 30
             mask = np.transpose(generate_mask(nSegments=25, acc=acc, nRep=4), (2, 1, 0))
+            # mask_2 = np.transpose(generate_mask_2(subsampleType=1, acc=4, vd_type=1, nRep=4), (2, 1, 0))
             k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
             k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
             ref = (np.fft.ifftn(k_dset)).real
@@ -367,8 +368,8 @@ class MRI_Resp_2D(Input):
             if len(batches) >= max_num_to_take:
                 batches = batches[:max_num_to_take, ...]
                 print("{} real simulated data are generated".format((len(batches))))
-                return batches
-        return batches
+                return np.asarray(batches, dtype=np.float32)
+        return np.asarray(batches, dtype=np.float32)
 
     def augmentation_3D(self,
                         fn_im_paths,
@@ -397,6 +398,7 @@ class MRI_Resp_2D(Input):
                 for frame in selected_frames:
                     dset = np.transpose(dset_orig, (3, 2, 1, 0))
                     dset = (dset - np.amin(dset)) / (np.amax(dset) - np.amin(dset))
+                    #dset = (dset - np.mean(dset)) / np.std(dset)
                     dset = dset[..., frame]
                     dset = np.rot90(dset, axes=(0, 1))
                     img_size = np.shape(dset)
@@ -410,23 +412,31 @@ class MRI_Resp_2D(Input):
                         u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
                     warped_dset = np_warp_3D(dset, u)
                     acc = np.random.choice(np.arange(1, 32, 6))
-                    acc = 30
                     mask = np.transpose(generate_mask(nSegments=25, acc=acc, nRep=4), (2, 1, 0))
+                    # mask_2 = np.transpose(generate_mask_2(subsampleType=1, acc=acc, vd_type=1, nRep=4), (2, 1, 0))
                     # mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
                     k_dset = np.multiply(np.fft.fftn(dset), np.fft.ifftshift(mask[0, ...]))
                     k_warped_dset = np.multiply(np.fft.fftn(warped_dset), np.fft.ifftshift(mask[3, ...]))
                     dset_us = (np.fft.ifftn(k_dset)).real
                     warped_dset_us = (np.fft.ifftn(k_warped_dset)).real
 
-                    # fig, ax = plt.subplots(2, 2, figsize=(8, 8))
+                    # k_dset_2 = np.multiply(np.fft.fftn(dset), np.fft.ifftshift(mask_2[0, ...]))
+                    # k_warped_dset_2 = np.multiply(np.fft.fftn(warped_dset), np.fft.ifftshift(mask_2[3, ...]))
+                    # dset_us_2 = (np.fft.ifftn(k_dset_2)).real
+                    # warped_dset_us_2 = (np.fft.ifftn(k_warped_dset_2)).real
+                    # fig, ax = plt.subplots(3, 2, figsize=(6, 10))
                     # ax[0][0].imshow(dset[..., selected_slices[0]])  # ref
                     # ax[0][0].set_title('Ref Img')
                     # ax[0][1].imshow(warped_dset[..., selected_slices[0]])  # mov
                     # ax[0][1].set_title('Moving Img')
                     # ax[1][0].imshow(dset_us[..., selected_slices[0]])
-                    # ax[1][0].set_title('Ref US Img')
+                    # ax[1][0].set_title('Ref US 1 Img')
                     # ax[1][1].imshow(warped_dset_us[..., selected_slices[0]])
-                    # ax[1][1].set_title('Moving US Img')
+                    # ax[1][1].set_title('Moving US 1 Img')
+                    # ax[2][0].imshow(dset_us_2[..., selected_slices[0]])
+                    # ax[2][0].set_title('Ref US 2 Img')
+                    # ax[2][1].imshow(warped_dset_us_2[..., selected_slices[0]])
+                    # ax[2][1].set_title('Moving US 2 Img')
                     # plt.show()
                     # pass
 
@@ -440,7 +450,7 @@ class MRI_Resp_2D(Input):
                     if len(batches) >= max_num_to_take:
                         batches = batches[:max_num_to_take, ...]
                         print("{} augmented data with synthetic flows are generated".format((len(batches))))
-                        return batches
+                        return np.asarray(batches, dtype=np.float32)
             else:
                 dset_orig = np.transpose(dset_orig, (3, 2, 1, 0))
                 dset_orig = (dset_orig - np.amin(dset_orig)) / (np.amax(dset_orig) - np.amin(dset_orig))
@@ -464,9 +474,9 @@ class MRI_Resp_2D(Input):
                 batches = np.concatenate((batches, batch), axis=0)
                 if len(batches) >= max_num_to_take:
                     batches = batches[:max_num_to_take, ...]
-                    return batches
+                    return np.asarray(batches, dtype=np.float32)
 
-        return batches
+        return np.asarray(batches, dtype=np.float32)
 
     def augmentation(self,
                      fn_im_paths,
@@ -499,7 +509,7 @@ class MRI_Resp_2D(Input):
                         img = dset[..., slice, :][..., frame]
                         # img = np.flip(img, axis=0)
                         img = np.rot90(img)
-                        # img = (img - np.mean(img)) / np.std(img)
+                        #img = (img - np.mean(img)) / np.std(img)
                         img = (img - np.amin(img)) / (np.amax(img) - np.amin(img))
                         img_size = np.shape(img)
                         motion_type = np.random.choice(np.arange(0, 2), p=motion_shares)
@@ -635,13 +645,14 @@ class MRI_Resp_2D(Input):
                 motion_2_share = params.get('augment_type_percent')[1] / sum(params.get('augment_type_percent')[:2])
                 fn_im_paths = self.get_data_paths(img_dirs)
                 np.random.shuffle(fn_im_paths)
-                batches_augmented = self.augmentation(fn_im_paths,
+                batches_augmented = self.augmentation_3D(fn_im_paths,
                                                       [motion_1_share, motion_2_share],
                                                       params.get('flow_amplitude'),
                                                       selected_frames,
                                                       selected_slices,
                                                       given_u=False,
                                                       max_num_to_take=augmented_data_num)
+                batches_augmented = batches_augmented[..., :4]  # no undersampling
                 batches = np.concatenate((batches, batches_augmented), axis=0)
                 # batches = np.concatenate((arr2kspace(batches[..., :2]), batches[..., 2:]), axis=-1)
                 np.random.shuffle(batches)
@@ -947,7 +958,6 @@ class MRI_Resp_2D(Input):
         US_acc = config['US_acc']
         use_given_US_mask = config['use_given_US_mask']
 
-
         paths = self.get_data_paths(path)
 
         if u_type == 2:
@@ -964,8 +974,9 @@ class MRI_Resp_2D(Input):
                     mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
                 elif US_acc == 8:
                     mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc8.npy')
-                elif US_acc == 0:
-                    mask = np.transpose(generate_mask(nSegments=25, acc=0, nRep=4), (2, 1, 0))
+                elif US_acc == 1:
+                    mask = np.transpose(generate_mask(nSegments=25, acc=1, nRep=4), (2, 1, 0))
+                # mask = np.transpose(generate_mask_2(subsampleType=1, acc=4, vd_type=1, nRep=4), (2, 1, 0))
                 # acc = np.random.choice(np.arange(1, 32, 6))
                 # acc = 30
                 # mask = np.transpose(generate_mask(nSegments=25, acc=acc, nRep=4), (2, 1, 0))

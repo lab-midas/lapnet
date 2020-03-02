@@ -59,7 +59,7 @@ def flownet(im1, im2, flownet_spec='S', full_resolution=False, train_all=False, 
                         inputs = tf.reshape(inputs, [num_batch, height, width, 14])
                     else:
                         inputs = tf.concat([im1, im2], 3)
-                    return flownet_s_kspace(inputs,
+                    return flownet_s(inputs,
                                      full_res=full_res,
                                      channel_mult=channel_mult,
                                      LAP_layer=LAP_layer)
@@ -222,6 +222,7 @@ def flownet_s(inputs, channel_mult=1, full_res=False, LAP_layer=False):
     Uses FlowNetSimple.
     """
     m = channel_mult
+    m = 1  # todo
     inputs = nhwc_to_nchw([inputs])[0]
 
     with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],

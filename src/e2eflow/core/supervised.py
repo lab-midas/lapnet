@@ -117,7 +117,7 @@ def supervised_loss(batch, params, normalization=None, augment=False):
                     elif im1.get_shape().as_list()[2] is 65:
                         final_flow_fw = flownet_s_kspace_in_65(inputs, channel_mult=1)
                     elif im1.get_shape().as_list()[2] is 33:
-                        final_flow_fw = flownet_s_kspace_in_33(inputs, channel_mult=1)
+                        final_flow_fw = flownet_s_kspace_in_33(inputs, channel_mult=1.5)
 
                     if len(flow_gt.get_shape()) is 4:
                         flow_gt = flow_gt[:, 0, 0, :]

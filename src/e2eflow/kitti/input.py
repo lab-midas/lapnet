@@ -314,6 +314,7 @@ class MRI_Resp_2D(Input):
             acc = np.random.choice(np.arange(1, 32, 6))
             mask = np.transpose(generate_mask(nSegments=25, acc=acc, nRep=4), (2, 1, 0))
             # mask_2 = np.transpose(generate_mask_2(subsampleType=1, acc=4, vd_type=1, nRep=4), (2, 1, 0))
+            mask = np.asarray(mask, dtype=np.float32)
             k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
             k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
             ref = (np.fft.ifftn(k_dset)).real
@@ -915,6 +916,30 @@ class MRI_Resp_2D(Input):
                               batch_size=self.batch_size,
                               num_threads=self.num_threads)
 
+    def test_flown(self, config):
+        batches = self.test_set_generation(config)
+        if len(batches.shape) == 3:
+            batches = batches[np.newaxis, ...]
+        im1_queue = tf.train.slice_input_producer([batches[..., 0]], shuffle=False,
+                                                  capacity=len(list(batches[..., 0])), num_epochs=None)
+        im2_queue = tf.train.slice_input_producer([batches[..., 1]], shuffle=False,
+                                                  capacity=len(list(batches[..., 1])), num_epochs=None)
+        flow_queue = tf.train.slice_input_producer([batches[..., 2:]], shuffle=False,
+                                                   capacity=len(list(batches[..., 2:4])), num_epochs=None)
+        # num_queue = tf.train.slice_input_producer([patient_num], shuffle=False,
+        #                                            capacity=len(list(patient_num)), num_epochs=None)
+
+        im1 = batches[..., 0]
+        im2 = batches[..., 1]
+        flow_orig = batches[..., 2:4]
+        test_batches = tf.train.batch([im1_queue, im2_queue, flow_queue],
+                                      batch_size=min(self.batch_size, np.shape(batches)[1]),
+                                      num_threads=self.num_threads,
+                                      allow_smaller_final_batch=True)
+
+        return test_batches, im1, im2, flow_orig
+
+
     def test_2D_slice(self, config):
 
         batch = self.test_set_generation(config)
@@ -988,7 +1013,10 @@ class MRI_Resp_2D(Input):
             im1, im2, u0, u1 = ref[..., slice], mov[..., slice], u0[..., slice], u1[..., slice]
             im1, im2, u0, u1 = im1[np.newaxis, ...], im2[np.newaxis, ...], u0[np.newaxis, ...], u1[np.newaxis, ...]
             batch = np.concatenate((im1, im2, u0, u1), axis=0)
-            batch = np.moveaxis(batch, 0, -1)
+            if len(batch.shape) == 3:
+                batch = np.moveaxis(batch, 0, -1)
+            elif len(batch.shape) == 4:
+                batch = np.swapaxes(batch, 0, -1)
         elif u_type == 0 or u_type == 1:
             if 'simu' not in paths[0]:
                 dset = load_mat_file(paths[0])
@@ -1025,7 +1053,7 @@ class MRI_Resp_2D(Input):
             batch = np.concatenate((im1, im2, u[..., :2]), axis=-1)
             batch = np.transpose(batch, (2, 0, 1, 3))
             batch = batch[slice, ...]
-        return batch
+        return np.asarray(batch, dtype=np.float32)
 
 
 # for original Kitti data

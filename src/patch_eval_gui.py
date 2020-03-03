@@ -5,11 +5,9 @@ import PIL
 import tensorflow as tf
 import numpy as np
 from scipy import signal
-import png
 import matplotlib.pyplot as plt
 import pylab
 import operator
-from skimage.transform import warp
 from scipy.interpolate import griddata
 import time
 
@@ -301,9 +299,9 @@ def main(argv=None):
     #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/volunteer/21_tk']
     # config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
-    config['test_types'] = [1, 1, 1, 2, 2]
-    config['US'] = [False, True, True, True, True]
-    config['US_acc'] = [1, 8, 30, 8, 30]
+    config['test_types'] = [1, 1, 1, 2, 2, 2]
+    config['US'] = [False, True, True, False, True, True]
+    config['US_acc'] = [1, 8, 30, 1, 8, 30]
     config['selected_frames'] = [0]
     # config['selected_slices'] = list(range(15, 55))
     config['selected_slices'] = [40]
@@ -344,7 +342,7 @@ def main(argv=None):
     #     show_results(results)
     #     # results.append(result)
 
-    input_cf = {}
+    input_cf = dict()
     input_cf['use_given_u'] = True
     input_cf['US'] = True
     input_cf['use_given_US_mask'] = True

@@ -5,6 +5,9 @@ import PIL
 import tensorflow as tf
 import numpy as np
 from scipy import signal
+import pylab as plt
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pylab
 import operator
@@ -40,7 +43,7 @@ tf.app.flags.DEFINE_integer('num', 1,
                             'Number of examples to evaluate. Set to -1 to evaluate all.')
 tf.app.flags.DEFINE_integer('num_vis', 1,
                             'Number of evalutations to visualize. Set to -1 to visualize all.')
-tf.app.flags.DEFINE_string('gpu', '1',
+tf.app.flags.DEFINE_string('gpu', '0',
                            'GPU device to evaluate on.')
 tf.app.flags.DEFINE_boolean('output_benchmark', False,
                             'Output raw flow files.')
@@ -156,7 +159,7 @@ def _evaluate_experiment(name, data, config):
                         flow_raw[batch_size*i:batch_size*i+batch_size, :] = flow_pixel[:len(pos)-batch_size*i, :]
 
                 grid_x, grid_y = np.mgrid[0:256:1, 0:256:1]
-                flow_final = griddata(pos, flow_raw, (grid_x, grid_y), method='cubic', fill_value=0)
+                flow_final = griddata(pos, flow_raw, (grid_x, grid_y), method='linear', fill_value=0)
                 time_end = time.time()
                 print('time cost: {}s'.format(time_end - time_start))
             elif method is 'average':
@@ -177,6 +180,9 @@ def _evaluate_experiment(name, data, config):
                 flow_final = flow_raw/counter_mask
                 time_end = time.time()
                 print('time cost: {}s'.format(time_end - time_start))
+
+            coord.request_stop()
+            coord.join(threads)
 
 
             flow_gt = np.squeeze(flow_orig)
@@ -238,84 +244,153 @@ def _evaluate_experiment(name, data, config):
 
             # results = [np.rot90(i) for i in results]
 
-            if config['save_results']:
-                output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name)
-                if not os.path.exists(output_dir):
-                    os.mkdir(output_dir)
-                save_results(output_dir, results, config)
-
     return results
 
 
-def save_results(output_dir, results, config):
+def save_test_info(dir, config):
+    output_file = os.path.join(dir, 'test_patient_info.txt')
+    for path in config['test_dir']:
+        for frame in config['selected_frames']:
+            for slice in config['selected_slices']:
+                patient = path.split('/')[-1]
+                f = open(output_file, "a")
+                f.write("{},{},{}\n".format(patient, frame, slice))
+                f.close()
+
+
+def test_name_map(config):
+    if config['u_type'] == 0:
+        test_type = 'c'
+    elif config['u_type'] == 1:
+        test_type = 's'
+    elif config['u_type'] == 2:
+        test_type = 'r'
+    else:
+        raise ImportError('wrong test type given')
+    return test_type
+
+
+def save_results(output_dir, results, config, input_cf):
+    test_type = test_name_map(input_cf)
+    test_name = test_type + '_US' + str(input_cf['US_acc'])
+
     if config['save_loss']:
         print("Original Flow Loss: {}".format(results['loss_orig']))
         print("Smoothing Flow Loss: {}".format(results['loss_pred']))
-        output_file_loss = os.path.join(output_dir, 'loss.txt')
+        file_name = test_name + '_loss.txt'
+        output_file_loss = os.path.join(output_dir, file_name)
         f = open(output_file_loss, "a")
         # f.write("{}\n".format(results['loss_orig']))
         f.write("{}\n".format(results['loss_pred']))
         f.close()
-    if config['save_flow_npy']:  # todo: include the patient, frame, slice info to the file name
-        np.save('/home/jpa19/PycharmProjects/MA/UnFlow/flow_gt.npy', results['flow_gt'])
-        np.save('/home/jpa19/PycharmProjects/MA/UnFlow/flow_pred.npy', results['flow_pred'])
+    patient = input_cf['path'].split('/')[-1]
+    file_name = test_type + '_' + patient + '_' + str(input_cf['frame']) + '_' + str(input_cf['slice'])
+
+    if config['save_data_npz']:
+        dir_name = test_name + '_data_npz'
+        save_dir = os.path.join(output_dir, dir_name)
+        if not os.path.exists(save_dir):
+            os.mkdir(save_dir)
+        output_file_flow = os.path.join(save_dir, file_name)
+        np.savez(output_file_flow,
+                 img_ref=results['img_ref'],
+                 flow_gt=results['flow_gt'],
+                 flow_pred=results['flow_pred'])
+
     if config['save_png']:
-        pass
+        dir_name = test_name + '_png'
+        save_dir = os.path.join(output_dir, dir_name)
+        if not os.path.exists(save_dir):
+            os.mkdir(save_dir)
+        output_file_png = os.path.join(save_dir, file_name)
+        save_img(results['img_ref'], output_file_png + '_img_ref', 'png')
+        save_img(results['img_mov'], output_file_png + '_img_mov', 'png')
+        save_img(results['mov_corr'], output_file_png + '_mov_corr', 'png')
+        save_img(results['color_flow_gt'], output_file_png + '_flow_gt', 'png')
+        save_img(results['color_flow_pred'], output_file_png + '_flow_pred', 'png')
     if config['save_pdf']:
-        pass
+        dir_name = test_name + '_pdf'
+        save_dir = os.path.join(output_dir, dir_name)
+        if not os.path.exists(save_dir):
+            os.mkdir(save_dir)
+        output_file_png = os.path.join(save_dir, file_name)
+        save_img(results['img_ref'], output_file_png+'_img_ref', 'pdf')
+
+
+def save_img(result, file_path, format='png'):
+    matplotlib.use('Agg')
+    fig = plt.figure(figsize=(5, 5), dpi=100)
+    plt.axis('off')
+    if len(result.shape) == 2:
+        plt.imshow(result, cmap="gray")
+    else:
+        plt.imshow(result)
+    fig.savefig(file_path+'.'+format)
+    plt.close()
 
 
 def show_results(results):
     fig, ax = plt.subplots(3, 3, figsize=(14, 14))
+    plt.axis('off')
     ax[0][0].imshow(results['img_ref'], cmap='gray')
     ax[0][0].set_title('Ref Img')
+    ax[0][0].axis('off')
     ax[0][1].imshow(results['img_mov'], cmap='gray')
     ax[0][1].set_title('Moving Img')
+    ax[0][1].axis('off')
     fig.delaxes(ax[0, 2])
 
     ax[1][0].imshow(results['mov_corr'], cmap='gray')
     ax[1][0].set_title('Moving Corrected')
+    ax[1][0].axis('off')
     ax[1][1].imshow(results['color_flow_pred'])
     ax[1][1].set_title('Flow Pred')
+    ax[1][1].axis('off')
     ax[1][2].imshow(results['color_flow_gt'])
     ax[1][2].set_title('Flow GT')
+    ax[1][2].axis('off')
 
     ax[2][0].imshow(results['err_pred'], cmap='gray')
     ax[2][0].set_title('Warped error')
+    ax[2][0].axis('off')
     ax[2][1].imshow(results['err_orig'], cmap='gray')
     ax[2][1].set_title('Original Error')
+    ax[2][1].axis('off')
     ax[2][2].imshow(results['err_gt'], cmap='gray')
     ax[2][2].set_title('GT Error')
+    ax[2][2].axis('off')
 
     plt.show()
+    #plt.savefig("test.png", bbox_inches='tight')
 
 
 def main(argv=None):
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
-    config = {}
-    config['test_dir'] = [['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk']]
+    config = dict()
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk',
+                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/06_la',
+                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk']
     #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/data/card/005_GI']
     #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/volunteer/21_tk']
     # config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
     config['test_types'] = [1, 1, 1, 2, 2, 2]
-    config['US'] = [False, True, True, False, True, True]
-    config['US_acc'] = [1, 8, 30, 1, 8, 30]
-    config['selected_frames'] = [0]
-    # config['selected_slices'] = list(range(15, 55))
-    config['selected_slices'] = [40]
+    config['US_acc'] = [1, 20, 8, 8, 30]
+    config['selected_frames'] = [0, 30]
+    config['selected_slices'] = list(range(30, 50))
+    # config['selected_slices'] = [40]
     config['amplitude'] = 10
     config['network'] = 'ftflownet'
     config['batch_size'] = 64
     config['smooth_wind_size'] = 17  # None for no smoothing
     config['crop_stride'] = 2
-
     config['save_results'] = True
-    config['save_flow_npy'] = False
+    config['save_data_npz'] = False
     config['save_loss'] = True
     config['save_pdf'] = False
-    config['save_png'] = False
+    config['save_png'] = True
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))
@@ -352,24 +427,29 @@ def main(argv=None):
     input_cf['cross_test'] = False
 
     for name in FLAGS.ex.split(','):
+        if config['save_results']:
+            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+"test")
+            if not os.path.exists(output_dir):
+                os.mkdir(output_dir)
+            save_test_info(output_dir, config)
 
-        for patient in config['test_dir']:
-            for frame in config['selected_frames']:
-                for i, u_type in enumerate(config['test_types']):
+        for i, u_type in enumerate(config['test_types']):
+            for patient in config['test_dir']:
+                for frame in config['selected_frames']:
                     for slice in config['selected_slices']:
                         input_cf['path'] = patient
                         input_cf['frame'] = frame
                         input_cf['slice'] = slice
                         input_cf['u_type'] = u_type
                         # input_cf['use_given_u'] = config['new_u'][i]
-                        input_cf['US'] = config['US'][i]
                         input_cf['US_acc'] = config['US_acc'][i]
                         # input_cf['use_given_US_mask'] = config['new_US_mask'][i]
 
                         results = _evaluate_experiment(name, lambda: data_input.test_2D_slice(config=input_cf), config)
-                        show_results(results)
-                        pass
+                        # show_results(results)
 
+                        if config['save_results']:
+                            save_results(output_dir, results, config, input_cf)
 
 if __name__ == '__main__':
     tf.app.run()

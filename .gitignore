@@ -3,6 +3,7 @@ log
 out
 data/
 log/
+output/
 src/playground.py
 *npy
 *npz

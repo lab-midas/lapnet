@@ -20,6 +20,7 @@ from ..core.flow_util import flow_to_color
 from ..core.image_warp import np_warp_2D, np_warp_3D
 from ..core.sampling import generate_mask
 from ..core.sampling_2 import generate_mask_2
+from e2eflow.core.flow_util import flow_to_color_np
 
 
 def _read_flow(filenames, num_epochs=None):
@@ -228,6 +229,8 @@ class MRI_Resp_2D(Input):
 
     def get_data_paths(self, img_dirs):
         fn_im_paths = []
+        if isinstance(img_dirs, str):
+            img_dirs = [img_dirs]
         for img_dir in img_dirs:
             if os.path.isfile(img_dir):
                 fn_im_paths.append(img_dir)
@@ -646,7 +649,7 @@ class MRI_Resp_2D(Input):
                 motion_2_share = params.get('augment_type_percent')[1] / sum(params.get('augment_type_percent')[:2])
                 fn_im_paths = self.get_data_paths(img_dirs)
                 np.random.shuffle(fn_im_paths)
-                batches_augmented = self.augmentation_3D(fn_im_paths,
+                batches_augmented = self.augmentation(fn_im_paths,
                                                       [motion_1_share, motion_2_share],
                                                       params.get('flow_amplitude'),
                                                       selected_frames,
@@ -979,7 +982,6 @@ class MRI_Resp_2D(Input):
         slice = config['slice']
         u_type = config['u_type']
         use_given_u = config['use_given_u']
-        US = config['US']
         US_acc = config['US_acc']
         use_given_US_mask = config['use_given_US_mask']
 
@@ -994,13 +996,14 @@ class MRI_Resp_2D(Input):
             mov = np.array(dset['I1_Real_hat'], dtype=np.float32)
             u0 = np.array(-dset['u_Real_est_1'], dtype=np.float32)
             u1 = np.array(-dset['u_Real_est_2'], dtype=np.float32)
-            if US:
+            if US_acc > 1:
                 if US_acc == 30:
                     mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
                 elif US_acc == 8:
                     mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc8.npy')
-                elif US_acc == 1:
-                    mask = np.transpose(generate_mask(nSegments=25, acc=1, nRep=4), (2, 1, 0))
+                else:
+                    # raise ImportError('Wrong acceleration value is given')
+                    mask = np.transpose(generate_mask(nSegments=25, acc=US_acc, nRep=4), (2, 1, 0))
                 # mask = np.transpose(generate_mask_2(subsampleType=1, acc=4, vd_type=1, nRep=4), (2, 1, 0))
                 # acc = np.random.choice(np.arange(1, 32, 6))
                 # acc = 30
@@ -1033,14 +1036,16 @@ class MRI_Resp_2D(Input):
                 u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_constant_amp10_3D.npy')
             elif u_type == 1:
                 u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
+
             mov = np_warp_3D(ref, u)
-            if US:
+            if US_acc > 1:
                 if US_acc == 30:
                     mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
                 elif US_acc == 8:
                     mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc8.npy')
-                elif US_acc == 0:
-                    mask = np.transpose(generate_mask(nSegments=25, acc=0, nRep=4), (2, 1, 0))
+                else:
+                    # raise ImportError('Wrong acceleration value is given')
+                    mask = np.transpose(generate_mask(nSegments=25, acc=US_acc, nRep=4), (2, 1, 0))
                 # acc = np.random.choice(np.arange(1, 32, 6))
                 # acc = 30
                 # mask = np.transpose(generate_mask(nSegments=25, acc=acc, nRep=4), (2, 1, 0))

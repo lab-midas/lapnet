@@ -1,1 +1,1 @@
-python3 run.py --ex flowns_csr010_0203
+python3 patch_eval_gui.py --ex RdPts_Img500_Cp33_1402

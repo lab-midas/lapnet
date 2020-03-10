@@ -162,8 +162,7 @@ class Trainer():
             self.train(i, i + save_interval - 1, i - (min_iter + 1),
                        long_term_train=self.params['long_term_train'],
                        preloaded_data=training_data)
-
-            # self.eval(1)
+            self.eval(i + save_interval)
 
         if self.plot_proc:
             self.plot_proc.join()
@@ -216,11 +215,12 @@ class Trainer():
 
         with tf.Graph().as_default(), tf.device(self.shared_device):
             if not long_term_train:
-                batch = self.train_batch_fn()
+                batch, _ = self.train_batch_fn()
             else:
                 im1 = preloaded_data[0]
                 im2 = preloaded_data[1]
                 flow = preloaded_data[2]
+                # len_batch = len(im1)
                 im1_queue = tf.train.slice_input_producer([im1], shuffle=False,
                                                           capacity=len(list(im1)), num_epochs=None)
                 im2_queue = tf.train.slice_input_producer([im2], shuffle=False,
@@ -310,7 +310,160 @@ class Trainer():
                 coord.request_stop()
                 coord.join(threads)
 
-    def eval(self, num):
+    # def eval(self):
+    #     with tf.Graph().as_default():
+    #         test_batch, len_batch = self.eval_batch_fn()
+    #         loss, flow = supervised_loss(test_batch,
+    #                                      normalization=None,
+    #                                      augment=False,
+    #                                      params=self.params)
+    #
+    #         variables_to_restore = tf.all_variables()
+    #
+    #         losses = tf.get_collection('losses')
+    #         for l in losses:
+    #             tensor_name = re.sub('tower_[0-9]*/', '', l.op.name)
+    #             _ = summarized_placeholder(tensor_name, key='eval_avg')
+    #
+    #         summaries = tf.get_collection(tf.GraphKeys.SUMMARIES)
+    #         summary_ = tf.summary.merge(summaries)
+    #
+    #         sess_config = tf.ConfigProto(allow_soft_placement=True)
+    #
+    #         ckpt = tf.train.get_checkpoint_state(self.ckpt_dir)
+    #         assert ckpt is not None, "No checkpoints to evaluate"
+    #
+    #         # Correct path for ckpts from different machine
+    #         # ckpt_path = self.ckpt_dir + "/" + os.path.basename(ckpt.model_checkpoint_path)
+    #         ckpt_path = ckpt.model_checkpoint_path
+    #
+    #         with tf.Session() as sess:
+    #             summary_writer = tf.summary.FileWriter(self.eval_summaries_dir)
+    #             saver = tf.train.Saver(variables_to_restore)
+    #
+    #             sess.run(tf.global_variables_initializer())
+    #             sess.run(tf.local_variables_initializer())
+    #
+    #             restore_networks(sess, self.params, ckpt)
+    #             global_step = ckpt_path.split('/')[-1].split('-')[-1]
+    #
+    #             coord = tf.train.Coordinator()
+    #             threads = tf.train.start_queue_runners(sess=sess,
+    #                                                    coord=coord)
+
+    def eval(self, global_step):
+        with tf.Graph().as_default():
+
+            test_batch, len_batch = self.eval_batch_fn()
+            loss, flow = supervised_loss(test_batch,
+                                         normalization=None,
+                                         augment=False,
+                                         params=self.params)
+
+
+            variables_to_restore = tf.all_variables()
+            values_ = []
+            averages_ = []
+
+            # images_ = [image_warp(im1, flow) / 255,
+            #            flow_to_color(flow),
+            #            1 - (1 - occlusion(flow, flow_bw)[0]) * create_outgoing_mask(flow),
+            #            forward_warp(flow_bw) < DISOCC_THRESH]
+            # image_names = ['warped image', 'flow', 'occ', 'reverse disocc']
+            #
+            # values_ = []
+            # averages_ = []
+            # truth_tuples = []
+            # if len(truths) == 4:
+            #     flow_occ, mask_occ, flow_noc, mask_noc = truths
+            #     flow_occ = resize_output_crop(flow_occ, height, width, 2)
+            #     flow_noc = resize_output_crop(flow_noc, height, width, 2)
+            #     mask_occ = resize_output_crop(mask_occ, height, width, 1)
+            #     mask_noc = resize_output_crop(mask_noc, height, width, 1)
+            #
+            #     truth_tuples.append(('occluded', flow_occ, mask_occ))
+            #     truth_tuples.append(('non-occluded', flow_noc, mask_noc))
+            #     images_ += [flow_error_image(flow, flow_occ, mask_occ, mask_noc)]
+            #     image_names += ['flow error']
+            # else:
+            #     raise NotImplementedError()
+            #     truth_tuples.append(('flow', truths[0], truths[1]))
+
+            # for name, gt_flow, mask in truth_tuples:
+            #     error_ = flow_error_avg(gt_flow, flow, mask)
+            #     error_avg_ = summarized_placeholder('AEE/' + name, key='eval_avg')
+            #     outliers_ = outlier_pct(gt_flow, flow, mask)
+            #     outliers_avg = summarized_placeholder('outliers/' + name,
+            #                                           key='eval_avg')
+            #
+            #     values_.extend([error_, outliers_])
+            #     averages_.extend([error_avg_, outliers_avg])
+
+            losses = tf.get_collection('losses')
+            for l in losses:
+                values_.append(l)
+                tensor_name = re.sub('tower_[0-9]*/', '', l.op.name)
+                loss_avg_ = summarized_placeholder(tensor_name, key='eval_avg')
+                averages_.append(loss_avg_)
+
+            ckpt = tf.train.get_checkpoint_state(self.ckpt_dir)
+            assert ckpt is not None, "No checkpoints to evaluate"
+
+            # Correct path for ckpts from different machine
+            # ckpt_path = self.ckpt_dir + "/" + os.path.basename(ckpt.model_checkpoint_path)
+            ckpt_path = ckpt.model_checkpoint_path
+
+            with tf.Session() as sess:
+                summary_writer = tf.summary.FileWriter(self.eval_summaries_dir)
+                saver = tf.train.Saver(variables_to_restore)
+
+                sess.run(tf.global_variables_initializer())
+                sess.run(tf.local_variables_initializer())
+
+                restore_networks(sess, self.params, ckpt)
+                # global_step = ckpt_path.split('/')[-1].split('-')[-1]
+
+
+                coord = tf.train.Coordinator()
+                threads = tf.train.start_queue_runners(sess=sess,
+                                                       coord=coord)
+                averages = np.zeros(len(averages_))
+                num_iters = 0
+
+                image_lists = []
+                try:
+                    for i in range(int(np.floor(len_batch/self.params['batch_size']))):
+                        results = sess.run(values_)
+                        values = results
+                        averages += values
+                        num_iters += 1
+                except tf.errors.OutOfRangeError:
+                    pass
+
+                averages /= num_iters
+                feed = {k: v for (k, v) in zip(averages_, averages)}
+
+                summary_ = tf.summary.merge_all('eval_avg')
+                summary = sess.run(summary_, feed_dict=feed)
+                summary_writer.add_summary(summary, global_step)
+
+                print("-- eval: i = {}".format(global_step-1))
+
+                coord.request_stop()
+                coord.join(threads)
+                summary_writer.close()
+
+                # if self.interactive_plot:
+                #     if self.plot_proc:
+                #         self.plot_proc.terminate()
+                #     self.plot_proc = Process(target=_eval_plot,
+                #                              args=([image_lists], image_names,
+                #                                    "{} (i={})".format(self.experiment,
+                #                                                       global_step)))
+                #     self.plot_proc.start()
+
+
+    def eval_kitti(self, num):
         assert num == 1  # TODO enable num > 1
 
         with tf.Graph().as_default():
@@ -365,6 +518,9 @@ class Trainer():
                 outliers_ = outlier_pct(gt_flow, flow, mask)
                 outliers_avg = summarized_placeholder('outliers/' + name,
                                                       key='eval_avg')
+
+
+
                 values_.extend([error_, outliers_])
                 averages_.extend([error_avg_, outliers_avg])
 

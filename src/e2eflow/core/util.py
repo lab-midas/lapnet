@@ -23,5 +23,4 @@ def downsample(tensor, num):
     if height%2==0 and width%2==0:
         return downsample_ops(tensor, num)
     else:
-        return tf.image.resize_area(tensor,tf.constant([int(height/num),int(width/num)]))
-	
+        return tf.image.resize_area(tensor, tf.constant([int(height/num), int(width/num)]))

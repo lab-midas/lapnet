@@ -463,7 +463,10 @@ class MRI_Resp_2D(Input):
                 continue
             if not cross_test:
                 for frame in selected_frames:
-                    dset = np.transpose(dset_orig, (3, 2, 1, 0))
+                    if np.shape(dset_orig)[0] == 4:
+                        dset = np.transpose(dset_orig, (3, 2, 1, 0))
+                    else:
+                        dset = dset_orig.copy()
                     dset = (dset - np.amin(dset)) / (np.amax(dset) - np.amin(dset))
                     #dset = (dset - np.mean(dset)) / np.std(dset)
                     dset = dset[..., frame]
@@ -741,9 +744,11 @@ class MRI_Resp_2D(Input):
                                                        capacity=len(list(batches[..., 2:4])), num_epochs=None)
             # num_queue = tf.train.slice_input_producer([patient_num], shuffle=False,
             #                                            capacity=len(list(patient_num)), num_epochs=None)
-            return tf.train.batch([im1_queue, im2_queue, flow_queue],
-                                  batch_size=self.batch_size,
-                                  num_threads=self.num_threads)
+            train_batch = tf.train.batch([im1_queue, im2_queue, flow_queue],
+                                         batch_size=self.batch_size,
+                                         num_threads=self.num_threads)
+            return train_batch, len(batches)
+
         elif params.get('network') == 'ftflownet':
             batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
             real_simulated_data_num = math.floor(
@@ -813,9 +818,11 @@ class MRI_Resp_2D(Input):
                 flow_queue = tf.train.slice_input_producer([flow], shuffle=False,
                                                            capacity=len(list(flow)), num_epochs=None)
 
-                return tf.train.batch([im1_queue, im2_queue, flow_queue],
-                                      batch_size=self.batch_size,
-                                      num_threads=self.num_threads)
+                train_batch = tf.train.batch([im1_queue, im2_queue, flow_queue],
+                                             batch_size=self.batch_size,
+                                             num_threads=self.num_threads)
+                return train_batch, len(batches)
+
             else:  # whole k-space as input, fft(ux, uy) as label  TODO: a better solution for finding a proper label
                 batches_augmented = arr2kspace(batches_augmented)  # 4 (im1, im2, ux, uy)=> 8 channels
                 if params.get('random_crop'):
@@ -830,9 +837,10 @@ class MRI_Resp_2D(Input):
                                                           capacity=len(list(batches[..., 1])), num_epochs=None)
                 flow_queue = tf.train.slice_input_producer([flow_k], shuffle=False,
                                                            capacity=len(list(flow_k)), num_epochs=None)
-                return tf.train.batch([im1_queue, im2_queue, flow_queue],
-                                      batch_size=self.batch_size,
-                                      num_threads=self.num_threads)
+                train_batch = tf.train.batch([im1_queue, im2_queue, flow_queue],
+                                             batch_size=self.batch_size,
+                                             num_threads=self.num_threads)
+                return train_batch, len(batches)
 
     def input_patch_test_data(self, config):
         test_types = config['test_types'][0]

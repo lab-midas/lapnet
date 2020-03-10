@@ -96,7 +96,7 @@ def _eval_plot(results, image_names, title):
 
 
 class Trainer():
-    def __init__(self, train_batch_fn, eval_batch_fn, params,
+    def __init__(self, train_batch_fn, train_whole_batch, eval_batch_fn, params,
                  train_summaries_dir, eval_summaries_dir, ckpt_dir,
                  normalization, debug=False, experiment="", interactive_plot=False,
                  supervised=False, devices=None, LAP_layer=False):
@@ -107,6 +107,7 @@ class Trainer():
         self.params = params
         self.debug = debug
         self.train_batch_fn = train_batch_fn
+        self.train_whole_batch = train_whole_batch
         self.eval_batch_fn = eval_batch_fn
         self.normalization = normalization
         self.experiment = experiment
@@ -142,9 +143,27 @@ class Trainer():
         print('-- training from i = {} to {}'.format(start_iter, max_iter))
 
         assert (max_iter - start_iter + 1) % save_interval == 0
+        if self.params['long_term_train']:
+            pre_load_data = self.train_whole_batch()
+            idx = 0
+            percent = int(len(pre_load_data[0]) / 10)
+        else:
+            pre_load_data = None
+
         for i in range(start_iter, max_iter + 1, save_interval):
-            self.train(i, i + save_interval - 1, i - (min_iter + 1))
-            #self.eval(1)
+            if self.params['long_term_train']:
+                training_data = [data[percent*idx: percent*(idx + 1)] for data in pre_load_data]
+                idx += 1
+                if percent * (idx + 1) >= 10:
+                    idx = 0
+            else:
+                training_data = None
+
+            self.train(i, i + save_interval - 1, i - (min_iter + 1),
+                       long_term_train=self.params['long_term_train'],
+                       preloaded_data=training_data)
+
+            # self.eval(1)
 
         if self.plot_proc:
             self.plot_proc.join()
@@ -192,11 +211,26 @@ class Trainer():
 
         return train_op, loss_
 
-    def train(self, start_iter, max_iter, iter_offset):
+    def train(self, start_iter, max_iter, iter_offset, long_term_train=False, preloaded_data=None):
         ckpt = tf.train.get_checkpoint_state(self.ckpt_dir)
 
         with tf.Graph().as_default(), tf.device(self.shared_device):
-            batch = self.train_batch_fn()
+            if not long_term_train:
+                batch = self.train_batch_fn()
+            else:
+                im1 = preloaded_data[0]
+                im2 = preloaded_data[1]
+                flow = preloaded_data[2]
+                im1_queue = tf.train.slice_input_producer([im1], shuffle=False,
+                                                          capacity=len(list(im1)), num_epochs=None)
+                im2_queue = tf.train.slice_input_producer([im2], shuffle=False,
+                                                          capacity=len(list(im2)), num_epochs=None)
+                flow_queue = tf.train.slice_input_producer([flow], shuffle=False,
+                                                           capacity=len(list(flow)), num_epochs=None)
+
+                batch = tf.train.batch([im1_queue, im2_queue, flow_queue],
+                                       batch_size=self.params['batch_size'],
+                                       num_threads=1)
 
             with tf.name_scope('params') as scope:
                 learning_rate_ = util.summarized_placeholder('learning_rate', 'train')

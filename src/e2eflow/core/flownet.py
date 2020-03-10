@@ -312,7 +312,7 @@ def flownet_s_kspace_in_33(inputs, channel_mult=1, full_res=False):
         conv1 = slim.conv2d(inputs, int(64 * m), 7, stride=2, scope='conv1')
         conv2 = slim.conv2d(conv1, int(128 * m), 5, stride=2, scope='conv2')
         conv2_1 = slim.conv2d(conv2, int(256 * m), 5, stride=1, scope='conv2_1')
-        # conv3 = slim.conv2d(conv2_1, int(512 * m), 3, stride=2, scope='conv3')
+        conv3 = slim.conv2d(conv2_1, int(512 * m), 5, stride=1, scope='conv3')
         conv3_1 = slim.conv2d(conv2_1, int(512 * m), 3, stride=1, scope='conv3_1')
         conv4 = slim.conv2d(conv3_1, int(1024 * m), 3, stride=2, scope='conv4')
         conv4_1 = slim.conv2d(conv4, int(1024 * m), 3, stride=1, scope='conv4_1')

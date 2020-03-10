@@ -206,8 +206,12 @@ def _evaluate_experiment(name, data, config):
             error_orig = flow_gt_cut
             error_final = flow_final - flow_gt_cut
             # error_raw = flow_raw - flow_gt_cut
-            final_loss_orig = np.mean(np.square(error_orig))
-            final_loss = np.mean(np.square(error_final))
+
+            final_loss_orig = np.mean(np.sqrt(np.sum(np.square(error_orig), 2)))
+            # final_loss_orig = np.mean(np.square(error_orig))
+            final_loss = np.mean(np.sqrt(np.sum(np.square(error_final), 2)))
+            # final_loss = np.mean(np.square(error_final))
+
             # final_loss_raw = np.mean(np.square(error_raw))
             # print("Raw Flow Loss: {}".format(final_loss_raw))
 
@@ -371,16 +375,16 @@ def main(argv=None):
     config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk',
                           '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/06_la',
                           '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
-    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk']
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk']
     #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/data/card/005_GI']
     #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/volunteer/21_tk']
     # config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
-    config['test_types'] = [1, 1, 1, 2, 2, 2]
-    config['US_acc'] = [1, 20, 8, 8, 30]
-    config['selected_frames'] = [0, 30]
-    config['selected_slices'] = list(range(30, 50))
-    # config['selected_slices'] = [40]
+    config['test_types'] = [1]
+    config['US_acc'] = [30]
+    config['selected_frames'] = [0]
+    # config['selected_slices'] = list(range(30, 50))
+    config['selected_slices'] = [40]
     config['amplitude'] = 10
     config['network'] = 'ftflownet'
     config['batch_size'] = 64

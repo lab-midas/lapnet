@@ -97,8 +97,7 @@ def _evaluate_experiment(name, data, config):
             sess.run(tf.local_variables_initializer())
             restore_networks(sess, params, ckpt, ckpt_path)
             coord = tf.train.Coordinator()
-            threads = tf.train.start_queue_runners(sess=sess,
-                                                   coord=coord)
+            threads = tf.train.start_queue_runners(sess=sess,                                                   coord=coord)
 
             #flow_final = np.zeros((height, width, len(config['selected_slices'])), dtype=np.float32)
             flow_final, _ = sess.run([flow, loss])  # todo: doesn't work if slices > batch_size
@@ -106,8 +105,10 @@ def _evaluate_experiment(name, data, config):
             coord.request_stop()
             coord.join(threads)
 
-        final_loss_orig = np.mean(np.square(flow_orig))
-        final_loss = np.mean(np.square(flow_final-flow_orig))
+        final_loss_orig = np.mean(np.sqrt(np.sum(np.square(flow_orig), 3)))
+        #final_loss_orig = np.mean(np.square(flow_orig))
+        final_loss = np.mean(np.sqrt(np.sum(np.square(flow_final-flow_orig), 3)))
+        #final_loss = np.mean(np.square(flow_final-flow_orig))
 
         im1_pred = [np_warp_2D(i, j) for i, j in zip(list(im2), list(-flow_final))]
         im1_gt = [np_warp_2D(i, j) for i, j in zip(list(im2), list(-flow_orig))]
@@ -275,8 +276,8 @@ def main(argv=None):
     #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/volunteer/21_tk']
     # config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
-    config['test_types'] = [2, 2, 2, 2, 2, 2, 2, 2, 2]
-    config['US_acc'] = [1, 4, 8, 12, 16, 20, 24, 28, 30]
+    config['test_types'] = [1, 1]
+    config['US_acc'] = [1, 30]
     config['selected_frames'] = [0]
     # config['selected_slices'] = list(range(30, 50))
     config['selected_slices'] = [40]
@@ -288,7 +289,7 @@ def main(argv=None):
     config['save_data_npz'] = False
     config['save_loss'] = True
     config['save_pdf'] = False
-    config['save_png'] = False
+    config['save_png'] = True
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))

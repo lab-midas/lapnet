@@ -123,6 +123,7 @@ def supervised_loss(batch, params, normalization=None, augment=False):
                         flow_gt = flow_gt[:, 0, 0, :]
 
                     error = final_flow_fw - flow_gt
+                    # final_loss = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.square(error), 1)))
                     final_loss = tf.reduce_mean(tf.square(error))
                     regularization_loss = tf.add_n(slim.losses.get_regularization_losses())
                     final_loss += regularization_loss
@@ -139,7 +140,8 @@ def supervised_loss(batch, params, normalization=None, augment=False):
                         final_flow_fw = flownet_s_kspace_in_33_out_4(inputs, channel_mult=1)
 
                     error = final_flow_fw - flow_gt
-                    final_loss = tf.reduce_mean(tf.square(error))
+                    final_loss = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.square(error), 1)))
+                    # final_loss = tf.reduce_mean(tf.square(error))
                     regularization_loss = tf.add_n(slim.losses.get_regularization_losses())
                     final_loss += regularization_loss
 
@@ -164,7 +166,8 @@ def supervised_loss(batch, params, normalization=None, augment=False):
                 flow_gt = tf.cast(flow_gt, dtype=tf.float32)
 
                 error = final_flow_fw - flow_gt
-                final_loss = tf.reduce_mean(tf.square(error))
+                final_loss = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.square(error), 1)))
+                # final_loss = tf.reduce_mean(tf.square(error))
 
                 regularization_loss = tf.add_n(slim.losses.get_regularization_losses())
                 final_loss += regularization_loss

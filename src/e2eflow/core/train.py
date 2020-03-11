@@ -162,7 +162,7 @@ class Trainer():
             self.train(i, i + save_interval - 1, i - (min_iter + 1),
                        long_term_train=self.params['long_term_train'],
                        preloaded_data=training_data)
-            self.eval(i + save_interval)
+            # self.eval(i + save_interval)
 
         if self.plot_proc:
             self.plot_proc.join()

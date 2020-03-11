@@ -11,10 +11,12 @@ import tensorflow as tf
 import random
 from skimage.util.shape import view_as_windows
 import pylab
+from pyexcel_ods import get_data
 from multiprocessing import Pool
 import matplotlib
 # matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
 
 from ..core.input import read_png_image, Input, load_mat_file
 from ..core.augment import random_crop
@@ -366,23 +368,23 @@ class MRI_Resp_2D(Input):
         for fn_im_path in fn_im_paths:
 
             f = load_mat_file(fn_im_path)
-            if np.shape(f['I1_real'])[2] != 72:
+            if np.shape(f['dFixed'])[2] != 72:
                 continue
-            ref = f['I1_real']
-            mov = f['I1_Real_hat']
+            ref = f['dFixed']
+            mov = f['dFixedWarped']
 
-            #mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
-            acc = np.random.choice(np.arange(1, 32, 6))
-            mask = np.transpose(generate_mask(nSegments=14, acc=acc, nRep=4), (2, 1, 0))
-            # mask_2 = np.transpose(generate_mask_2(subsampleType=1, acc=4, vd_type=1, nRep=4), (2, 1, 0))
-            mask = np.asarray(mask, dtype=np.float32)
-            k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
-            k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
-            ref = (np.fft.ifftn(k_dset)).real
-            mov = (np.fft.ifftn(k_warped_dset)).real
+            # #mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
+            # acc = np.random.choice(np.arange(1, 32, 6))
+            # mask = np.transpose(generate_mask(nSegments=14, acc=acc, nRep=4), (2, 1, 0))
+            # # mask_2 = np.transpose(generate_mask_2(subsampleType=1, acc=4, vd_type=1, nRep=4), (2, 1, 0))
+            # mask = np.asarray(mask, dtype=np.float32)
+            # k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
+            # k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
+            # ref = (np.fft.ifftn(k_dset)).real
+            # mov = (np.fft.ifftn(k_warped_dset)).real
 
-            u0 = -f['u_Real_est_1']
-            u1 = -f['u_Real_est_2']
+            u0 = -f['ux']
+            u1 = -f['uy']
             im1 = ref[..., selected_slices]
             im1 = im1[np.newaxis, ...]
             im2 = mov[..., selected_slices]
@@ -407,14 +409,21 @@ class MRI_Resp_2D(Input):
             #
             #     im2_hat = np_warp_2D(im1, u)
             #     im2_hat_2 = np_warp_2D(im1, u_21)
+            #     im2_hat_neg = np_warp_2D(im1, -u)
+            #     im2_hat_2_neg = np_warp_2D(im1, -u_21)
             #     # im1_hat_hat = np_warp_2D(im2, u)
             #     ori_error = im1 - im2
             #     warped_error_1 = im2 - im2_hat
             #     warped_error_2 = im2 - im2_hat_2
-            #     fig, ax = plt.subplots(1, 3, figsize=(12, 8))
-            #     ax[0].imshow(ori_error, cmap='gray')  # ref
-            #     ax[1].imshow(warped_error_1, cmap='gray')  # mov
-            #     ax[2].imshow(warped_error_2, cmap='gray')
+            #     warped_error_3 = im2 - im2_hat_neg
+            #     warped_error_4 = im2 - im2_hat_2_neg
+            #     fig, ax = plt.subplots(2, 3, figsize=(12, 8))
+            #     ax[0][0].imshow(ori_error, cmap='gray')  # ref
+            #     ax[0][1].imshow(warped_error_1, cmap='gray')  # mov
+            #     ax[0][2].imshow(warped_error_2, cmap='gray')
+            #     fig.delaxes(ax[1, 0])
+            #     ax[1][1].imshow(warped_error_3, cmap='gray')  # mov
+            #     ax[1][2].imshow(warped_error_4, cmap='gray')
             #
             #     # for showing of arrows
             #     x = np.arange(0, 256, 8)
@@ -758,7 +767,7 @@ class MRI_Resp_2D(Input):
                 np.random.shuffle(fn_im_paths)
                 batches_real_simulated = self.load_real_simulated_data(fn_im_paths, selected_slices,
                                                                        real_simulated_data_num)
-                #self.save_real_simulated_data(fn_im_paths, selected_slices)
+                self.save_real_simulated_data(fn_im_paths, selected_slices)
                 batches = np.concatenate((batches, batches_real_simulated), axis=0)
 
             augmented_data_num = math.floor(

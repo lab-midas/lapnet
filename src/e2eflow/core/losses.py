@@ -308,8 +308,12 @@ def charbonnier_loss(x, mask=None, truncate=None, alpha=0.45, beta=1.0, epsilon=
         loss as tf.float32
     """
     with tf.variable_scope('charbonnier_loss'):
-        batch, height, width, channels = tf.unstack(tf.shape(x))
-        normalization = tf.cast(batch * height * width * channels, tf.float32)
+        try:
+            batch, height, width, channels = tf.unstack(tf.shape(x))
+            normalization = tf.cast(batch * height * width * channels, tf.float32)
+        except:
+            batch, height = tf.unstack(tf.shape(x))
+            normalization = tf.cast(batch * height, tf.float32)
 
         error = tf.pow(tf.square(x * beta) + tf.square(epsilon), alpha)
 

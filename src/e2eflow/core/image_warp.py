@@ -9,8 +9,8 @@ def np_warp_3D(img, flow):
     flow = flow.astype('float32')
     height, width, thick = np.shape(img)[0], np.shape(img)[1], np.shape(img)[2]
     posx, posy, posz = np.mgrid[:height, :width, :thick]
-    vx = flow[:, :, :, 0]
-    vy = flow[:, :, :, 1]
+    vx = flow[:, :, :, 1]  # to make it consistent as in matlab, ux in python is uy in matlab
+    vy = flow[:, :, :, 0]
     vz = flow[:, :, :, 2]
 
     coord_x = posx + vx
@@ -27,8 +27,8 @@ def np_warp_2D(img, flow):
     height, width = np.shape(img)[0], np.shape(img)[1]
     posx, posy = np.mgrid[:height, :width]
     # flow=np.reshape(flow, [-1, 3])
-    vx = flow[:, :, 0]
-    vy = flow[:, :, 1]
+    vx = flow[:, :, 1]  # to make it consistent as in matlab, ux in python is uy in matlab
+    vy = flow[:, :, 0]
 
     coord_x = posx + vx
     coord_y = posy + vy

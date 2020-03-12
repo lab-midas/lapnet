@@ -17,7 +17,6 @@ import matplotlib
 # matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-
 from ..core.input import read_png_image, Input, load_mat_file
 from ..core.augment import random_crop
 from ..core.flow_util import flow_to_color
@@ -320,7 +319,7 @@ class MRI_Resp_2D(Input):
 
             # #mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
             # acc = np.random.choice(np.arange(1, 32, 6))
-            # mask = np.transpose(generate_mask(nSegments=14, acc=acc, nRep=4), (2, 1, 0))
+            # mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))
             # # mask_2 = np.transpose(generate_mask_2(subsampleType=1, acc=4, vd_type=1, nRep=4), (2, 1, 0))
             # mask = np.asarray(mask, dtype=np.float32)
             # k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
@@ -362,6 +361,86 @@ class MRI_Resp_2D(Input):
             name = fn_im_path.split('/')[-1]
             fig.savefig(save_path + name.split('.')[0] + '.' + 'png')
 
+    def load_aug_data(self,
+                      fn_im_paths,
+                      slice_info,
+                      aug_type,
+                      amp=5,
+                      US=None,
+                      num_to_take=1500):
+        output = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
+        if num_to_take == 0:
+            return
+        i = 0
+        while len(output) <= num_to_take:
+            fn_im_path = fn_im_paths[i]
+            try:
+                f = load_mat_file(fn_im_path)
+            except:
+                try:
+                    f = np.load(fn_im_paths)
+                except ImportError:
+                    print("Wrong Data Format")
+
+            name = fn_im_path.split('/')[-1].split('.')[0]
+
+            ref = np.asarray(f['dFixed'], dtype=np.float32)
+            ux = np.asarray(f['ux'], dtype=np.float32)  # ux for warp
+            uy = np.asarray(f['uy'], dtype=np.float32)
+            uz = np.zeros(np.shape(ux), dtype=np.float32)
+            u = np.stack((ux, uy, uz), axis=-1)
+
+            if aug_type == 'real_x_smooth':
+                u_syn = _u_generation_3D(np.shape(ux), amp, motion_type=1)
+                u = np.multiply(u, u_syn)
+            elif aug_type == 'smooth':
+                u = _u_generation_3D(np.shape(ux), amp, motion_type=1)
+            elif aug_type == 'constant':
+                u = _u_generation_3D(np.shape(ux), amp, motion_type=0)
+            elif aug_type == 'real':
+                pass
+            else:
+                raise ImportError('wrong augmentation type is given')
+
+            # # for showing of arrows
+            # im1 = ref[..., 35]
+            # im2 = mov[..., 35]
+            # u = u[..., :2][..., 35, :]
+            # x = np.arange(0, 256, 8)
+            # y = np.arange(0, 256, 8)
+            # x, y = np.meshgrid(x, y)
+            # fig, ax = plt.subplots(1, 2, figsize=(12, 8))
+            # ax[0].imshow(im1, cmap='gray')
+            # ax[1].imshow(im2, cmap='gray')
+            # # to make it consistent with np_warp, ux should be negative
+            # ax[1].quiver(x, y, -u[0:256:8, :, :][:, 0:256:8, :][:, :, 0],
+            #              u[0:256:8, :, :][:, 0:256:8, :][:, :, 1], color='y')
+
+            mov = np_warp_3D(ref, u)
+            if US is not None:
+                if US == 'random':
+                    acc = np.random.choice(np.arange(1, 32, 6))
+                else:
+                    try:
+                        acc = US
+                    except ImportError:
+                        print("Wrong undersampling rate is given")
+                        continue
+                mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))
+                k_ref = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
+                k_mov = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
+                ref = (np.fft.ifftn(k_ref)).real
+                mov = (np.fft.ifftn(k_mov)).real
+
+            data_3D = np.stack((ref, mov, ux, uy), axis=-1)
+            data_3D = np.moveaxis(data_3D, 2, 0)
+            slice2take = slice_info[name]
+            Imgs = data_3D[slice2take[0]:slice2take[1], ...]
+            output = np.concatenate((output, Imgs), axis=0)
+            if i == len(fn_im_paths):
+                i = 0
+        print("{} real simulated data are generated".format((len(output))))
+        return np.asarray(output, dtype=np.float32)
 
     def load_real_simulated_data(self, fn_im_paths, selected_slices, max_num_to_take=2000):
         batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
@@ -373,15 +452,15 @@ class MRI_Resp_2D(Input):
             ref = f['dFixed']
             mov = f['dFixedWarped']
 
-            # #mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
-            # acc = np.random.choice(np.arange(1, 32, 6))
-            # mask = np.transpose(generate_mask(nSegments=14, acc=acc, nRep=4), (2, 1, 0))
-            # # mask_2 = np.transpose(generate_mask_2(subsampleType=1, acc=4, vd_type=1, nRep=4), (2, 1, 0))
-            # mask = np.asarray(mask, dtype=np.float32)
-            # k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
-            # k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
-            # ref = (np.fft.ifftn(k_dset)).real
-            # mov = (np.fft.ifftn(k_warped_dset)).real
+            #mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
+            acc = np.random.choice(np.arange(1, 32, 6))
+            mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))
+            # mask_2 = np.transpose(generate_mask_2(subsampleType=1, acc=4, vd_type=1, nRep=4), (2, 1, 0))
+            mask = np.asarray(mask, dtype=np.float32)
+            k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
+            k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
+            ref = (np.fft.ifftn(k_dset)).real
+            mov = (np.fft.ifftn(k_warped_dset)).real
 
             u0 = -f['ux']
             u1 = -f['uy']
@@ -491,7 +570,7 @@ class MRI_Resp_2D(Input):
                         u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
                     warped_dset = np_warp_3D(dset, u)
                     acc = np.random.choice(np.arange(1, 32, 6))
-                    mask = np.transpose(generate_mask(nSegments=14, acc=acc, nRep=4), (2, 1, 0))
+                    mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))
                     # mask_2 = np.transpose(generate_mask_2(subsampleType=1, acc=acc, vd_type=1, nRep=4), (2, 1, 0))
                     # mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
                     k_dset = np.multiply(np.fft.fftn(dset), np.fft.ifftshift(mask[0, ...]))
@@ -539,7 +618,7 @@ class MRI_Resp_2D(Input):
                 dset = np.rot90(dset, axes=(0, 1))
                 warped_dset = np.rot90(warped_dset, axes=(0, 1))
                 img_size = np.shape(dset)
-                mask = np.transpose(generate_mask(nSegments=25, acc=30), (2, 1, 0))
+                mask = np.transpose(generate_mask(acc=30), (2, 1, 0))
                 k_dset = np.multiply(np.fft.fftn(dset), np.fft.ifftshift(mask))
                 k_warped_dset = np.multiply(np.fft.fftn(warped_dset), np.fft.ifftshift(mask))
                 dset_us = (np.fft.ifftn(k_dset)).real
@@ -708,6 +787,77 @@ class MRI_Resp_2D(Input):
     #                         return np.asarray(batches, dtype=np.float32)
     #     return np.asarray(batches, dtype=np.float32)
 
+    def new_input_train_data(self, img_dirs, info_file, params):
+        # strategy 1: fixed total number
+        num_constant = int(params.get('total_data_num') * params.get('augment_type_percent')[0])
+        num_smooth = int(params.get('total_data_num') * params.get('augment_type_percent')[1])
+        num_real = int(params.get('total_data_num') * params.get('augment_type_percent')[2])
+        num_real_x_smooth = int(params.get('total_data_num') * params.get('augment_type_percent')[3])
+
+        # strategy 2: use all real_simulated data
+        num_real = 1500
+        num_constant = int(params.get('augment_type_percent')[0]/params.get('augment_type_percent')[2]*num_real)
+        num_smooth = int(params.get('augment_type_percent')[1] / params.get('augment_type_percent')[2] * num_real)
+        num_real_x_smooth = int(params.get('augment_type_percent')[3] / params.get('augment_type_percent')[2] * num_real)
+
+        ods = get_data(info_file)
+        slice_info = {value[0]: [int(j)-1 for j in value[1].split(',')] for value in ods["Sheet1"] if len(value) is not 0}
+
+        batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
+        fn_im_paths = self.get_data_paths(img_dirs)
+        aug_data_constant = self.load_aug_data(fn_im_paths,
+                                               slice_info,
+                                               aug_type='constant',
+                                               amp=params.get('flow_amplitude'),
+                                               US=params.get('US_rate'),
+                                               num_to_take=num_constant)
+        np.random.shuffle(fn_im_paths)
+        aug_data_smooth = self.load_aug_data(fn_im_paths,
+                                             slice_info,
+                                             aug_type='smooth',
+                                             amp=params.get('flow_amplitude'),
+                                             US=params.get('US_rate'),
+                                             num_to_take=num_smooth)
+        np.random.shuffle(fn_im_paths)
+        aug_data_real = self.load_aug_data(fn_im_paths,
+                                           slice_info,
+                                           aug_type='real',
+                                           amp=params.get('flow_amplitude'),
+                                           US=params.get('US_rate'),
+                                           num_to_take=num_real)
+        np.random.shuffle(fn_im_paths)
+        aug_data_real_x_smooth = self.load_aug_data(fn_im_paths,
+                                                    slice_info,
+                                                    aug_type='real_x_smooth',
+                                                    amp=5,
+                                                    US=params.get('US_rate'),
+                                                    num_to_take=num_real_x_smooth)
+
+        batches = np.concatenate((batches, aug_data_real, aug_data_constant, aug_data_smooth, aug_data_real_x_smooth), axis=0)
+        np.random.shuffle(batches)
+        if params.get('network') == 'ftflownet':
+            radius = int((params.get('crop_size') - 1) / 2)
+            if params.get('padding'):
+                batches = np.pad(batches, ((0, 0), (radius, radius), (radius, radius), (0, 0)), constant_values=0)
+            if params.get('random_crop'):
+                batches = self.crop2D(batches, crop_size=params.get('crop_size'), box_num=params.get('crop_box_num'))
+            else:
+                x_dim, y_dim = np.shape(batches)[1:3]
+                pos = pos_generation_2D(intervall=[[0, x_dim - params.get('crop_size') + 1],
+                                                   [0, y_dim - params.get('crop_size') + 1]], stride=4)
+                batches = self.crop2D_FixPts(batches, crop_size=params.get('crop_size'), box_num=np.shape(pos)[1], pos=pos)
+            batches = np.concatenate((arr2kspace(batches[..., :2]), batches[..., 2:]), axis=-1)
+            im1 = batches[..., :2]
+            im2 = batches[..., 2:4]
+            flow = batches[:, radius, radius, 4:6]
+        elif params.get('network') == 'flownet':
+            im1 = batches[..., 0]
+            im2 = batches[..., 1]
+            flow = batches[..., 2:]
+        else:
+            raise ImportError('Wrong Network name is given')
+        return [im1, im2, flow]
+
     def input_train_data(self,
                          img_dirs,
                          img_dirs_real_simulated,
@@ -767,7 +917,7 @@ class MRI_Resp_2D(Input):
                 np.random.shuffle(fn_im_paths)
                 batches_real_simulated = self.load_real_simulated_data(fn_im_paths, selected_slices,
                                                                        real_simulated_data_num)
-                self.save_real_simulated_data(fn_im_paths, selected_slices)
+                # self.save_real_simulated_data(fn_im_paths, selected_slices)
                 batches = np.concatenate((batches, batches_real_simulated), axis=0)
 
             augmented_data_num = math.floor(
@@ -1095,11 +1245,11 @@ class MRI_Resp_2D(Input):
                     mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc8.npy')
                 else:
                     # raise ImportError('Wrong acceleration value is given')
-                    mask = np.transpose(generate_mask(nSegments=25, acc=US_acc, nRep=4), (2, 1, 0))
+                    mask = np.transpose(generate_mask(acc=US_acc, nRep=4), (2, 1, 0))
                 # mask = np.transpose(generate_mask_2(subsampleType=1, acc=4, vd_type=1, nRep=4), (2, 1, 0))
                 # acc = np.random.choice(np.arange(1, 32, 6))
                 # acc = 30
-                # mask = np.transpose(generate_mask(nSegments=25, acc=acc, nRep=4), (2, 1, 0))
+                # mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))
                 k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
                 k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
                 ref = (np.fft.ifftn(k_dset)).real
@@ -1137,10 +1287,10 @@ class MRI_Resp_2D(Input):
                     mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc8.npy')
                 else:
                     # raise ImportError('Wrong acceleration value is given')
-                    mask = np.transpose(generate_mask(nSegments=14, acc=US_acc, nRep=4), (2, 1, 0))
+                    mask = np.transpose(generate_mask(acc=US_acc, nRep=4), (2, 1, 0))
                 # acc = np.random.choice(np.arange(1, 32, 6))
                 # acc = 30
-                # mask = np.transpose(generate_mask(nSegments=25, acc=acc, nRep=4), (2, 1, 0))
+                # mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))
                 k_ref = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
                 k_mov = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
                 ref = (np.fft.ifftn(k_ref)).real

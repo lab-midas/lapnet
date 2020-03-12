@@ -11,13 +11,13 @@ def generate_mask(nSegments=14, acc=15, nRep=1):
         nRep = nRep # number of time points, should be 1 if you subsample each image individually otherwise it is 4 (resp) or 16 (cardiac)
         #acc = 4  # acceleration
         isVariable = 1  # VDCASPR (=1) or CASPR (=0)
-        isGolden = 1  # golden angle increment between spirals (=1), 0 = linear-linear, 1=golden-golden, 2=tinyGolden-golden, 3=linear-golden, 4=noIncr-golden
+        isGolden = 2  # golden angle increment between spirals (=1), 0 = linear-linear, 1=golden-golden, 2=tinyGolden-golden, 3=linear-golden, 4=noIncr-golden
         isInOut = 1  # spiral in/out sampling => for isGolden=1 & isInOut=1: use tinyGolden-Golden-tinyGolden-Golden-... increments
         isCenter = 0  # sample center point
         isSamePattern = 0  # same sampling pattern per phase/contrast, i.e. no golden/tiny-golden angle increment between them (but still inside the pattern if isGolden==1)
         #nSegments = 10  # #segments = #rings in sampling pattern
         #nRep = 16  # number of repetitions (only free-running)
-        nCenter = 7  # percentage of fully sampled center region
+        nCenter = 15  # percentage of fully sampled center region
         iVerbose = 0  # 0=silent, 1=normal output, 2=all output
         lMask = np.zeros((numPar, numLin))
         kSpacePolar_LinInd = np.zeros((nRep * numLin * numPar, 1))

@@ -124,9 +124,9 @@ def supervised_loss(batch, params, normalization=None, augment=False):
 
                     error = final_flow_fw - flow_gt
                     # final_loss = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.square(error), 1)))
-                    # final_loss = tf.reduce_mean(tf.square(error))
+                    final_loss = tf.reduce_mean(tf.square(error))
 
-                    final_loss = charbonnier_loss(error, mask=None)
+                    # final_loss = charbonnier_loss(error, mask=None)
 
                     regularization_loss = tf.add_n(slim.losses.get_regularization_losses())
                     final_loss += regularization_loss

@@ -429,7 +429,7 @@ class MRI_Resp_2D(Input):
             # u = u[..., :2][..., 35, :]
             # save_imgs_with_arrow(im1, im2, u)
 
-            if US is not None:
+            if US is not 1:
                 if US == 'random':
                     acc = np.random.choice(np.arange(1, 32, 6))
                 else:
@@ -444,7 +444,7 @@ class MRI_Resp_2D(Input):
                 ref = (np.fft.ifftn(k_ref)).real
                 mov = (np.fft.ifftn(k_mov)).real
 
-            data_3D = np.stack((ref, mov, ux, uy), axis=-1)
+            data_3D = np.stack((ref, mov, u[..., 0], u[..., 1]), axis=-1)
             data_3D = np.moveaxis(data_3D, 2, 0)
             slice2take = slice_info[name]
             Imgs = data_3D[slice2take[0]:slice2take[1], ...]
@@ -1202,9 +1202,9 @@ class MRI_Resp_2D(Input):
 
         return test_batches, im1, im2, flow_orig
 
-
     def test_2D_slice(self, config):
 
+        # batch = self.old_test_set_generation(config)
         batch = self.test_set_generation(config)
         batch = batch[np.newaxis, ...]
 
@@ -1237,6 +1237,65 @@ class MRI_Resp_2D(Input):
         return test_batch, im1, im2, flow_orig, np.transpose(pos)
 
     def test_set_generation(self, config):
+        path = config['path']
+        frame = config['frame']
+        slice = config['slice']
+        u_type = config['u_type']
+        use_given_u = config['use_given_u']
+        US_acc = config['US_acc']
+        use_given_US_mask = config['use_given_US_mask']
+        slice_info = config['slice_info']
+
+        try:
+            f = load_mat_file(path)
+        except:
+            try:
+                f = np.load(path)
+            except ImportError:
+                print("Wrong Data Format")
+
+        name = path.split('/')[-1].split('.')[0]
+        slice2take = slice_info[name]
+
+        ref = np.asarray(f['dFixed'], dtype=np.float32)
+        ux = np.asarray(f['ux'], dtype=np.float32)  # ux for warp
+        uy = np.asarray(f['uy'], dtype=np.float32)
+        uz = np.zeros(np.shape(ux), dtype=np.float32)
+        u = np.stack((ux, uy, uz), axis=-1)
+
+        if u_type == 3:
+            u_syn = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
+            u = np.multiply(u, u_syn)
+        elif u_type == 1:
+            u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
+        elif u_type == 0:
+            u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_constant_amp10_3D.npy')
+        elif u_type == 2:
+            pass
+        else:
+            raise ImportError('wrong augmentation type is given')
+        mov = np_warp_3D(ref, u)
+        if US_acc > 1:
+            if US_acc == 30:
+                mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
+            elif US_acc == 8:
+                mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc8.npy')
+            else:
+                # raise ImportError('Wrong acceleration value is given')
+                mask = np.transpose(generate_mask(acc=US_acc, nRep=4), (2, 1, 0))
+            k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
+            k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
+            ref = (np.fft.ifftn(k_dset)).real
+            mov = (np.fft.ifftn(k_warped_dset)).real
+
+        data_3D = np.stack((ref, mov, u[..., 0], u[..., 1]), axis=-1)
+        data_3D = np.moveaxis(data_3D, 2, 0)
+
+        Imgs = data_3D[slice, ...]
+        return np.asarray(Imgs, dtype=np.float32)
+
+
+    def old_test_set_generation(self, config):
         path = config['path']
         frame = config['frame']
         slice = config['slice']

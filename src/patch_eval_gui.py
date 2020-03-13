@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import pylab
 import operator
 from scipy.interpolate import griddata
+from pyexcel_ods import get_data
 import time
 
 from e2eflow.core.flow_util import flow_to_color, flow_error_avg, outlier_pct, flow_to_color_np
@@ -380,9 +381,9 @@ def main(argv=None):
     #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/data/card/005_GI']
     #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/volunteer/21_tk']
     # config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
-    # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
-    config['test_types'] = [1]
-    config['US_acc'] = [30]
+    # 0: constant generated flow, 1: smooth generated flow, 2: matlab simulated test data 3: simulated_x smooth 4: cross test without gt
+    config['test_types'] = [1, 1, 1, 2, 2, 2]
+    config['US_acc'] = [1, 8, 30, 1, 8, 30]
     config['selected_frames'] = [0]
     # config['selected_slices'] = list(range(30, 50))
     config['selected_slices'] = [40]
@@ -430,6 +431,12 @@ def main(argv=None):
     input_cf['crop_size'] = 33
     input_cf['crop_stride'] = config['crop_stride']
     input_cf['cross_test'] = False
+
+    info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info.ods"
+    ods = get_data(info_file)
+    slice_info = {value[0]: [int(j) - 1 for j in value[1].split(',')] for value in ods["Sheet1"] if
+                  len(value) is not 0}
+    input_cf['slice_info'] = slice_info
 
     for name in FLAGS.ex.split(','):
         if config['save_results']:

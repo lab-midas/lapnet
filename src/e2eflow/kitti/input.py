@@ -55,6 +55,21 @@ def pos_generation_2D(intervall, stride):
     return pos
 
 
+def save_imgs_with_arrow(im1, im2, u):
+    x = np.arange(0, 256, 8)
+    y = np.arange(0, 256, 8)
+    x, y = np.meshgrid(x, y)
+    matplotlib.use('Agg')
+    fig, ax = plt.subplots(1, 2, figsize=(12, 8))
+    ax[0].imshow(im1, cmap='gray')
+    ax[1].imshow(im2, cmap='gray')
+    # to make it consistent with np_warp, ux should be negative
+    ax[1].quiver(x, y, -u[0:256:8, :, :][:, 0:256:8, :][:, :, 0],
+                 u[0:256:8, :, :][:, 0:256:8, :][:, :, 1], color='y')
+    fig.savefig('/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/pics/' + name + '.' + 'png')
+    plt.close(fig)
+
+
 def visualise(patient_path, frame, slice):
     """
     to visualize a certain image
@@ -241,7 +256,7 @@ class MRI_Resp_2D(Input):
             img_dir = os.path.join(self.data.current_dir, img_dir)
             img_files = os.listdir(img_dir)
             for img_file in img_files:
-                if '.mat' in img_file:
+                if ('.mat' in img_file) or ('.npz' in img_file):
                     im_path = os.path.join(img_dir, img_file)
                     fn_im_paths.append(im_path)
                 else:
@@ -283,20 +298,21 @@ class MRI_Resp_2D(Input):
 
         return arr_cropped_augmented
 
-    def crop2D(self, arr, crop_size, box_num, pos=None):
+    def crop2D(self, arr, crop_size, box_num, pos=None, cut_margin=0):
         """
         :param arr:
         :param crop_size:
         :param box_num: crops per slices
         :param pos: shape (2, n), pos_x and pos_y, n must be same as the box number. if pos=None, select random pos
+        :param cut_margin: margin that don't take into account
         :return:
         """
         arr_cropped_augmented = np.zeros((arr.shape[0] * box_num, crop_size, crop_size, arr.shape[-1]), dtype=np.float32)
         x_dim, y_dim = np.shape(arr)[1:3]
         for i in range(box_num):
             if pos is None:
-                x_pos = np.random.randint(0, x_dim - crop_size + 1, arr.shape[0])
-                y_pos = np.random.randint(0, y_dim - crop_size + 1, arr.shape[0])
+                x_pos = np.random.randint(0 + cut_margin, x_dim - crop_size + 1 - cut_margin, arr.shape[0])
+                y_pos = np.random.randint(0 + cut_margin, y_dim - crop_size + 1 - cut_margin, arr.shape[0])
             else:
                 x_pos = pos[0]
                 y_pos = pos[1]
@@ -370,15 +386,19 @@ class MRI_Resp_2D(Input):
                       num_to_take=1500):
         output = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
         if num_to_take == 0:
-            return
+            return output
         i = 0
+        flag = 0
+        if num_to_take == 'all':
+            num_to_take = 10000000
+            flag = 1
         while len(output) <= num_to_take:
             fn_im_path = fn_im_paths[i]
             try:
                 f = load_mat_file(fn_im_path)
             except:
                 try:
-                    f = np.load(fn_im_paths)
+                    f = np.load(fn_im_path)
                 except ImportError:
                     print("Wrong Data Format")
 
@@ -401,22 +421,14 @@ class MRI_Resp_2D(Input):
                 pass
             else:
                 raise ImportError('wrong augmentation type is given')
+            mov = np_warp_3D(ref, u)
 
             # # for showing of arrows
             # im1 = ref[..., 35]
             # im2 = mov[..., 35]
             # u = u[..., :2][..., 35, :]
-            # x = np.arange(0, 256, 8)
-            # y = np.arange(0, 256, 8)
-            # x, y = np.meshgrid(x, y)
-            # fig, ax = plt.subplots(1, 2, figsize=(12, 8))
-            # ax[0].imshow(im1, cmap='gray')
-            # ax[1].imshow(im2, cmap='gray')
-            # # to make it consistent with np_warp, ux should be negative
-            # ax[1].quiver(x, y, -u[0:256:8, :, :][:, 0:256:8, :][:, :, 0],
-            #              u[0:256:8, :, :][:, 0:256:8, :][:, :, 1], color='y')
+            # save_imgs_with_arrow(im1, im2, u)
 
-            mov = np_warp_3D(ref, u)
             if US is not None:
                 if US == 'random':
                     acc = np.random.choice(np.arange(1, 32, 6))
@@ -437,10 +449,15 @@ class MRI_Resp_2D(Input):
             slice2take = slice_info[name]
             Imgs = data_3D[slice2take[0]:slice2take[1], ...]
             output = np.concatenate((output, Imgs), axis=0)
+            i += 1
             if i == len(fn_im_paths):
-                i = 0
+                if flag == 0:
+                    i = 0
+                else:
+                    break
         print("{} real simulated data are generated".format((len(output))))
-        return np.asarray(output, dtype=np.float32)
+
+        return np.asarray(output[:num_to_take, ...], dtype=np.float32)
 
     def load_real_simulated_data(self, fn_im_paths, selected_slices, max_num_to_take=2000):
         batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
@@ -787,21 +804,23 @@ class MRI_Resp_2D(Input):
     #                         return np.asarray(batches, dtype=np.float32)
     #     return np.asarray(batches, dtype=np.float32)
 
-    def new_input_train_data(self, img_dirs, info_file, params):
+    def new_input_train_data(self, img_dirs, slice_info, params, case='train'):
         # strategy 1: fixed total number
-        num_constant = int(params.get('total_data_num') * params.get('augment_type_percent')[0])
-        num_smooth = int(params.get('total_data_num') * params.get('augment_type_percent')[1])
-        num_real = int(params.get('total_data_num') * params.get('augment_type_percent')[2])
-        num_real_x_smooth = int(params.get('total_data_num') * params.get('augment_type_percent')[3])
+        if case == 'train':
+            total_data_num = params.get('total_data_num')
+        elif case == 'validation':
+            total_data_num = 128
+        num_constant = math.floor(total_data_num * params.get('augment_type_percent')[0])
+        num_smooth = math.floor(total_data_num * params.get('augment_type_percent')[1])
+        num_real = math.floor(total_data_num * params.get('augment_type_percent')[2])
+        num_real_x_smooth = math.floor(total_data_num * params.get('augment_type_percent')[3])
+        assert (num_real <= 1585 and case == 'train') or (num_real <= 136 and case == 'validation')
 
-        # strategy 2: use all real_simulated data
-        num_real = 1500
-        num_constant = int(params.get('augment_type_percent')[0]/params.get('augment_type_percent')[2]*num_real)
-        num_smooth = int(params.get('augment_type_percent')[1] / params.get('augment_type_percent')[2] * num_real)
-        num_real_x_smooth = int(params.get('augment_type_percent')[3] / params.get('augment_type_percent')[2] * num_real)
-
-        ods = get_data(info_file)
-        slice_info = {value[0]: [int(j)-1 for j in value[1].split(',')] for value in ods["Sheet1"] if len(value) is not 0}
+        # # strategy 2: use all real_simulated data
+        # num_real = 1721
+        # num_constant = int(params.get('augment_type_percent')[0]/params.get('augment_type_percent')[2]*num_real)
+        # num_smooth = int(params.get('augment_type_percent')[1] / params.get('augment_type_percent')[2] * num_real)
+        # num_real_x_smooth = int(params.get('augment_type_percent')[3] / params.get('augment_type_percent')[2] * num_real)
 
         batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
         fn_im_paths = self.get_data_paths(img_dirs)
@@ -809,30 +828,29 @@ class MRI_Resp_2D(Input):
                                                slice_info,
                                                aug_type='constant',
                                                amp=params.get('flow_amplitude'),
-                                               US=params.get('US_rate'),
+                                               US=params.get('us_rate'),
                                                num_to_take=num_constant)
         np.random.shuffle(fn_im_paths)
         aug_data_smooth = self.load_aug_data(fn_im_paths,
                                              slice_info,
                                              aug_type='smooth',
                                              amp=params.get('flow_amplitude'),
-                                             US=params.get('US_rate'),
+                                             US=params.get('us_rate'),
                                              num_to_take=num_smooth)
         np.random.shuffle(fn_im_paths)
         aug_data_real = self.load_aug_data(fn_im_paths,
                                            slice_info,
                                            aug_type='real',
                                            amp=params.get('flow_amplitude'),
-                                           US=params.get('US_rate'),
+                                           US=params.get('us_rate'),
                                            num_to_take=num_real)
         np.random.shuffle(fn_im_paths)
         aug_data_real_x_smooth = self.load_aug_data(fn_im_paths,
                                                     slice_info,
                                                     aug_type='real_x_smooth',
                                                     amp=5,
-                                                    US=params.get('US_rate'),
+                                                    US=params.get('us_rate'),
                                                     num_to_take=num_real_x_smooth)
-
         batches = np.concatenate((batches, aug_data_real, aug_data_constant, aug_data_smooth, aug_data_real_x_smooth), axis=0)
         np.random.shuffle(batches)
         if params.get('network') == 'ftflownet':
@@ -840,7 +858,7 @@ class MRI_Resp_2D(Input):
             if params.get('padding'):
                 batches = np.pad(batches, ((0, 0), (radius, radius), (radius, radius), (0, 0)), constant_values=0)
             if params.get('random_crop'):
-                batches = self.crop2D(batches, crop_size=params.get('crop_size'), box_num=params.get('crop_box_num'))
+                batches = self.crop2D(batches, crop_size=params.get('crop_size'), box_num=params.get('crop_box_num'), cut_margin=20)
             else:
                 x_dim, y_dim = np.shape(batches)[1:3]
                 pos = pos_generation_2D(intervall=[[0, x_dim - params.get('crop_size') + 1],

@@ -6,6 +6,7 @@ import numpy as np
 
 import tensorflow as tf
 from tensorflow.python.client import device_lib
+from pyexcel_ods import get_data
 
 from e2eflow.core.train import Trainer
 from e2eflow.experiment import Experiment
@@ -83,6 +84,9 @@ def main(argv=None):
         tr.run(0, ftiters)
     elif train_dataset == 'resp_2D':
         info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info.ods"
+        ods = get_data(info_file)
+        slice_info = {value[0]: [int(j) - 1 for j in value[1].split(',')] for value in ods["Sheet1"] if
+                      len(value) is not 0}
         np.random.seed(0)
         tf.set_random_seed(0)
         ftconfig = copy.deepcopy(experiment.config['train'])
@@ -94,18 +98,18 @@ def main(argv=None):
                               normalize=False,
                               dims=(ftconfig['height'], ftconfig['width']))
         tr = Trainer(
-            lambda: ftinput.input_train_data(img_dirs=['resp/patient', 'resp/volunteer'],
-                                             img_dirs_real_simulated=['resp/matlab_simulated_data'],
+            lambda: ftinput.input_train_data(img_dirs=['resp/old_data/patient', 'resp/old_data/volunteer'],
+                                             img_dirs_real_simulated=['no_more_exists'],
                                              selected_frames=[0, 3],
                                              params=ftconfig),
-            lambda: ftinput.input_whole_train_data(img_dirs=['resp/patient', 'resp/volunteer'],
-                                             img_dirs_real_simulated=['resp/matlab_simulated_data'],
-                                             selected_frames=[0, 3],
-                                             params=ftconfig),
-            lambda: ftinput.input_train_data(img_dirs=['resp/test_data/06_la'],
-                                             img_dirs_real_simulated=['resp/matlab_simulated_data'],
-                                             selected_frames=[0, 3],
-                                             params=ftconfig),
+            lambda: ftinput.new_input_train_data(img_dirs=['resp/new_data/npz/train'],
+                                                 slice_info=slice_info,
+                                                 params=ftconfig,
+                                                 case='train'),
+            lambda: ftinput.new_input_train_data(img_dirs=['resp/new_data/npz/test/'],
+                                                 slice_info=slice_info,
+                                                 params=ftconfig,
+                                                 case='validation'),
             supervised=True,
             params=ftconfig,
             normalization=ftinput.get_normalization(),

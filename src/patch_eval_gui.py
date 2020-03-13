@@ -376,6 +376,7 @@ def main(argv=None):
                           '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/06_la',
                           '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
     config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk']
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz']
     #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/data/card/005_GI']
     #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/volunteer/21_tk']
     # config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']

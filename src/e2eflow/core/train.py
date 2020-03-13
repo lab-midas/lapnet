@@ -145,8 +145,9 @@ class Trainer():
         assert (max_iter - start_iter + 1) % save_interval == 0
         if self.params['long_term_train']:
             pre_load_data = self.train_whole_batch()
+            test_pro_load_data = self.eval_batch_fn()
             idx = 0
-            percent = int(len(pre_load_data[0]) / 10)
+            percent = int(len(pre_load_data[0]) / 20)  # 20: hard code
         else:
             pre_load_data = None
 
@@ -154,7 +155,7 @@ class Trainer():
             if self.params['long_term_train']:
                 training_data = [data[percent*idx: percent*(idx + 1)] for data in pre_load_data]
                 idx += 1
-                if percent * (idx + 1) >= 10:
+                if percent * (idx + 1) >= len(pre_load_data[0]):
                     idx = 0
             else:
                 training_data = None
@@ -162,7 +163,7 @@ class Trainer():
             self.train(i, i + save_interval - 1, i - (min_iter + 1),
                        long_term_train=self.params['long_term_train'],
                        preloaded_data=training_data)
-            # self.eval(i + save_interval)
+            self.eval(test_pro_load_data, i + save_interval)
 
         if self.plot_proc:
             self.plot_proc.join()
@@ -351,10 +352,24 @@ class Trainer():
     #             threads = tf.train.start_queue_runners(sess=sess,
     #                                                    coord=coord)
 
-    def eval(self, global_step):
+    def eval(self, pro_load_data, global_step):
         with tf.Graph().as_default():
 
-            test_batch, len_batch = self.eval_batch_fn()
+            im1 = pro_load_data[0]
+            im2 = pro_load_data[1]
+            flow = pro_load_data[2]
+            len_batch = len(im1)
+            im1_queue = tf.train.slice_input_producer([im1], shuffle=False,
+                                                      capacity=len(list(im1)), num_epochs=None)
+            im2_queue = tf.train.slice_input_producer([im2], shuffle=False,
+                                                      capacity=len(list(im2)), num_epochs=None)
+            flow_queue = tf.train.slice_input_producer([flow], shuffle=False,
+                                                       capacity=len(list(flow)), num_epochs=None)
+
+            test_batch = tf.train.batch([im1_queue, im2_queue, flow_queue],
+                                   batch_size=self.params['batch_size'],
+                                   num_threads=1)
+
             loss, flow = supervised_loss(test_batch,
                                          normalization=None,
                                          augment=False,

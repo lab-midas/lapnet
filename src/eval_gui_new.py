@@ -7,6 +7,7 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 import matplotlib
+from pyexcel_ods import get_data
 import pylab
 import operator
 import time
@@ -24,6 +25,7 @@ from e2eflow.core.train import restore_networks
 from e2eflow.core.input import load_mat_file
 from e2eflow.gui import display
 from e2eflow.util import convert_input_strings
+from e2eflow.test.Warp_assessment3D import warp_assessment3D
 from e2eflow.core.image_warp import np_warp_2D, np_warp_3D
 
 
@@ -105,10 +107,25 @@ def _evaluate_experiment(name, data, config):
             coord.request_stop()
             coord.join(threads)
 
-        final_loss_orig = np.mean(np.sqrt(np.sum(np.square(flow_orig), 3)))
-        #final_loss_orig = np.mean(np.square(flow_orig))
-        final_loss = np.mean(np.sqrt(np.sum(np.square(flow_final-flow_orig), 3)))
-        #final_loss = np.mean(np.square(flow_final-flow_orig))
+        u_GT = (flow_orig[..., 0], flow_orig[..., 1])  # tuple
+        u_est = (flow_final[..., 0], flow_final[..., 1])  # tuple
+        OF_index = u_GT[0] != np.nan  # *  u_GT[0] >= 0
+        error_data_pred = warp_assessment3D(u_GT, u_est, OF_index)
+
+        size_mtx = np.shape(flow_orig[..., 0])
+        u_GT = (np.zeros(size_mtx, dtype=np.float32), np.zeros(size_mtx, dtype=np.float32))  # tuple
+        u_est = (flow_orig[..., 0], flow_orig[..., 1])  # tuple
+        OF_index = u_GT[0] != np.nan  # *  u_GT[0] >= 0
+        error_data_gt = warp_assessment3D(u_GT, u_est, OF_index)
+
+        final_loss_orig = error_data_gt['Abs_Error_mean']
+        final_loss = error_data_pred['Abs_Error_mean']
+        final_loss_orig_angel = error_data_gt['Angle_Error_Mean']
+        final_loss_angel = error_data_pred['Angle_Error_Mean']
+        # final_loss_orig = np.mean(np.sqrt(np.sum(np.square(flow_orig), 3)))
+        # #final_loss_orig = np.mean(np.square(flow_orig))
+        # final_loss = np.mean(np.sqrt(np.sum(np.square(flow_final-flow_orig), 3)))
+        # #final_loss = np.mean(np.square(flow_final-flow_orig))
 
         im1_pred = [np_warp_2D(i, j) for i, j in zip(list(im2), list(-flow_final))]
         im1_gt = [np_warp_2D(i, j) for i, j in zip(list(im2), list(-flow_orig))]
@@ -152,8 +169,16 @@ def _evaluate_experiment(name, data, config):
 
     return results
 
-
 def save_test_info(dir, config):
+    output_file = os.path.join(dir, 'test_patient_info.txt')
+    for slice in config['slice']:
+        patient = config['path'].split('/')[-1].split('.')[0]
+        f = open(output_file, "a")
+        f.write("{},{}\n".format(patient, slice))
+        f.close()
+
+
+def old_save_test_info(dir, config):
     output_file = os.path.join(dir, 'test_patient_info.txt')
     for path in config['test_dir']:
         for frame in config['selected_frames']:
@@ -272,18 +297,18 @@ def main(argv=None):
                           '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/06_la',
                           '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
     config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk']
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz']
     #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/data/card/005_GI']
     #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/volunteer/21_tk']
     # config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
-    config['test_types'] = [1, 1]
-    config['US_acc'] = [1, 30]
+    config['test_types'] = [1, 1, 1, 2, 2, 2]
+    config['US_acc'] = [1, 8, 30, 1, 8, 30]
     config['selected_frames'] = [0]
-    # config['selected_slices'] = list(range(30, 50))
     config['selected_slices'] = [40]
     config['amplitude'] = 10
     config['network'] = 'flownet'
-    config['batch_size'] = 72
+    config['batch_size'] = 64
 
     config['save_results'] = True
     config['save_data_npz'] = False
@@ -316,23 +341,34 @@ def main(argv=None):
     input_cf['use_given_US_mask'] = True
     input_cf['cross_test'] = False
 
+    info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info.ods"
+    ods = get_data(info_file)
+    slice_info = {value[0]: list(range(*[int(j) - 1 for j in value[1].split(',')])) for value in ods["Sheet1"] if
+                  len(value) is not 0}
+    input_cf['slice_info'] = slice_info
+
     for name in FLAGS.ex.split(','):
         if config['save_results']:
             output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'test')
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)
-            save_test_info(output_dir, config)
 
         for i, u_type in enumerate(config['test_types']):
             for patient in config['test_dir']:
                 for frame in config['selected_frames']:
                     input_cf['path'] = patient
+                    if not config['selected_slices']:
+                        name = patient.split('/')[-1].split('.')[0]
+                        input_cf['slice'] = slice_info[name]
+                    else:
+                        input_cf['slice'] = config['selected_slices']
                     input_cf['frame'] = frame
                     input_cf['u_type'] = u_type
                     # input_cf['use_given_u'] = config['new_u'][i]
                     input_cf['US_acc'] = config['US_acc'][i]
-                    input_cf['slice'] = config['selected_slices']
                     # input_cf['use_given_US_mask'] = config['new_US_mask'][i]
+                    if config['save_results']:
+                        save_test_info(output_dir, input_cf)
 
                     results = _evaluate_experiment(name, lambda: data_input.test_flown(config=input_cf), config)
                     # show_results(results)

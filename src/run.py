@@ -85,7 +85,7 @@ def main(argv=None):
     elif train_dataset == 'resp_2D':
         info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info.ods"
         ods = get_data(info_file)
-        slice_info = {value[0]: [int(j) - 1 for j in value[1].split(',')] for value in ods["Sheet1"] if
+        slice_info = {value[0]: list(range(*[int(j) - 1 for j in value[1].split(',')])) for value in ods["Sheet1"] if
                       len(value) is not 0}
         np.random.seed(0)
         tf.set_random_seed(0)

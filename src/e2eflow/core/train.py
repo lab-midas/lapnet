@@ -147,7 +147,7 @@ class Trainer():
             pre_load_data = self.train_whole_batch()
             test_pro_load_data = self.eval_batch_fn()
             idx = 0
-            percent = int(len(pre_load_data[0]) / 20)  # 20: hard code
+            percent = int(len(pre_load_data[0]) / self.params['divisor'])  # 20: hard code
         else:
             pre_load_data = None
 
@@ -163,7 +163,8 @@ class Trainer():
             self.train(i, i + save_interval - 1, i - (min_iter + 1),
                        long_term_train=self.params['long_term_train'],
                        preloaded_data=training_data)
-            self.eval(test_pro_load_data, i + save_interval)
+            if (i+save_interval-1) % 500 == 0:
+                self.eval(test_pro_load_data, i + save_interval)
 
         if self.plot_proc:
             self.plot_proc.join()

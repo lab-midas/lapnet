@@ -447,7 +447,7 @@ class MRI_Resp_2D(Input):
             data_3D = np.stack((ref, mov, u[..., 0], u[..., 1]), axis=-1)
             data_3D = np.moveaxis(data_3D, 2, 0)
             slice2take = slice_info[name]
-            Imgs = data_3D[slice2take[0]:slice2take[1], ...]
+            Imgs = data_3D[slice2take, ...]
             output = np.concatenate((output, Imgs), axis=0)
             i += 1
             if i == len(fn_im_paths):
@@ -1238,7 +1238,6 @@ class MRI_Resp_2D(Input):
 
     def test_set_generation(self, config):
         path = config['path']
-        frame = config['frame']
         slice = config['slice']
         u_type = config['u_type']
         use_given_u = config['use_given_u']

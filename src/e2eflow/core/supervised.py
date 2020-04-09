@@ -5,7 +5,7 @@ import numpy as np
 from .augment import random_photometric
 from .flow_util import flow_to_color
 from .losses import charbonnier_loss
-from .flownet import flownet, flownet_s_kspace_in_full, flownet_s_kspace_in_65, flownet_s_kspace_in_33, flownet_s_kspace_in_33_out_4
+from .flownet import flownet, flownet_s_kspace_in_full, flownet_s_kspace_in_65, flownet_s_kspace_in_33, flownet_s_kspace_in_33_large_receptive
 from .automap import automap
 from .unsupervised import _track_image, _track_loss, FLOW_SCALE
 

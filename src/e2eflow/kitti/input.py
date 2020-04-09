@@ -55,18 +55,30 @@ def pos_generation_2D(intervall, stride):
     return pos
 
 
+def save_img(result, file_path, format='png'):
+    matplotlib.use('Agg')
+    fig = plt.figure(figsize=(4, 4), dpi=100)
+    plt.axis('off')
+    if len(result.shape) == 2:
+        plt.imshow(result, cmap="gray")
+    else:
+        plt.imshow(result)
+    fig.savefig(file_path+'.'+format)
+    plt.close()
+
+
 def save_imgs_with_arrow(im1, im2, u):
     x = np.arange(0, 256, 8)
     y = np.arange(0, 256, 8)
     x, y = np.meshgrid(x, y)
-    matplotlib.use('Agg')
+    # matplotlib.use('Agg')
     fig, ax = plt.subplots(1, 2, figsize=(12, 8))
     ax[0].imshow(im1, cmap='gray')
     ax[1].imshow(im2, cmap='gray')
     # to make it consistent with np_warp, ux should be negative
-    ax[1].quiver(x, y, -u[0:256:8, :, :][:, 0:256:8, :][:, :, 0],
-                 u[0:256:8, :, :][:, 0:256:8, :][:, :, 1], color='y')
-    fig.savefig('/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/pics/' + name + '.' + 'png')
+    ax[0].quiver(x, y, u[0:256:8, :, :][:, 0:256:8, :][:, :, 0],
+                 -u[0:256:8, :, :][:, 0:256:8, :][:, :, 1], color='y')
+    fig.savefig('/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/' + 'a' + '.' + 'png')
     plt.close(fig)
 
 
@@ -119,7 +131,7 @@ def _u_generation_3D(img_size, amplitude, motion_type=0):
         amplitude = amplitude / max(np.linalg.norm(np.vstack([u1, u2, u3]), axis=0))
         u = u * amplitude
 
-    return u
+    return np.asarray(u, dtype=np.float32)
 
 
 def _u_generation_2D(img_size, amplitude, motion_type=0):
@@ -394,6 +406,7 @@ class MRI_Resp_2D(Input):
             flag = 1
         while len(output) <= num_to_take:
             fn_im_path = fn_im_paths[i]
+            # fn_im_path = '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/train/volunteer_01_cw.npz'
             try:
                 f = load_mat_file(fn_im_path)
             except:
@@ -438,16 +451,27 @@ class MRI_Resp_2D(Input):
                     except ImportError:
                         print("Wrong undersampling rate is given")
                         continue
+                # if acc != 1:  # todo: need this step or not? cause for mask-calculation acc=1, mask is not all equal to 1
                 mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))
                 k_ref = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
                 k_mov = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
                 ref = (np.fft.ifftn(k_ref)).real
                 mov = (np.fft.ifftn(k_mov)).real
 
+            # save_img(mov[..., 40], '/home/jpa19/PycharmProjects/MA/UnFlow/output/temp/'+'us_mov30')
+            # save_img(mask[3, ...], '/home/jpa19/PycharmProjects/MA/UnFlow/output/temp/' + 'mask_mov30')
+
             data_3D = np.stack((ref, mov, u[..., 0], u[..., 1]), axis=-1)
             data_3D = np.moveaxis(data_3D, 2, 0)
             slice2take = slice_info[name]
             Imgs = data_3D[slice2take, ...]
+
+            # Imgs = Imgs[12, ...]
+            # flow_field = flow_to_color_np(-Imgs[..., 2:])
+            # save_img(Imgs[..., 0], '/home/jpa19/PycharmProjects/MA/UnFlow/output/temp/'+'ref1')
+            # save_img(Imgs[..., 1], '/home/jpa19/PycharmProjects/MA/UnFlow/output/temp/' + 'mov1')
+            # save_img(flow_field, '/home/jpa19/PycharmProjects/MA/UnFlow/output/temp/' + 'flow3')
+
             output = np.concatenate((output, Imgs), axis=0)
             i += 1
             if i == len(fn_im_paths):
@@ -1275,13 +1299,7 @@ class MRI_Resp_2D(Input):
             raise ImportError('wrong augmentation type is given')
         mov = np_warp_3D(ref, u)
         if US_acc > 1:
-            if US_acc == 30:
-                mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
-            elif US_acc == 8:
-                mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc8.npy')
-            else:
-                # raise ImportError('Wrong acceleration value is given')
-                mask = np.transpose(generate_mask(acc=US_acc, nRep=4), (2, 1, 0))
+            mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/data/mask/mask_acc{}.npy'.format(US_acc))
             k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
             k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
             ref = (np.fft.ifftn(k_dset)).real
@@ -1315,13 +1333,7 @@ class MRI_Resp_2D(Input):
             u0 = np.array(-dset['u_Real_est_1'], dtype=np.float32)
             u1 = np.array(-dset['u_Real_est_2'], dtype=np.float32)
             if US_acc > 1:
-                if US_acc == 30:
-                    mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
-                elif US_acc == 8:
-                    mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc8.npy')
-                else:
-                    # raise ImportError('Wrong acceleration value is given')
-                    mask = np.transpose(generate_mask(acc=US_acc, nRep=4), (2, 1, 0))
+                mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/data/mask/mask_acc{}.npy'.format(US_acc))
                 # mask = np.transpose(generate_mask_2(subsampleType=1, acc=4, vd_type=1, nRep=4), (2, 1, 0))
                 # acc = np.random.choice(np.arange(1, 32, 6))
                 # acc = 30
@@ -1357,13 +1369,7 @@ class MRI_Resp_2D(Input):
 
             mov = np_warp_3D(ref, u)
             if US_acc > 1:
-                if US_acc == 300:
-                    mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
-                elif US_acc == 800:
-                    mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc8.npy')
-                else:
-                    # raise ImportError('Wrong acceleration value is given')
-                    mask = np.transpose(generate_mask(acc=US_acc, nRep=4), (2, 1, 0))
+                mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/data/mask/mask_acc{}.npy'.format(US_acc))
                 # acc = np.random.choice(np.arange(1, 32, 6))
                 # acc = 30
                 # mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))

@@ -1,1 +1,4 @@
-python3 patch_eval_gui.py --ex RdPts_Img500_Cp33_1402
+python3 patch_eval_gui.py --ex srx028_drUS_1603
+python3 patch_eval_gui.py --ex srx424_drUS_1603
+
+

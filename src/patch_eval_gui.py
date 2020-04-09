@@ -80,6 +80,21 @@ def central_crop(img, bounding):
     return img[slices]
 
 
+def cal_loss_mean(loss_dir):
+    if os.path.exists(os.path.join(loss_dir, 'mean_loss.txt')):
+        raise ImportError('mean value already calculated')
+    files = os.listdir(loss_dir)
+    files.sort()
+    mean = dict()
+    for file in files:
+        with open(os.path.join(loss_dir, file), 'r') as f:
+            data = [float(i) for i in f.readlines()]
+            mean[file.split('.')[0]] = np.mean(data)
+    with open(os.path.join(loss_dir, 'mean_loss.txt'), "a") as f:
+        for name in mean:
+            f.write('{}:{}\n'.format(name, round(mean[name], 5)))
+
+
 def _evaluate_experiment(name, data, config):
 
     current_config = config_dict('../config.ini')
@@ -263,6 +278,8 @@ def _evaluate_experiment(name, data, config):
             results['flow_gt'] = flow_gt_cut
             results['loss_pred'] = final_loss
             results['loss_orig'] = final_loss_orig
+            results['loss_ang_pred'] = final_loss_angel
+            results['loss_ang_orig'] = final_loss_orig_angel
 
             # results = [np.rot90(i) for i in results]
 
@@ -305,15 +322,26 @@ def save_results(output_dir, results, config, input_cf):
     test_name = test_type + '_US' + str(input_cf['US_acc'])
 
     if config['save_loss']:
+        dir_name = 'loss'
+        save_dir = os.path.join(output_dir, dir_name)
+        if not os.path.exists(save_dir):
+            os.mkdir(save_dir)
         print("Original Flow Loss: {}".format(results['loss_orig']))
         print("Smoothing Flow Loss: {}".format(results['loss_pred']))
-        file_name = test_name + '_loss.txt'
-        output_file_loss = os.path.join(output_dir, file_name)
+        file_name = test_name + '_EPE_loss.txt'
+        output_file_loss = os.path.join(save_dir, file_name)
         f = open(output_file_loss, "a")
         # f.write("{}\n".format(results['loss_orig']))
         f.write("{}\n".format(results['loss_pred']))
         f.close()
-    patient = input_cf['path'].split('/')[-1]
+
+        file_name = test_name + '_EAE_loss.txt'
+        output_file_loss = os.path.join(save_dir, file_name)
+        f = open(output_file_loss, "a")
+        # f.write("{}\n".format(results['loss_ang_orig']))
+        f.write("{}\n".format(results['loss_ang_pred']))
+        f.close()
+    patient = input_cf['path'].split('/')[-1].split('.')[0]
     file_name = test_type + '_' + patient + '_' + str(input_cf['frame']) + '_' + str(input_cf['slice'])
 
     if config['save_data_npz']:
@@ -398,15 +426,23 @@ def main(argv=None):
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     config = dict()
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/06_la',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk']
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz']
-
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/06_la',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk']
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_035.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_036.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
     # 0: constant generated flow, 1: smooth generated flow, 2: matlab simulated test data 3: simulated_x smooth 4: cross test without gt
-    config['test_types'] = [1, 1, 1, 2, 2, 2]
-    config['US_acc'] = [1, 8, 30, 1, 8, 30]
+    # config['test_types'] = [1, 1, 1, 2, 2, 2]
+    # config['US_acc'] = [1, 8, 30, 1, 8, 30]
+    # config['test_types'] = list(np.ones(31, dtype=np.int))
+    # config['US_acc'] = list(range(1, 32))
+    config['test_types'] = [1, 1, 1]
+    config['US_acc'] = [1, 8, 30]
     config['selected_frames'] = [0]
     config['selected_slices'] = [40]
     config['amplitude'] = 10
@@ -462,17 +498,16 @@ def main(argv=None):
 
     for name in FLAGS.ex.split(','):
         if config['save_results']:
-            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+"test")
+            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name + 'test')
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)
-
 
         for i, u_type in enumerate(config['test_types']):
             for patient in config['test_dir']:
                 for frame in config['selected_frames']:
                     if not config['selected_slices']:
-                        name = patient.split('/')[-1].split('.')[0]
-                        config['selected_slices'] = slice_info[name]
+                        name_pat = patient.split('/')[-1].split('.')[0]
+                        config['selected_slices'] = slice_info[name_pat]
                     for slice in config['selected_slices']:
 
                         input_cf['path'] = patient
@@ -490,6 +525,8 @@ def main(argv=None):
 
                         if config['save_results']:
                             save_results(output_dir, results, config, input_cf)
+        cal_loss_mean(os.path.join(output_dir, 'loss'))
+
 
 if __name__ == '__main__':
     tf.app.run()

@@ -22,6 +22,7 @@ from ..core.augment import random_crop
 from ..core.flow_util import flow_to_color
 from ..core.image_warp import np_warp_2D, np_warp_3D
 from ..core.sampling import generate_mask
+from ..core.sampling_center import sampleCenter
 from ..core.sampling_2 import generate_mask_2
 from e2eflow.core.flow_util import flow_to_color_np
 
@@ -383,6 +384,7 @@ class MRI_Resp_2D(Input):
                       aug_type,
                       amp=5,
                       US=None,
+                      mask_type='center',
                       num_to_take=1500):
         output = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
         if num_to_take == 0:
@@ -438,11 +440,16 @@ class MRI_Resp_2D(Input):
                     except ImportError:
                         print("Wrong undersampling rate is given")
                         continue
-                mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))
-                k_ref = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
-                k_mov = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
-                ref = (np.fft.ifftn(k_ref)).real
-                mov = (np.fft.ifftn(k_mov)).real
+                if acc is not 1:
+                    if mask_type == 'US':
+                        mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))
+                    elif mask_type == 'center':
+                        mask = sampleCenter(1 / acc * 100, 256, 72)
+                        mask = np.array([mask, ] * 4, dtype=np.float32)
+                    k_ref = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
+                    k_mov = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
+                    ref = (np.fft.ifftn(k_ref)).real
+                    mov = (np.fft.ifftn(k_mov)).real
 
             data_3D = np.stack((ref, mov, u[..., 0], u[..., 1]), axis=-1)
             data_3D = np.moveaxis(data_3D, 2, 0)
@@ -549,7 +556,7 @@ class MRI_Resp_2D(Input):
                         selected_slices,
                         given_u=False,
                         max_num_to_take=4000,
-                        undersampling=True,
+                        mask_type='center',
                         cross_test=False
                         ):
 
@@ -587,13 +594,17 @@ class MRI_Resp_2D(Input):
                         u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
                     warped_dset = np_warp_3D(dset, u)
                     acc = np.random.choice(np.arange(1, 32, 6))
-                    mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))
-                    # mask_2 = np.transpose(generate_mask_2(subsampleType=1, acc=acc, vd_type=1, nRep=4), (2, 1, 0))
-                    # mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
-                    k_dset = np.multiply(np.fft.fftn(dset), np.fft.ifftshift(mask[0, ...]))
-                    k_warped_dset = np.multiply(np.fft.fftn(warped_dset), np.fft.ifftshift(mask[3, ...]))
-                    dset_us = (np.fft.ifftn(k_dset)).real
-                    warped_dset_us = (np.fft.ifftn(k_warped_dset)).real
+                    if acc is not 1:
+                        if mask_type == 'US':
+                            mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))
+                        elif mask_type == 'center':
+                            mask = sampleCenter(1 / acc * 100, 256, 72)
+                            mask = np.array([mask, ] * 4, dtype=np.float32)
+                            # mask_2 = np.transpose(generate_mask_2(subsampleType=1, acc=acc, vd_type=1, nRep=4), (2, 1, 0))
+                        k_dset = np.multiply(np.fft.fftn(dset), np.fft.ifftshift(mask[0, ...]))
+                        k_warped_dset = np.multiply(np.fft.fftn(warped_dset), np.fft.ifftshift(mask[3, ...]))
+                        dset_us = (np.fft.ifftn(k_dset)).real
+                        warped_dset_us = (np.fft.ifftn(k_warped_dset)).real
 
                     # k_dset_2 = np.multiply(np.fft.fftn(dset), np.fft.ifftshift(mask_2[0, ...]))
                     # k_warped_dset_2 = np.multiply(np.fft.fftn(warped_dset), np.fft.ifftshift(mask_2[3, ...]))
@@ -829,28 +840,32 @@ class MRI_Resp_2D(Input):
                                                aug_type='constant',
                                                amp=params.get('flow_amplitude'),
                                                US=params.get('us_rate'),
-                                               num_to_take=num_constant)
+                                               num_to_take=num_constant,
+                                               mask_type=params.get('mask_type'))
         np.random.shuffle(fn_im_paths)
         aug_data_smooth = self.load_aug_data(fn_im_paths,
                                              slice_info,
                                              aug_type='smooth',
                                              amp=params.get('flow_amplitude'),
                                              US=params.get('us_rate'),
-                                             num_to_take=num_smooth)
+                                             num_to_take=num_smooth,
+                                             mask_type=params.get('mask_type'))
         np.random.shuffle(fn_im_paths)
         aug_data_real = self.load_aug_data(fn_im_paths,
                                            slice_info,
                                            aug_type='real',
                                            amp=params.get('flow_amplitude'),
                                            US=params.get('us_rate'),
-                                           num_to_take=num_real)
+                                           num_to_take=num_real,
+                                           mask_type=params.get('mask_type'))
         np.random.shuffle(fn_im_paths)
         aug_data_real_x_smooth = self.load_aug_data(fn_im_paths,
                                                     slice_info,
                                                     aug_type='real_x_smooth',
                                                     amp=5,
                                                     US=params.get('us_rate'),
-                                                    num_to_take=num_real_x_smooth)
+                                                    num_to_take=num_real_x_smooth,
+                                                    mask_type=params.get('mask_type'))
         batches = np.concatenate((batches, aug_data_real, aug_data_constant, aug_data_smooth, aug_data_real_x_smooth), axis=0)
         np.random.shuffle(batches)
         if params.get('network') == 'ftflownet':
@@ -1244,6 +1259,7 @@ class MRI_Resp_2D(Input):
         US_acc = config['US_acc']
         use_given_US_mask = config['use_given_US_mask']
         slice_info = config['slice_info']
+        mask_type = config['mask_type']
 
         try:
             f = load_mat_file(path)
@@ -1275,13 +1291,11 @@ class MRI_Resp_2D(Input):
             raise ImportError('wrong augmentation type is given')
         mov = np_warp_3D(ref, u)
         if US_acc > 1:
-            if US_acc == 30:
-                mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
-            elif US_acc == 8:
-                mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc8.npy')
-            else:
-                # raise ImportError('Wrong acceleration value is given')
-                mask = np.transpose(generate_mask(acc=US_acc, nRep=4), (2, 1, 0))
+            if mask_type == 'US':
+                mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/data/mask/mask_acc{}.npy'.format(US_acc))
+            elif mask_type == 'center':
+                mask = sampleCenter(1/US_acc*100, 256, 72)
+                mask = np.array([mask, ] * 4, dtype=np.float32)
             k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
             k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
             ref = (np.fft.ifftn(k_dset)).real

@@ -42,7 +42,7 @@ tf.app.flags.DEFINE_integer('num', 1,
                             'Number of examples to evaluate. Set to -1 to evaluate all.')
 tf.app.flags.DEFINE_integer('num_vis', 1,
                             'Number of evalutations to visualize. Set to -1 to visualize all.')
-tf.app.flags.DEFINE_string('gpu', '0',
+tf.app.flags.DEFINE_string('gpu', '1',
                            'GPU device to evaluate on.')
 tf.app.flags.DEFINE_boolean('output_benchmark', False,
                             'Output raw flow files.')
@@ -57,6 +57,20 @@ FLAGS = tf.app.flags.FLAGS
 
 
 NUM_EXAMPLES_PER_PAGE = 4
+
+def cal_loss_mean(loss_dir):
+    if os.path.exists(os.path.join(loss_dir, 'mean_loss.txt')):
+        raise ImportError('mean value already calculated')
+    files = os.listdir(loss_dir)
+    files.sort()
+    mean = dict()
+    for file in files:
+        with open(os.path.join(loss_dir, file), 'r') as f:
+            data = [float(i) for i in f.readlines()]
+            mean[file.split('.')[0]] = np.mean(data)
+    with open(os.path.join(loss_dir, 'mean_loss.txt'), "a") as f:
+        for name in mean:
+            f.write('{}:{}\n'.format(name, round(mean[name], 5)))
 
 
 def _evaluate_experiment(name, data, config):
@@ -164,6 +178,8 @@ def _evaluate_experiment(name, data, config):
         results['flow_gt'] = list(flow_orig)
         results['loss_pred'] = final_loss
         results['loss_orig'] = final_loss_orig
+        results['loss_ang_pred'] = final_loss_angel
+        results['loss_ang_orig'] = final_loss_orig_angel
 
         # results = [np.rot90(i) for i in results]
 
@@ -206,15 +222,27 @@ def save_results(output_dir, results, config, input_cf):
     test_name = test_type + '_US' + str(input_cf['US_acc'])
 
     if config['save_loss']:
+        dir_name = 'loss'
+        save_dir = os.path.join(output_dir, dir_name)
+        if not os.path.exists(save_dir):
+            os.mkdir(save_dir)
         print("Original Flow Loss: {}".format(results['loss_orig']))
         print("Smoothing Flow Loss: {}".format(results['loss_pred']))
-        file_name = test_name + '_loss.txt'
-        output_file_loss = os.path.join(output_dir, file_name)
+        file_name = test_name + '_EPE_loss.txt'
+        output_file_loss = os.path.join(save_dir, file_name)
         f = open(output_file_loss, "a")
         # f.write("{}\n".format(results['loss_orig']))
         f.write("{}\n".format(results['loss_pred']))
         f.close()
-    patient = input_cf['path'].split('/')[-1]
+
+        file_name = test_name + '_EAE_loss.txt'
+        output_file_loss = os.path.join(save_dir, file_name)
+        f = open(output_file_loss, "a")
+        # f.write("{}\n".format(results['loss_ang_orig']))
+        f.write("{}\n".format(results['loss_ang_pred']))
+        f.close()
+
+    patient = input_cf['path'].split('/')[-1].split('.')[0]
     i = 0
     for s in input_cf['slice']:
         file_name = test_type + '_' + patient + '_' + str(input_cf['frame']) + '_' + str(s)
@@ -296,16 +324,27 @@ def main(argv=None):
     config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk',
                           '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/06_la',
                           '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk']
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz']
-    #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/data/card/005_GI']
-    #config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/volunteer/21_tk']
-    # config['test_dir_matlab_simulated'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/matlab_simulated_data']
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz']
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_035.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_036.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
+
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
+
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
-    config['test_types'] = [1, 1, 1, 2, 2, 2]
-    config['US_acc'] = [1, 8, 30, 1, 8, 30]
+    config['test_types'] = [2]
+    config['US_acc'] = [8]
+    # config['US_acc'] = list(range(1, 32, 2))
+    # config['test_types'] = list(2 * np.ones(len(config['US_acc']), dtype=np.int))
+
+    config['mask_type'] = 'center'
+    # config['mask_type'] = 'US'
     config['selected_frames'] = [0]
-    config['selected_slices'] = [40]
+    config['selected_slices'] = [34]
     config['amplitude'] = 10
     config['network'] = 'flownet'
     config['batch_size'] = 64
@@ -345,11 +384,15 @@ def main(argv=None):
     ods = get_data(info_file)
     slice_info = {value[0]: list(range(*[int(j) - 1 for j in value[1].split(',')])) for value in ods["Sheet1"] if
                   len(value) is not 0}
+    if 'selected_slices' in config:
+        for patient in config['test_dir']:
+            name_pat = patient.split('/')[-1].split('.')[0]
+            slice_info[name_pat] = config['selected_slices']
     input_cf['slice_info'] = slice_info
 
     for name in FLAGS.ex.split(','):
         if config['save_results']:
-            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'test')
+            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'_test')
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)
 
@@ -357,14 +400,15 @@ def main(argv=None):
             for patient in config['test_dir']:
                 for frame in config['selected_frames']:
                     input_cf['path'] = patient
-                    if not config['selected_slices']:
-                        name = patient.split('/')[-1].split('.')[0]
-                        input_cf['slice'] = slice_info[name]
-                    else:
-                        input_cf['slice'] = config['selected_slices']
+
+                    name_pat = patient.split('/')[-1].split('.')[0]
+                    input_cf['slice'] = slice_info[name_pat]
+                    config['selected_slices'] = input_cf['slice']
+
                     input_cf['frame'] = frame
                     input_cf['u_type'] = u_type
                     # input_cf['use_given_u'] = config['new_u'][i]
+                    input_cf['mask_type'] = config['mask_type']
                     input_cf['US_acc'] = config['US_acc'][i]
                     # input_cf['use_given_US_mask'] = config['new_US_mask'][i]
                     if config['save_results']:
@@ -374,7 +418,7 @@ def main(argv=None):
                     # show_results(results)
                     pass
                     save_results(output_dir, results, config, input_cf)
-
+        cal_loss_mean(os.path.join(output_dir, 'loss'))
 
 if __name__ == '__main__':
     tf.app.run()

@@ -429,21 +429,26 @@ def main(argv=None):
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/06_la',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
-    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk']
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_035.npz',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_036.npz',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
-    # 0: constant generated flow, 1: smooth generated flow, 2: matlab simulated test data 3: simulated_x smooth 4: cross test without gt
-    config['test_types'] = [1, 1, 1, 2, 2, 2]
-    config['US_acc'] = [1, 8, 30, 1, 8, 30]
-    # config['test_types'] = list(np.ones(31, dtype=np.int))
-    # config['US_acc'] = list(range(1, 32))
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz']
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_035.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_036.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
 
+    # 0: constant generated flow, 1: smooth generated flow, 2: matlab simulated test data 3: simulated_x smooth 4: cross test without gt
+    config['test_types'] = [2]
+    config['US_acc'] = [8]
+    # config['US_acc'] = list(range(1, 32, 2))
+    # config['test_types'] = list(2*np.ones(len(config['US_acc']), dtype=np.int))
+
+    config['mask_type'] = 'center'
+    # config['mask_type'] = 'US'
     config['selected_frames'] = [0]
-    # config['selected_slices'] = [40]
+    config['selected_slices'] = [34]
     config['amplitude'] = 10
     config['network'] = 'ftflownet'
     config['batch_size'] = 64
@@ -501,7 +506,7 @@ def main(argv=None):
 
     for name in FLAGS.ex.split(','):
         if config['save_results']:
-            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name + '_old')
+            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'_test')
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)
 
@@ -517,6 +522,7 @@ def main(argv=None):
                         input_cf['frame'] = frame
                         input_cf['slice'] = slice
                         input_cf['u_type'] = u_type
+                        input_cf['mask_type'] = config['mask_type']
                         # input_cf['use_given_u'] = config['new_u'][i]
                         input_cf['US_acc'] = config['US_acc'][i]
                         # input_cf['use_given_US_mask'] = config['new_US_mask'][i]

@@ -10,13 +10,14 @@ import numpy as np
 import tensorflow as tf
 import random
 from skimage.util.shape import view_as_windows
-import pylab
+
 from pyexcel_ods import get_data
 from multiprocessing import Pool
 import matplotlib
+# matplotlib.use('pdf')
 # matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-
+import pylab
 from ..core.input import read_png_image, Input, load_mat_file
 from ..core.augment import random_crop
 from ..core.flow_util import flow_to_color
@@ -383,8 +384,8 @@ class MRI_Resp_2D(Input):
                       slice_info,
                       aug_type,
                       amp=5,
-                      US=None,
-                      mask_type='center',
+                      mask_type='US',
+                      US='random',
                       num_to_take=1500):
         output = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
         if num_to_take == 0:
@@ -430,10 +431,9 @@ class MRI_Resp_2D(Input):
             # im2 = mov[..., 35]
             # u = u[..., :2][..., 35, :]
             # save_imgs_with_arrow(im1, im2, u)
-
             if US is not 1:
                 if US == 'random':
-                    acc = np.random.choice(np.arange(1, 32, 6))
+                    acc = np.random.choice(np.arange(1, 18, 4))
                 else:
                     try:
                         acc = US
@@ -455,6 +455,13 @@ class MRI_Resp_2D(Input):
             data_3D = np.moveaxis(data_3D, 2, 0)
             slice2take = slice_info[name]
             Imgs = data_3D[slice2take, ...]
+
+            # fig, ax = plt.subplots(1, 2, figsize=(12, 8))
+            # plt.axis('off')
+            # ax[0].imshow(Imgs[10,...,0], cmap='gray')
+            # ax[1].imshow(Imgs[10,...,1], cmap='gray')
+            # plt.show()
+
             output = np.concatenate((output, Imgs), axis=0)
             i += 1
             if i == len(fn_im_paths):
@@ -465,355 +472,6 @@ class MRI_Resp_2D(Input):
         print("{} real simulated data are generated".format((len(output))))
 
         return np.asarray(output[:num_to_take, ...], dtype=np.float32)
-
-    def load_real_simulated_data(self, fn_im_paths, selected_slices, max_num_to_take=2000):
-        batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
-        for fn_im_path in fn_im_paths:
-
-            f = load_mat_file(fn_im_path)
-            if np.shape(f['dFixed'])[2] != 72:
-                continue
-            ref = f['dFixed']
-            mov = f['dFixedWarped']
-
-            #mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/mask_acc30.npy')
-            acc = np.random.choice(np.arange(1, 32, 6))
-            mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))
-            # mask_2 = np.transpose(generate_mask_2(subsampleType=1, acc=4, vd_type=1, nRep=4), (2, 1, 0))
-            mask = np.asarray(mask, dtype=np.float32)
-            k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
-            k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
-            ref = (np.fft.ifftn(k_dset)).real
-            mov = (np.fft.ifftn(k_warped_dset)).real
-
-            u0 = -f['ux']
-            u1 = -f['uy']
-            im1 = ref[..., selected_slices]
-            im1 = im1[np.newaxis, ...]
-            im2 = mov[..., selected_slices]
-            im2 = im2[np.newaxis, ...]
-            u0 = u0[..., selected_slices]
-            u0 = u0[np.newaxis, ...]
-            u1 = u1[..., selected_slices]
-            u1 = u1[np.newaxis, ...]
-
-            # if 1:
-            #     # for showing which one is right (concatenate(u0, u1) or concatenate(u1, u0))
-            #     im1 = np.squeeze(im1[..., 0])
-            #     im2 = np.squeeze(im2[..., 0])
-            #     im1 = (im1 - np.amin(im1)) / (np.amax(im1) - np.amin(im1))
-            #     im2 = (im2 - np.amin(im2)) / (np.amax(im2) - np.amin(im2))
-            #     u0 = u0[..., 0]
-            #     u1 = u1[..., 0]
-            #     u = np.concatenate((u0, u1), axis=0)
-            #     u = np.moveaxis(u, 0, 2)
-            #     u_21 = np.concatenate((u1, u0), axis=0)
-            #     u_21 = np.moveaxis(u_21, 0, 2)
-            #
-            #     im2_hat = np_warp_2D(im1, u)
-            #     im2_hat_2 = np_warp_2D(im1, u_21)
-            #     im2_hat_neg = np_warp_2D(im1, -u)
-            #     im2_hat_2_neg = np_warp_2D(im1, -u_21)
-            #     # im1_hat_hat = np_warp_2D(im2, u)
-            #     ori_error = im1 - im2
-            #     warped_error_1 = im2 - im2_hat
-            #     warped_error_2 = im2 - im2_hat_2
-            #     warped_error_3 = im2 - im2_hat_neg
-            #     warped_error_4 = im2 - im2_hat_2_neg
-            #     fig, ax = plt.subplots(2, 3, figsize=(12, 8))
-            #     ax[0][0].imshow(ori_error, cmap='gray')  # ref
-            #     ax[0][1].imshow(warped_error_1, cmap='gray')  # mov
-            #     ax[0][2].imshow(warped_error_2, cmap='gray')
-            #     fig.delaxes(ax[1, 0])
-            #     ax[1][1].imshow(warped_error_3, cmap='gray')  # mov
-            #     ax[1][2].imshow(warped_error_4, cmap='gray')
-            #
-            #     # for showing of arrows
-            #     x = np.arange(0, 256, 8)
-            #     y = np.arange(0, 256, 8)
-            #     x, y = np.meshgrid(x, y)
-            #     fig, ax = plt.subplots(1, 2, figsize=(12, 8))
-            #     ax[0].imshow(im1, cmap='gray')
-            #     ax[1].imshow(im2, cmap='gray')
-            #     ax[1].quiver(x, y, -u[0:256:8, :, :][:, 0:256:8, :][:, :, 1],
-            #                  -u[0:256:8, :, :][:, 0:256:8, :][:, :, 0], color='y')
-
-            batch = np.concatenate((im1, im2, u0, u1), axis=0)
-            batch = np.swapaxes(batch, 0, 3)
-            # batch = batch.tolist()
-            batches = np.concatenate((batches, batch), axis=0)
-            if len(batches) >= max_num_to_take:
-                batches = batches[:max_num_to_take, ...]
-                print("{} real simulated data are generated".format((len(batches))))
-                return np.asarray(batches, dtype=np.float32)
-        return np.asarray(batches, dtype=np.float32)
-
-    def augmentation_3D(self,
-                        fn_im_paths,
-                        motion_shares,
-                        amplitude,
-                        selected_frames,
-                        selected_slices,
-                        given_u=False,
-                        max_num_to_take=4000,
-                        mask_type='center',
-                        cross_test=False
-                        ):
-
-        batches = np.zeros((0, self.dims[0], self.dims[1], 6), dtype=np.float32)
-        for fn_im_path in fn_im_paths:
-
-            dset_orig = load_mat_file(fn_im_path)
-            dset_orig = dset_orig['dImg']
-
-            # dset_orig = dset_orig['dMBCSHDPROST']
-            try:
-                dset_orig = np.array(dset_orig, dtype=np.float32)
-                # dset = tf.constant(dset, dtype=tf.float32)
-            except ImportError:
-                print("File {} is defective and cannot be read!".format(fn_im_path))
-                continue
-            if not cross_test:
-                for frame in selected_frames:
-                    if np.shape(dset_orig)[0] == 4:
-                        dset = np.transpose(dset_orig, (3, 2, 1, 0))
-                    else:
-                        dset = dset_orig.copy()
-                    dset = (dset - np.amin(dset)) / (np.amax(dset) - np.amin(dset))
-                    #dset = (dset - np.mean(dset)) / np.std(dset)
-                    dset = dset[..., frame]
-                    dset = np.rot90(dset, axes=(0, 1))
-                    img_size = np.shape(dset)
-                    if img_size[2] is not 72:
-                        continue
-                    if not given_u:
-                        motion_type = np.random.choice(np.arange(0, 2), p=motion_shares)
-                        u = _u_generation_3D(img_size, amplitude, motion_type=motion_type)  # TODO: This step too time-consuming
-                        #np.save('/home/jpa19/PycharmProjects/MA/UnFlow/new_u_amp10_3D', u)
-                    else:
-                        u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
-                    warped_dset = np_warp_3D(dset, u)
-                    acc = np.random.choice(np.arange(1, 32, 6))
-                    if acc is not 1:
-                        if mask_type == 'US':
-                            mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))
-                        elif mask_type == 'center':
-                            mask = sampleCenter(1 / acc * 100, 256, 72)
-                            mask = np.array([mask, ] * 4, dtype=np.float32)
-                            # mask_2 = np.transpose(generate_mask_2(subsampleType=1, acc=acc, vd_type=1, nRep=4), (2, 1, 0))
-                        k_dset = np.multiply(np.fft.fftn(dset), np.fft.ifftshift(mask[0, ...]))
-                        k_warped_dset = np.multiply(np.fft.fftn(warped_dset), np.fft.ifftshift(mask[3, ...]))
-                        dset_us = (np.fft.ifftn(k_dset)).real
-                        warped_dset_us = (np.fft.ifftn(k_warped_dset)).real
-
-                    # k_dset_2 = np.multiply(np.fft.fftn(dset), np.fft.ifftshift(mask_2[0, ...]))
-                    # k_warped_dset_2 = np.multiply(np.fft.fftn(warped_dset), np.fft.ifftshift(mask_2[3, ...]))
-                    # dset_us_2 = (np.fft.ifftn(k_dset_2)).real
-                    # warped_dset_us_2 = (np.fft.ifftn(k_warped_dset_2)).real
-                    # fig, ax = plt.subplots(3, 2, figsize=(6, 10))
-                    # ax[0][0].imshow(dset[..., selected_slices[0]])  # ref
-                    # ax[0][0].set_title('Ref Img')
-                    # ax[0][1].imshow(warped_dset[..., selected_slices[0]])  # mov
-                    # ax[0][1].set_title('Moving Img')
-                    # ax[1][0].imshow(dset_us[..., selected_slices[0]])
-                    # ax[1][0].set_title('Ref US 1 Img')
-                    # ax[1][1].imshow(warped_dset_us[..., selected_slices[0]])
-                    # ax[1][1].set_title('Moving US 1 Img')
-                    # ax[2][0].imshow(dset_us_2[..., selected_slices[0]])
-                    # ax[2][0].set_title('Ref US 2 Img')
-                    # ax[2][1].imshow(warped_dset_us_2[..., selected_slices[0]])
-                    # ax[2][1].set_title('Moving US 2 Img')
-                    # plt.show()
-                    # pass
-
-                    dset_us, warped_dset_us = dset_us[..., np.newaxis], warped_dset_us[..., np.newaxis]
-                    dset, warped_dset = dset[..., np.newaxis], warped_dset[..., np.newaxis]
-
-                    batch = np.concatenate((dset_us, warped_dset_us, u[..., :2], dset, warped_dset), axis=-1)
-                    batch = np.transpose(batch, (2, 0, 1, 3))
-                    batch = batch[selected_slices, ...]
-                    batches = np.concatenate((batches, batch), axis=0)
-                    if len(batches) >= max_num_to_take:
-                        batches = batches[:max_num_to_take, ...]
-                        print("{} augmented data with synthetic flows are generated".format((len(batches))))
-                        return np.asarray(batches, dtype=np.float32)
-            else:
-                dset_orig = np.transpose(dset_orig, (3, 2, 1, 0))
-                dset_orig = (dset_orig - np.amin(dset_orig)) / (np.amax(dset_orig) - np.amin(dset_orig))
-                dset_orig = dset_orig[..., selected_frames]
-                dset = dset_orig[..., 0]
-                warped_dset = dset_orig[..., 1]
-                dset = np.rot90(dset, axes=(0, 1))
-                warped_dset = np.rot90(warped_dset, axes=(0, 1))
-                img_size = np.shape(dset)
-                mask = np.transpose(generate_mask(acc=30), (2, 1, 0))
-                k_dset = np.multiply(np.fft.fftn(dset), np.fft.ifftshift(mask))
-                k_warped_dset = np.multiply(np.fft.fftn(warped_dset), np.fft.ifftshift(mask))
-                dset_us = (np.fft.ifftn(k_dset)).real
-                warped_dset_us = (np.fft.ifftn(k_warped_dset)).real
-                dset_us, warped_dset_us = dset_us[..., np.newaxis], warped_dset_us[..., np.newaxis]
-                dset, warped_dset = dset[..., np.newaxis], warped_dset[..., np.newaxis]
-                u = np.zeros((*img_size, 2))
-                batch = np.concatenate((dset_us, warped_dset_us, u[..., :2], dset, warped_dset), axis=-1)
-                batch = np.transpose(batch, (2, 0, 1, 3))
-                batch = batch[selected_slices, ...]
-                batches = np.concatenate((batches, batch), axis=0)
-                if len(batches) >= max_num_to_take:
-                    batches = batches[:max_num_to_take, ...]
-                    return np.asarray(batches, dtype=np.float32)
-
-        return np.asarray(batches, dtype=np.float32)
-
-    def augmentation(self,
-                     fn_im_paths,
-                     motion_shares,
-                     amplitude,
-                     selected_frames,
-                     selected_slices,
-                     given_u=False,
-                     max_num_to_take=4000,
-                     cross_test=False):
-        batches = []
-        for fn_im_path in fn_im_paths:
-            dset = load_mat_file(fn_im_path)
-            dset = dset['dImg']
-            try:
-                dset = np.array(dset, dtype=np.float32)
-                # dset = tf.constant(dset, dtype=tf.float32)
-            except ImportError:
-                print("File {} is defective and cannot be read!".format(fn_im_path))
-                continue
-            dset = np.transpose(dset, (3, 2, 1, 0))
-            if np.shape(dset)[2] is not 72:
-                continue
-            dset = dset[..., selected_frames]
-            dset = dset[..., selected_slices, :]
-
-            for frame in range(np.shape(dset)[3]):
-                for slice in range(np.shape(dset)[2]):
-                    if not cross_test:
-                        img = dset[..., slice, :][..., frame]
-                        # img = np.flip(img, axis=0)
-                        img = np.rot90(img)
-                        #img = (img - np.mean(img)) / np.std(img)
-                        img = (img - np.amin(img)) / (np.amax(img) - np.amin(img))
-                        img_size = np.shape(img)
-                        motion_type = np.random.choice(np.arange(0, 2), p=motion_shares)
-                        if not given_u:
-                            u = _u_generation_2D(img_size, amplitude, motion_type=motion_type)
-                        else:
-                            u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_amp10_3D.npy')
-                            u = u[:, :, selected_slices[0], :2]
-                        warped_img = np_warp_2D(img, u)
-
-                        # x = np.arange(0, 256, 8)
-                        # y = np.arange(0, 256, 8)
-                        # x, y = np.meshgrid(x, y)
-                        # fig, ax = plt.subplots(1, 2, figsize=(12, 8))
-                        # ax[0].imshow(img, cmap='gray')
-                        # ax[1].imshow(warped_img, cmap='gray')
-                        # ax[1].quiver(x, y, -u[0:256:8, :, :][:, 0:256:8, :][:, :, 1],
-                        #              -u[0:256:8, :, :][:, 0:256:8, :][:, :, 0], color='y')
-
-                        # # show the warp error
-                        # img_hat = np_warp_2D(warped_img, -u)
-                        # ori_error = img - warped_img
-                        # warped_error_1 = img - img_hat
-                        # ori_error = (ori_error - np.amin(ori_error)) / (np.amax(ori_error) - np.amin(ori_error))
-                        # warped_error_1 = (warped_error_1 - np.amin(warped_error_1)) / (
-                        #             np.amax(warped_error_1) - np.amin(warped_error_1))
-                        # fig, ax = plt.subplots(1, 2, figsize=(15, 8))
-                        # ax[0].imshow(ori_error, cmap='gray')  # ref
-                        # ax[1].imshow(warped_error_1, cmap='gray')  # mov
-
-                        img, warped_img, = img[..., np.newaxis], warped_img[..., np.newaxis]
-                        batch = np.concatenate([img, warped_img, u], 2)
-                        batches.append(batch)
-
-                        # batch = batch[np.newaxis, ...]
-                        # #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
-                        # batches = np.concatenate((batches, batch), axis=0) # this step is too slow
-                        if len(batches) >= max_num_to_take:
-                            batches = batches[:max_num_to_take]
-                            print("{} augmented data with synthetic flows are generated".format((len(batches))))
-
-                            return np.asarray(batches, dtype=np.float32)
-                    else:
-                        dset = (dset - np.amin(dset)) / (np.amax(dset) - np.amin(dset))
-                        im1 = dset[..., slice, 0]
-                        im2 = dset[..., slice, 1]
-                        im1 = np.rot90(im1)
-                        im2 = np.rot90(im2)
-                        # im1 = (im1 - np.amin(im1)) / (np.amax(im1) - np.amin(im1))
-                        # im2 = (im2 - np.amin(im2)) / (np.amax(im2) - np.amin(im2))
-                        # im1 = (im1 - np.mean(im1)) / np.std(im1)
-                        # im2 = (im2 - np.mean(im2)) / np.std(im2)
-                        img_size = np.shape(im1)
-                        im1, im2 = im1[..., np.newaxis], im2[..., np.newaxis]
-                        u = np.zeros((*img_size, 2))
-                        batch = np.concatenate([im1, im2, u], 2)
-                        #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
-                        batches.append(batch)
-                        return np.asarray(batches, dtype=np.float32)
-
-        return np.asarray(batches, dtype=np.float32)
-
-    # #deprecated
-    # def augmentation_kspace(self,
-    #                  fn_im_paths,
-    #                  motion_shares,
-    #                  amplitude,
-    #                  selected_frames,
-    #                  selected_slices,
-    #                  max_num_to_take=2000,
-    #                  cross_test=False):
-    #     batches = []
-    #     # # Debug: to visualize a certain image here
-    #     # dset = load_mat_file('../data/resp/patient/029/Ph4_Tol100_t000_Ext00_EspOff_closest_recon.mat')
-    #     # dset = dset['dImg']
-    #     # dset = np.array(dset, dtype=np.float32)
-    #     # dset = np.transpose(dset, (2, 3, 1, 0))
-    #     # pylab.imshow(dset[:, :, 51, 0])
-    #     for fn_im_path in fn_im_paths:
-    #         dset = load_mat_file(fn_im_path)
-    #         dset = dset['dImg']
-    #         try:
-    #             dset = np.array(dset, dtype=np.float32)
-    #             # dset = tf.constant(dset, dtype=tf.float32)
-    #         except ImportError:
-    #             print("File {} is defective and cannot be read!".format(fn_im_path))
-    #             continue
-    #         dset = np.transpose(dset, (2, 3, 1, 0))
-    #         dset = dset[..., selected_frames]
-    #         dset = dset[..., selected_slices, :]
-    #
-    #         for frame in range(np.shape(dset)[3]):
-    #             for slice in range(np.shape(dset)[2]):
-    #                 if not cross_test:
-    #                     img = dset[..., slice, :][..., frame]
-    #                     img = np.flip(img, axis=0)  # todo
-    #                     # img = (img - np.mean(img)) / np.std(img)
-    #                     img = (img - np.amin(img)) / (np.amax(img) - np.amin(img))
-    #                     img_size = np.shape(img)
-    #                     motion_type = np.random.choice(np.arange(0, 2), p=motion_shares)
-    #                     u = _u_generation_2D(img_size, amplitude, motion_type=motion_type)
-    #                     warped_img = np_warp_2D(img, u)
-    #                     img_kspace = image2kspace(img, normalize=False)
-    #                     warped_img_kspace = image2kspace(warped_img, normalize=False)
-    #                     img = img[..., np.newaxis]
-    #                     warped_img = warped_img[..., np.newaxis]
-    #                     batch = np.concatenate([img_kspace, warped_img_kspace, u, img, warped_img], 2)
-    #                     batches.append(batch)
-    #
-    #                     # batch = batch[np.newaxis, ...]
-    #                     # #  batch = tf.convert_to_tensor(batch, dtype=tf.float32)
-    #                     # batches = np.concatenate((batches, batch), axis=0) # this step is too slow
-    #                     if len(batches) >= max_num_to_take:
-    #                         batches = batches[:max_num_to_take]
-    #                         print("{} augmented data with synthetic flows are generated".format((len(batches))))
-    #
-    #                         return np.asarray(batches, dtype=np.float32)
-    #     return np.asarray(batches, dtype=np.float32)
 
     def new_input_train_data(self, img_dirs, slice_info, params, case='train'):
         # strategy 1: fixed total number
@@ -839,33 +497,37 @@ class MRI_Resp_2D(Input):
                                                slice_info,
                                                aug_type='constant',
                                                amp=params.get('flow_amplitude'),
-                                               US=params.get('us_rate'),
-                                               num_to_take=num_constant,
-                                               mask_type=params.get('mask_type'))
+                                               mask_type=params.get('mask_type'),
+                                               US=(params.get('us_rate')),
+                                               num_to_take=num_constant)
+
         np.random.shuffle(fn_im_paths)
         aug_data_smooth = self.load_aug_data(fn_im_paths,
                                              slice_info,
                                              aug_type='smooth',
                                              amp=params.get('flow_amplitude'),
-                                             US=params.get('us_rate'),
-                                             num_to_take=num_smooth,
-                                             mask_type=params.get('mask_type'))
+                                             mask_type=params.get('mask_type'),
+                                             US=(params.get('us_rate')),
+                                             num_to_take=num_smooth)
+
         np.random.shuffle(fn_im_paths)
         aug_data_real = self.load_aug_data(fn_im_paths,
                                            slice_info,
                                            aug_type='real',
                                            amp=params.get('flow_amplitude'),
-                                           US=params.get('us_rate'),
-                                           num_to_take=num_real,
-                                           mask_type=params.get('mask_type'))
+                                           mask_type=params.get('mask_type'),
+                                           US=(params.get('us_rate')),
+                                           num_to_take=num_real)
+
         np.random.shuffle(fn_im_paths)
         aug_data_real_x_smooth = self.load_aug_data(fn_im_paths,
                                                     slice_info,
                                                     aug_type='real_x_smooth',
                                                     amp=5,
-                                                    US=params.get('us_rate'),
-                                                    num_to_take=num_real_x_smooth,
-                                                    mask_type=params.get('mask_type'))
+                                                    mask_type=params.get('mask_type'),
+                                                    US=(params.get('us_rate')),
+                                                    num_to_take=num_real_x_smooth)
+
         batches = np.concatenate((batches, aug_data_real, aug_data_constant, aug_data_smooth, aug_data_real_x_smooth), axis=0)
         np.random.shuffle(batches)
         if params.get('network') == 'ftflownet':

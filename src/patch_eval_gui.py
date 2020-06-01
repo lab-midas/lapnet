@@ -429,6 +429,7 @@ def main(argv=None):
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/06_la',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
+
     config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz']
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
@@ -444,6 +445,7 @@ def main(argv=None):
     config['US_acc'] = [8]
     # config['US_acc'] = list(range(1, 32, 2))
     # config['test_types'] = list(2*np.ones(len(config['US_acc']), dtype=np.int))
+
 
     config['mask_type'] = 'center'
     # config['mask_type'] = 'US'

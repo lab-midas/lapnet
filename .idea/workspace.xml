@@ -4,11 +4,7 @@
     <list default="true" id="4fb5ce6e-469f-4a31-9d44-208d88ff44a5" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config.ini" beforeDir="false" afterPath="$PROJECT_DIR$/config.ini" afterDir="false" />
-<<<<<<< HEAD
       <change beforePath="$PROJECT_DIR$/src/eval_gui_new.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/eval_gui_new.py" afterDir="false" />
-=======
-      <change beforePath="$PROJECT_DIR$/src/e2eflow/kitti/input.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/e2eflow/kitti/input.py" afterDir="false" />
->>>>>>> 1104
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -20,43 +16,23 @@
     <favorites_list name="UnFlow" />
   </component>
   <component name="FileEditorManager">
-<<<<<<< HEAD
     <splitter split-orientation="horizontal" split-proportion="0.48297215">
-=======
-    <splitter split-orientation="horizontal" split-proportion="0.49106002">
->>>>>>> 1104
       <split-first>
         <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
           <file pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/src/e2eflow/kitti/input.py">
               <provider selected="true" editor-type-id="text-editor">
-<<<<<<< HEAD
                 <state relative-caret-position="-225">
                   <caret line="1253" column="8" selection-start-line="1253" selection-start-column="8" selection-end-line="1253" selection-end-column="8" />
-=======
-                <state relative-caret-position="96">
-                  <caret line="511" column="21" selection-start-line="511" selection-start-column="21" selection-end-line="511" selection-end-column="21" />
-                  <folding>
-                    <element signature="e#0#9#0" expanded="true" />
-                  </folding>
->>>>>>> 1104
                 </state>
               </provider>
             </entry>
           </file>
-<<<<<<< HEAD
           <file pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/src/eval_gui_new.py">
               <provider selected="true" editor-type-id="text-editor">
                 <state relative-caret-position="435">
                   <caret line="80" column="14" selection-start-line="80" selection-start-column="14" selection-end-line="80" selection-end-column="14" />
-=======
-          <file pinned="false" current-in-tab="false">
-            <entry file="file://$PROJECT_DIR$/src/patch_eval_gui.py">
-              <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="5745">
-                  <caret line="391" column="4" selection-start-line="391" selection-start-column="4" selection-end-line="391" selection-end-column="19" />
->>>>>>> 1104
                   <folding>
                     <element signature="e#1292#1583#0" />
                     <element signature="e#2504#2639#0" />
@@ -100,13 +76,8 @@
           <file pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/src/exec">
               <provider selected="true" editor-type-id="text-editor">
-<<<<<<< HEAD
                 <state relative-caret-position="30">
                   <caret line="2" selection-start-line="2" selection-end-line="2" />
-=======
-                <state relative-caret-position="15">
-                  <caret line="1" selection-start-line="1" selection-end-line="1" />
->>>>>>> 1104
                 </state>
               </provider>
             </entry>
@@ -154,21 +125,15 @@
           <file pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/src/run.py">
               <provider selected="true" editor-type-id="text-editor">
-<<<<<<< HEAD
                 <state relative-caret-position="1095">
                   <caret line="87" column="55" selection-start-line="87" selection-start-column="55" selection-end-line="87" selection-end-column="55" />
                   <folding>
                     <element signature="e#19#28#0" expanded="true" />
                   </folding>
-=======
-                <state relative-caret-position="210">
-                  <caret line="14" selection-start-line="14" selection-end-line="14" />
->>>>>>> 1104
                 </state>
               </provider>
             </entry>
           </file>
-<<<<<<< HEAD
           <file pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/config.ini">
               <provider selected="true" editor-type-id="text-editor">
@@ -198,13 +163,6 @@
                   <folding>
                     <element signature="e#0#23#0" expanded="true" />
                   </folding>
-=======
-          <file pinned="false" current-in-tab="true">
-            <entry file="file://$PROJECT_DIR$/config.ini">
-              <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="238">
-                  <caret line="171" column="4" selection-start-line="171" selection-start-column="4" selection-end-line="171" selection-end-column="4" />
->>>>>>> 1104
                 </state>
               </provider>
             </entry>
@@ -212,13 +170,8 @@
           <file pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/src/e2eflow/test/Warp_assessment3D.py">
               <provider selected="true" editor-type-id="text-editor">
-<<<<<<< HEAD
                 <state relative-caret-position="180">
                   <caret line="12" selection-start-line="12" selection-end-line="12" />
-=======
-                <state relative-caret-position="510">
-                  <caret line="34" column="13" selection-start-line="34" selection-start-column="13" selection-end-line="34" selection-end-column="13" />
->>>>>>> 1104
                 </state>
               </provider>
             </entry>
@@ -335,24 +288,15 @@
         <option value="$PROJECT_DIR$/src/patch_eval_gui.py" />
         <option value="$PROJECT_DIR$/config.ini" />
         <option value="$PROJECT_DIR$/src/e2eflow/kitti/input.py" />
-<<<<<<< HEAD
         <option value="$PROJECT_DIR$/src/eval_gui_new.py" />
-=======
->>>>>>> 1104
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
-<<<<<<< HEAD
     <option name="x" value="5" />
     <option name="y" value="9" />
     <option name="width" value="1912" />
     <option name="height" value="1076" />
-=======
-    <option name="x" value="-4" />
-    <option name="width" value="1930" />
-    <option name="height" value="1071" />
->>>>>>> 1104
   </component>
   <component name="ProjectView">
     <navigator proportions="" version="1">
@@ -370,19 +314,15 @@
               <item name="UnFlow" type="b2602c69:ProjectViewProjectNode" />
               <item name="UnFlow" type="462c0819:PsiDirectoryNode" />
               <item name="log" type="462c0819:PsiDirectoryNode" />
-<<<<<<< HEAD
             </path>
             <path>
               <item name="UnFlow" type="b2602c69:ProjectViewProjectNode" />
               <item name="UnFlow" type="462c0819:PsiDirectoryNode" />
               <item name="output" type="462c0819:PsiDirectoryNode" />
-=======
->>>>>>> 1104
             </path>
             <path>
               <item name="UnFlow" type="b2602c69:ProjectViewProjectNode" />
               <item name="UnFlow" type="462c0819:PsiDirectoryNode" />
-<<<<<<< HEAD
               <item name="output" type="462c0819:PsiDirectoryNode" />
               <item name="flown_srx424_noUS_2003_test" type="462c0819:PsiDirectoryNode" />
             </path>
@@ -392,10 +332,6 @@
               <item name="output" type="462c0819:PsiDirectoryNode" />
               <item name="flown_srx424_noUS_2003_test" type="462c0819:PsiDirectoryNode" />
               <item name="loss" type="462c0819:PsiDirectoryNode" />
-=======
-              <item name="log" type="462c0819:PsiDirectoryNode" />
-              <item name="checkpoints" type="462c0819:PsiDirectoryNode" />
->>>>>>> 1104
             </path>
             <path>
               <item name="UnFlow" type="b2602c69:ProjectViewProjectNode" />
@@ -416,7 +352,6 @@
     <property name="two.files.diff.last.used.file" value="$PROJECT_DIR$/src/e2eflow/core/flownet.py" />
   </component>
   <component name="RecentsManager">
-<<<<<<< HEAD
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/output/flown_srx424_drUS_1304/loss" />
       <recent name="$PROJECT_DIR$/output/flown_srx424_drUS_1304" />
@@ -424,8 +359,6 @@
       <recent name="$PROJECT_DIR$/output/flown_srx424_noUS_2003_all/loss" />
       <recent name="$PROJECT_DIR$/output/flown_srx424_noUS_2003/loss" />
     </key>
-=======
->>>>>>> 1104
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/output/temp" />
       <recent name="$PROJECT_DIR$/src/e2eflow" />
@@ -451,11 +384,7 @@
       </list>
     </option>
   </component>
-<<<<<<< HEAD
   <component name="RunManager" selected="Python.eval_gui_new">
-=======
-  <component name="RunManager" selected="Python.run">
->>>>>>> 1104
     <configuration name="eval_gui" type="PythonConfigurationType" factoryName="Python">
       <module name="UnFlow" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -592,15 +521,9 @@
     </list>
     <recent_temporary>
       <list>
-<<<<<<< HEAD
         <item itemvalue="Python.eval_gui_new" />
         <item itemvalue="Python.patch_eval_gui" />
         <item itemvalue="Python.run" />
-=======
-        <item itemvalue="Python.run" />
-        <item itemvalue="Python.patch_eval_gui" />
-        <item itemvalue="Python.eval_gui_new" />
->>>>>>> 1104
         <item itemvalue="Python.playground" />
         <item itemvalue="Python.util" />
       </list>
@@ -629,21 +552,14 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-<<<<<<< HEAD
     <frame x="5" y="9" width="1912" height="1076" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.74887216" visible="true" weight="0.15864623" />
-=======
-    <frame x="-4" y="0" width="1930" height="1071" extended-state="0" />
-    <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.74887216" visible="true" weight="0.19434258" />
->>>>>>> 1104
       <window_info id="Structure" order="1" sideWeight="0.2511278" side_tool="true" weight="0.12071692" />
       <window_info id="Favorites" order="2" sideWeight="0.50190115" side_tool="true" weight="0.1544544" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" weight="0.32991612" />
-<<<<<<< HEAD
       <window_info anchor="bottom" id="Run" order="2" sideWeight="0.49920928" weight="0.325" />
       <window_info anchor="bottom" x="1" y="335" width="1917" height="547" id="Debug" order="3" visible="true" weight="0.384375" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
@@ -651,15 +567,6 @@
       <window_info anchor="bottom" id="TODO" order="6" weight="0.28238583" />
       <window_info anchor="bottom" id="Version Control" order="7" weight="0.32991612" />
       <window_info anchor="bottom" id="Terminal" order="8" sideWeight="0.49973643" weight="0.26875" />
-=======
-      <window_info anchor="bottom" id="Run" order="2" sideWeight="0.49920928" weight="0.33333334" />
-      <window_info anchor="bottom" x="1" y="335" width="1917" height="547" id="Debug" order="3" weight="0.2910995" />
-      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
-      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
-      <window_info anchor="bottom" id="TODO" order="6" weight="0.28238583" />
-      <window_info anchor="bottom" id="Version Control" order="7" weight="0.32984293" />
-      <window_info anchor="bottom" id="Terminal" order="8" sideWeight="0.49973643" visible="true" weight="0.31518325" />
->>>>>>> 1104
       <window_info anchor="bottom" id="Event Log" order="9" sideWeight="0.5007907" side_tool="true" weight="0.5386766" />
       <window_info anchor="bottom" id="Python Console" order="10" weight="0.36253494" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
@@ -687,7 +594,6 @@
     </layout-to-restore>
   </component>
   <component name="Vcs.Log.Tabs.Properties">
-<<<<<<< HEAD
     <option name="RECENT_FILTERS">
       <map>
         <entry key="Branch">
@@ -698,28 +604,6 @@
         <entry key="User">
           <value>
             <list />
-=======
-    <option name="TAB_STATES">
-      <map>
-        <entry key="MAIN">
-          <value>
-            <State>
-              <option name="RECENTLY_FILTERED_USER_GROUPS">
-                <collection />
-              </option>
-              <option name="RECENTLY_FILTERED_BRANCH_GROUPS">
-                <collection />
-              </option>
-              <option name="COLUMN_ORDER">
-                <list>
-                  <option value="0" />
-                  <option value="1" />
-                  <option value="2" />
-                  <option value="3" />
-                </list>
-              </option>
-            </State>
->>>>>>> 1104
           </value>
         </entry>
       </map>
@@ -764,7 +648,6 @@
           <option name="timeStamp" value="616" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-<<<<<<< HEAD
           <url>file://$PROJECT_DIR$/src/e2eflow/kitti/input.py</url>
           <line>748</line>
           <option name="timeStamp" value="670" />
@@ -772,15 +655,6 @@
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/e2eflow/kitti/input.py</url>
           <line>1393</line>
-=======
-          <url>file://$PROJECT_DIR$/src/eval_gui_new.py</url>
-          <line>232</line>
-          <option name="timeStamp" value="839" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/e2eflow/kitti/input.py</url>
-          <line>1053</line>
->>>>>>> 1104
           <option name="timeStamp" value="842" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -815,16 +689,12 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/e2eflow/kitti/input.py</url>
-<<<<<<< HEAD
           <line>565</line>
           <option name="timeStamp" value="967" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/e2eflow/kitti/input.py</url>
           <line>959</line>
-=======
-          <line>618</line>
->>>>>>> 1104
           <option name="timeStamp" value="969" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -839,7 +709,6 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/e2eflow/kitti/input.py</url>
-<<<<<<< HEAD
           <line>903</line>
           <option name="timeStamp" value="1060" />
         </line-breakpoint>
@@ -857,10 +726,6 @@
           <url>file://$PROJECT_DIR$/src/eval_gui_new.py</url>
           <line>74</line>
           <option name="timeStamp" value="1093" />
-=======
-          <line>881</line>
-          <option name="timeStamp" value="993" />
->>>>>>> 1104
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/e2eflow/kitti/input.py</url>
@@ -885,95 +750,58 @@
     </expressions>
     <expressions id="evaluateExpression">
       <expression>
-<<<<<<< HEAD
         <expression-string>'_'.join(name.split('_')[:2])</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
         <expression-string>'_'.join(name.split('_')[:3])</expression-string>
-=======
-        <expression-string>pylab.imshow(Imgs[10, ..., 0])</expression-string>
->>>>>>> 1104
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-<<<<<<< HEAD
         <expression-string>'EAE' in file</expression-string>
-=======
-        <expression-string>mask[0,...]</expression-string>
->>>>>>> 1104
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-<<<<<<< HEAD
         <expression-string>[i['Abs_Error_mean'] for i in error_data_gt]</expression-string>
-=======
-        <expression-string>mask[0, ...]</expression-string>
->>>>>>> 1104
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-<<<<<<< HEAD
         <expression-string>[np.zeros((params['height'], params['width']), dtype=np.float32), ] * 2</expression-string>
-=======
-        <expression-string>~np.isnan(Error_Data['Angle_Error'])</expression-string>
->>>>>>> 1104
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-<<<<<<< HEAD
         <expression-string>np.zeros((params['height'], params['width']), dtype=np.float32)</expression-string>
-=======
-        <expression-string>[~np.isnan(Error_Data['Angle_Error'])]</expression-string>
->>>>>>> 1104
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-<<<<<<< HEAD
         <expression-string>np.zeros((params['height'], params['width']))</expression-string>
-=======
-        <expression-string>Error_Data['Angle_Error'][~np.isnan(Error_Data['Angle_Error'])]</expression-string>
->>>>>>> 1104
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-<<<<<<< HEAD
         <expression-string>np.zeros(params['height'], params['width'])</expression-string>
-=======
-        <expression-string>!np.isnan(Error_Data['Angle_Error'])</expression-string>
->>>>>>> 1104
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-<<<<<<< HEAD
         <expression-string>np.zeros(params.get('height'), params.get('width'))</expression-string>
-=======
-        <expression-string>np.isnan(Error_Data['Angle_Error'])</expression-string>
->>>>>>> 1104
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-<<<<<<< HEAD
         <expression-string>np.array([mask, ]*4, dtype=np.float32)</expression-string>
-=======
-        <expression-string>Error_Data['Angle_Error'][OF_index_angle]</expression-string>
->>>>>>> 1104
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
     </expressions>
   </component>
   <component name="editorHistoryManager">
-<<<<<<< HEAD
     <entry file="file://$PROJECT_DIR$/output/srx424_drUS_1603/loss/s_US1_EPE_loss.txt" />
     <entry file="file://$PROJECT_DIR$/output/srx424_drUS_1603/loss/mean_loss.txt" />
     <entry file="file://$PROJECT_DIR$/output/srx424_drUS_1603_all/loss/r_US1_EPE_loss.txt" />
@@ -986,11 +814,6 @@
     <entry file="file://$PROJECT_DIR$/output/srx424_drUS_1603_all/loss/mean_loss.txt" />
     <entry file="file://$PROJECT_DIR$/output/srx100_drUS_oldloss_1303_all/loss/mean_loss.txt" />
     <entry file="file://$PROJECT_DIR$/src/e2eflow/core/image_warp.py">
-=======
-    <entry file="file://$PROJECT_DIR$/output/srx100_realdrUSold_oldloss_1203test/r_US30_png/r_volunteer_12_hs.npz_0_40_flow_pred.png" />
-    <entry file="file://$PROJECT_DIR$/output/srx100_realdrUSold_oldloss_1203test/r_US30_png/r_volunteer_12_hs.npz_0_40_img_mov.png" />
-    <entry file="file://$PROJECT_DIR$/../../venv_pan/python3_general/lib/python3.6/site-packages/tensorflow/python/training/input.py">
->>>>>>> 1104
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="45">
           <caret line="5" column="4" selection-start-line="5" selection-start-column="4" selection-end-line="5" selection-end-column="4" />
@@ -1000,7 +823,6 @@
         </state>
       </provider>
     </entry>
-<<<<<<< HEAD
     <entry file="file://$PROJECT_DIR$/src/e2eflow/core/samplingPattern.txt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-6345" />
@@ -1027,31 +849,6 @@
     <entry file="file://$PROJECT_DIR$/output/srx424_drUS_1603_test/r_US15_png/r_patient_004_0_34_flow_pred.png" />
     <entry file="file://$PROJECT_DIR$/output/srx424_drUS_1603_test/r_US1_png/r_volunteer_12_hs_0_19_flow_pred.png" />
     <entry file="file:///usr/lib/python3.6/configparser.py">
-=======
-    <entry file="file://$PROJECT_DIR$/output/srx100_drUS_oldloss_1303test/r_US1_png/r_volunteer_12_hs.npz_0_40_flow_gt.png" />
-    <entry file="file://$PROJECT_DIR$/output/srx100_drUS_oldloss_1303test/r_US1_png/r_volunteer_12_hs.npz_0_40_flow_pred.png" />
-    <entry file="file://$PROJECT_DIR$/output/srx100_drUS_oldloss_1303test/r_US30_png/r_volunteer_12_hs.npz_0_40_flow_gt.png" />
-    <entry file="file://$PROJECT_DIR$/output/srx100_drUS_oldloss_1303test/r_US30_png/r_volunteer_12_hs.npz_0_40_flow_pred.png" />
-    <entry file="file://$PROJECT_DIR$/output/srx100_drUS_oldloss_1303test/s_US8_png/s_volunteer_12_hs.npz_0_40_flow_pred.png" />
-    <entry file="file://$PROJECT_DIR$/output/srx100_drUS_oldloss_1303test/s_US8_png/s_volunteer_12_hs.npz_0_40_flow_gt.png" />
-    <entry file="file://$PROJECT_DIR$/output/srx100_drUS_oldloss_1303test/s_US1_png/s_volunteer_12_hs.npz_0_40_flow_pred.png" />
-    <entry file="file://$PROJECT_DIR$/output/srx100_drUS_oldloss_1303test/s_US1_png/s_volunteer_12_hs.npz_0_40_flow_gt.png" />
-    <entry file="file://$PROJECT_DIR$/output/srx100_drUS_oldloss_1303test/test_patient_info.txt" />
-    <entry file="file://$PROJECT_DIR$/output/flown_srx100_noUS_1303test/r_US1_png/r_volunteer_12_hs.npz_0_40_flow_gt.png" />
-    <entry file="file://$PROJECT_DIR$/output/flown_srx100_noUS_1303test/r_US1_png/r_volunteer_12_hs.npz_0_40_flow_pred.png" />
-    <entry file="file://$PROJECT_DIR$/output/flown_srx100_noUS_1303test/s_US30_png/s_volunteer_12_hs.npz_0_40_flow_gt.png" />
-    <entry file="file://$PROJECT_DIR$/output/flown_srx100_noUS_1303test/s_US30_png/s_volunteer_12_hs.npz_0_40_flow_pred.png" />
-    <entry file="file://$PROJECT_DIR$/output/flown_srx100_noUS_1303test/s_US8_png/s_volunteer_12_hs.npz_0_40_flow_gt.png" />
-    <entry file="file://$PROJECT_DIR$/output/flown_srx100_noUS_1303test/s_US1_png/s_volunteer_12_hs.npz_0_40_flow_pred.png" />
-    <entry file="file://$PROJECT_DIR$/output/flown_srx100_noUS_1303test/s_US8_png/s_volunteer_12_hs.npz_0_40_flow_pred.png" />
-    <entry file="file://$PROJECT_DIR$/output/srx100_drUS_oldloss_1303test/r_US1_loss.txt" />
-    <entry file="file://$PROJECT_DIR$/output/srx100_drUS_oldloss_1303test/s_US1_loss.txt" />
-    <entry file="file://$PROJECT_DIR$/output/flown_srx100_noUS_1303test/s_US1_png/s_volunteer_12_hs.npz_0_40_flow_gt.png" />
-    <entry file="file://$PROJECT_DIR$/output/flown_srx100_noUS_1303test/s_US1_loss.txt" />
-    <entry file="file://$PROJECT_DIR$/output/srx100_drUS_oldloss_1303test/s_US30_png/s_volunteer_12_hs.npz_0_40_flow_pred.png" />
-    <entry file="file://$PROJECT_DIR$/output/srx100_drUS_oldloss_1303test/s_US30_png/s_volunteer_12_hs.npz_0_40_flow_gt.png" />
-    <entry file="file://$PROJECT_DIR$/../../venv_pan/python3_general/lib/python3.6/site-packages/tensorflow/python/framework/ops.py">
->>>>>>> 1104
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="309">
           <caret line="1091" selection-start-line="1091" selection-end-line="1091" />
@@ -1073,88 +870,42 @@
         </state>
       </provider>
     </entry>
-<<<<<<< HEAD
     <entry file="file://$PROJECT_DIR$/src/e2eflow/core/losses.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="960">
           <caret line="69" column="52" selection-start-line="69" selection-start-column="41" selection-end-line="69" selection-end-column="52" />
-=======
-    <entry file="file://$PROJECT_DIR$/../../venv_pan/python3_general/lib/python3.6/site-packages/absl/flags/_flagvalues.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="6225">
-          <caret line="429" selection-start-line="429" selection-end-line="429" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/e2eflow/core/flownet.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="4605">
-          <caret line="315" column="34" selection-start-line="315" selection-start-column="34" selection-end-line="315" selection-end-column="34" />
->>>>>>> 1104
           <folding>
             <element signature="e#0#23#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-<<<<<<< HEAD
     <entry file="file://$PROJECT_DIR$/src/e2eflow/core/train.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1170">
           <caret line="98" column="50" selection-start-line="98" selection-start-column="50" selection-end-line="98" selection-end-column="50" />
           <folding>
             <element signature="e#0#9#0" expanded="true" />
-=======
-    <entry file="file://$PROJECT_DIR$/src/e2eflow/core/supervised.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1650">
-          <caret line="119" selection-start-line="119" selection-end-line="119" />
-          <folding>
-            <element signature="e#0#23#0" expanded="true" />
->>>>>>> 1104
           </folding>
         </state>
       </provider>
     </entry>
-<<<<<<< HEAD
     <entry file="file://$PROJECT_DIR$/src/e2eflow/core/util.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="390">
           <caret line="31" selection-start-line="31" selection-end-line="31" />
-=======
-    <entry file="file://$PROJECT_DIR$/src/e2eflow/core/unsupervised.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1185">
-          <caret line="89" column="32" selection-start-line="89" selection-start-column="28" selection-end-line="89" selection-end-column="32" />
->>>>>>> 1104
           <folding>
             <element signature="e#0#23#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-<<<<<<< HEAD
     <entry file="file://$PROJECT_DIR$/src/run.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1095">
           <caret line="87" column="55" selection-start-line="87" selection-start-column="55" selection-end-line="87" selection-end-column="55" />
           <folding>
             <element signature="e#19#28#0" expanded="true" />
-=======
-    <entry file="file://$PROJECT_DIR$/../../venv_pan/python3_general/lib/python3.6/site-packages/tensorflow/python/platform/app.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="615">
-          <caret line="126" selection-start-line="126" selection-end-line="126" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/eval_gui_new.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2070">
-          <caret line="166" selection-start-line="166" selection-end-line="166" />
-          <folding>
-            <element signature="e#0#9#0" expanded="true" />
->>>>>>> 1104
           </folding>
         </state>
       </provider>
@@ -1166,7 +917,6 @@
     <entry file="file://$PROJECT_DIR$/output/flown_srx100_noUS_1303test/r_US30_loss.txt" />
     <entry file="file://$USER_HOME$/.PyCharmCE2019.1/system/python_stubs/661248834/builtins.py">
       <provider selected="true" editor-type-id="text-editor">
-<<<<<<< HEAD
         <state relative-caret-position="45">
           <caret line="3" column="12" selection-start-line="3" selection-start-column="12" selection-end-line="3" selection-end-column="12" />
         </state>
@@ -1176,41 +926,16 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="255">
           <caret line="19" column="65" selection-start-line="19" selection-start-column="65" selection-end-line="19" selection-end-column="65" />
-=======
-        <state relative-caret-position="193">
-          <caret line="1269" column="8" selection-start-line="1269" selection-start-column="8" selection-end-line="1269" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/patch_eval_gui.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="5745">
-          <caret line="391" column="4" selection-start-line="391" selection-start-column="4" selection-end-line="391" selection-end-column="19" />
->>>>>>> 1104
           <folding>
             <element signature="e#0#9#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-<<<<<<< HEAD
     <entry file="file://$PROJECT_DIR$/src/e2eflow/core/supervised.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="387">
           <caret line="95" selection-start-line="95" selection-end-line="95" />
-=======
-    <entry file="file://$PROJECT_DIR$/src/exec">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="15">
-          <caret line="1" selection-start-line="1" selection-end-line="1" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/e2eflow/core/losses.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="960">
-          <caret line="69" column="52" selection-start-line="69" selection-start-column="41" selection-end-line="69" selection-end-column="52" />
->>>>>>> 1104
           <folding>
             <element signature="e#0#23#0" expanded="true" />
           </folding>
@@ -1219,20 +944,14 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/patch_eval_gui.py">
       <provider selected="true" editor-type-id="text-editor">
-<<<<<<< HEAD
         <state relative-caret-position="227">
           <caret line="236" column="20" lean-forward="true" selection-start-line="236" selection-start-column="20" selection-end-line="236" selection-end-column="20" />
-=======
-        <state relative-caret-position="1170">
-          <caret line="98" column="50" selection-start-line="98" selection-start-column="50" selection-end-line="98" selection-end-column="50" />
->>>>>>> 1104
           <folding>
             <element signature="e#0#9#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-<<<<<<< HEAD
     <entry file="file://$PROJECT_DIR$/src/e2eflow/test/Warp_assessment3D.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="180">
@@ -1292,53 +1011,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="435">
           <caret line="80" column="14" selection-start-line="80" selection-start-column="14" selection-end-line="80" selection-end-column="14" />
-=======
-    <entry file="file://$PROJECT_DIR$/src/e2eflow/core/util.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="390">
-          <caret line="31" selection-start-line="31" selection-end-line="31" />
-          <folding>
-            <element signature="e#0#23#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/run.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="210">
-          <caret line="14" selection-start-line="14" selection-end-line="14" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/e2eflow/test/Warp_assessment3D.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="510">
-          <caret line="34" column="13" selection-start-line="34" selection-start-column="13" selection-end-line="34" selection-end-column="13" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/e2eflow/core/sampling.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="255">
-          <caret line="19" column="65" selection-start-line="19" selection-start-column="65" selection-end-line="19" selection-end-column="65" />
-          <folding>
-            <element signature="e#0#9#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/config.ini">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="238">
-          <caret line="171" column="4" selection-start-line="171" selection-start-column="4" selection-end-line="171" selection-end-column="4" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/e2eflow/kitti/input.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="96">
-          <caret line="511" column="21" selection-start-line="511" selection-start-column="21" selection-end-line="511" selection-end-column="21" />
->>>>>>> 1104
           <folding>
             <element signature="e#1292#1583#0" />
             <element signature="e#2504#2639#0" />

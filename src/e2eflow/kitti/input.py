@@ -431,25 +431,24 @@ class MRI_Resp_2D(Input):
             # im2 = mov[..., 35]
             # u = u[..., :2][..., 35, :]
             # save_imgs_with_arrow(im1, im2, u)
-            if US is not 1:
+            if US:
                 if US == 'random':
-                    acc = np.random.choice(np.arange(1, 18, 4))
+                    acc = np.random.choice(np.arange(1, 32, 6))
                 else:
                     try:
                         acc = US
                     except ImportError:
                         print("Wrong undersampling rate is given")
                         continue
-                if acc is not 1:
-                    if mask_type == 'US':
-                        mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))
-                    elif mask_type == 'center':
-                        mask = sampleCenter(1 / acc * 100, 256, 72)
-                        mask = np.array([mask, ] * 4, dtype=np.float32)
-                    k_ref = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
-                    k_mov = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
-                    ref = (np.fft.ifftn(k_ref)).real
-                    mov = (np.fft.ifftn(k_mov)).real
+                if mask_type == 'US':
+                    mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))
+                elif mask_type == 'center':
+                    mask = sampleCenter(1 / acc * 100, 256, 72)
+                    mask = np.array([mask, ] * 4, dtype=np.float32)
+                k_ref = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
+                k_mov = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
+                ref = (np.fft.ifftn(k_ref)).real
+                mov = (np.fft.ifftn(k_mov)).real
 
             data_3D = np.stack((ref, mov, u[..., 0], u[..., 1]), axis=-1)
             data_3D = np.moveaxis(data_3D, 2, 0)

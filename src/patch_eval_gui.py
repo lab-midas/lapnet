@@ -120,7 +120,8 @@ def _evaluate_experiment(name, data, config):
     smooth_wind_size = config['smooth_wind_size']
     height = params['height']
     width = params['width']
-
+    height = 192
+    width = 156
     with tf.Graph().as_default(): #, tf.device('gpu:' + FLAGS.gpu):
         test_batch, im1, im2, flow_orig, pos = data()
 
@@ -431,6 +432,7 @@ def main(argv=None):
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
 
     config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz']
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz']
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_035.npz',
@@ -442,7 +444,7 @@ def main(argv=None):
 
     # 0: constant generated flow, 1: smooth generated flow, 2: matlab simulated test data 3: simulated_x smooth 4: cross test without gt
     config['test_types'] = [2]
-    config['US_acc'] = [8]
+    config['US_acc'] = [1]
     # config['US_acc'] = list(range(1, 32, 2))
     # config['test_types'] = list(2*np.ones(len(config['US_acc']), dtype=np.int))
 
@@ -450,7 +452,7 @@ def main(argv=None):
     config['mask_type'] = 'center'
     # config['mask_type'] = 'US'
     config['selected_frames'] = [0]
-    config['selected_slices'] = [34]
+    config['selected_slices'] = [11]
     config['amplitude'] = 10
     config['network'] = 'ftflownet'
     config['batch_size'] = 64
@@ -478,7 +480,7 @@ def main(argv=None):
         data_input = MRI_Resp_2D(data=kdata,
                                  batch_size=config['batch_size'],
                                  normalize=False,
-                                 dims=(256, 256))
+                                 dims=(192, 174))
         FLAGS.num = 1
 
 
@@ -496,7 +498,7 @@ def main(argv=None):
     input_cf['crop_stride'] = config['crop_stride']
     input_cf['cross_test'] = False
 
-    info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info.ods"
+    info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/card/slice_info_card.ods"
     ods = get_data(info_file)
     slice_info = {value[0]: list(range(*[int(j) - 1 for j in value[1].split(',')])) for value in ods["Sheet1"] if
                   len(value) is not 0}
@@ -508,7 +510,7 @@ def main(argv=None):
 
     for name in FLAGS.ex.split(','):
         if config['save_results']:
-            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'_test')
+            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'_card')
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)
 

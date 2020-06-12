@@ -104,6 +104,8 @@ def _evaluate_experiment(name, data, config):
     batch_size = config['batch_size']
     height = params['height']
     width = params['width']
+    height = 192
+    width = 156
 
     with tf.Graph().as_default(): #, tf.device('gpu:' + FLAGS.gpu):
         test_batch, im1, im2, flow_orig = data()
@@ -376,7 +378,7 @@ def main(argv=None):
     config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
                           '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
                           '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
-
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
     config['test_types'] = [2,2]
     config['US_acc'] = [1,8]
@@ -386,7 +388,7 @@ def main(argv=None):
     # config['mask_type'] = 'center'
     config['mask_type'] = 'US'
     config['selected_frames'] = [0]
-    # config['selected_slices'] = [34]
+    config['selected_slices'] = [11]
     config['amplitude'] = 10
     config['network'] = 'flownet'
     config['batch_size'] = 64
@@ -422,7 +424,7 @@ def main(argv=None):
     input_cf['use_given_US_mask'] = True
     input_cf['cross_test'] = False
 
-    info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info.ods"
+    info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/card/slice_info_card.ods"
     ods = get_data(info_file)
     slice_info = {value[0]: list(range(*[int(j) - 1 for j in value[1].split(',')])) for value in ods["Sheet1"] if
                   len(value) is not 0}
@@ -434,7 +436,7 @@ def main(argv=None):
 
     for name in FLAGS.ex.split(','):
         if config['save_results']:
-            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'_test')
+            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'_card')
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)
 

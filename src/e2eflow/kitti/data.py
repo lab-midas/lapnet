@@ -79,9 +79,9 @@ def exclude_test_and_train_images(kitti_dir, exclude_lists_dir, exclude_target_d
 
 
 class KITTIData(Data):
-    KITTI_RAW_URL = 'https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/'
-    KITTI_2012_URL = 'https://s3.eu-central-1.amazonaws.com/avg-kitti/data_stereo_flow.zip'
-    KITTI_2015_URL = 'https://s3.eu-central-1.amazonaws.com/avg-kitti/data_scene_flow.zip'
+    # KITTI_RAW_URL = 'https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/'
+    # KITTI_2012_URL = 'https://s3.eu-central-1.amazonaws.com/avg-kitti/data_stereo_flow.zip'
+    # KITTI_2015_URL = 'https://s3.eu-central-1.amazonaws.com/avg-kitti/data_scene_flow.zip'
 
     dirs = ['data_stereo_flow', 'data_scene_flow', 'kitti_raw']
 
@@ -93,9 +93,9 @@ class KITTIData(Data):
 
     def _fetch_if_missing(self):
         pass
-        self._maybe_get_kitti_raw()
-        self._maybe_get_kitti_2012()
-        self._maybe_get_kitti_2015()
+        # self._maybe_get_kitti_raw()
+        # self._maybe_get_kitti_2012()
+        # self._maybe_get_kitti_2015()
 
     def get_raw_dirs(self):
        top_dir = os.path.join(self.current_dir, 'kitti_raw')
@@ -126,7 +126,7 @@ class KITTIData(Data):
         local_dir = os.path.join(self.data_dir, 'kitti_raw')
         records = raw_records.get_kitti_records(self.development)
         downloaded_records = False
-          
+
         for i, record in enumerate(records):
             date_str = record.split("_drive_")[0]
             foldername = record + "_extract"
@@ -145,7 +145,7 @@ class KITTIData(Data):
             tryremove(os.path.join(local_path, 'oxts'))
             tryremove(os.path.join(local_path, 'image_00'))
             tryremove(os.path.join(local_path, 'image_01'))
-            
+
         if downloaded_records:
             print("Downloaded all KITTI raw files.")
             exclude_target_dir = os.path.join(self.data_dir, 'exclude_target_dir')

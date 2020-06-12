@@ -24,6 +24,7 @@ from ..core.flow_util import flow_to_color
 from ..core.image_warp import np_warp_2D, np_warp_3D
 from ..core.sampling import generate_mask
 from ..core.sampling_center import sampleCenter
+from ..core.card_US.retrospective_radial import subsample_radial
 from ..core.sampling_2 import generate_mask_2
 from e2eflow.core.flow_util import flow_to_color_np
 
@@ -384,8 +385,8 @@ class MRI_Resp_2D(Input):
                       slice_info,
                       aug_type,
                       amp=5,
-                      mask_type='US',
-                      US='random',
+                      mask_type='drUS',
+                      US_rate='random',
                       num_to_take=1500):
         output = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
         if num_to_take == 0:
@@ -431,18 +432,19 @@ class MRI_Resp_2D(Input):
             # im2 = mov[..., 35]
             # u = u[..., :2][..., 35, :]
             # save_imgs_with_arrow(im1, im2, u)
-            if US:
-                if US == 'random':
+
+            if US_rate:
+                if US_rate == 'random':
                     acc = np.random.choice(np.arange(1, 32, 6))
                 else:
                     try:
-                        acc = US
+                        acc = US_rate
                     except ImportError:
                         print("Wrong undersampling rate is given")
                         continue
-                if mask_type == 'US':
+                if mask_type == 'drUS':
                     mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))
-                elif mask_type == 'center':
+                elif mask_type == 'crUS':
                     mask = sampleCenter(1 / acc * 100, 256, 72)
                     mask = np.array([mask, ] * 4, dtype=np.float32)
                 k_ref = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
@@ -461,6 +463,8 @@ class MRI_Resp_2D(Input):
             # ax[1].imshow(Imgs[10,...,1], cmap='gray')
             # plt.show()
 
+
+
             output = np.concatenate((output, Imgs), axis=0)
             i += 1
             if i == len(fn_im_paths):
@@ -468,7 +472,7 @@ class MRI_Resp_2D(Input):
                     i = 0
                 else:
                     break
-        print("{} real simulated data are generated".format((len(output))))
+        print("{} real {} data are generated".format(num_to_take, aug_type))
 
         return np.asarray(output[:num_to_take, ...], dtype=np.float32)
 
@@ -490,6 +494,7 @@ class MRI_Resp_2D(Input):
         # num_smooth = int(params.get('augment_type_percent')[1] / params.get('augment_type_percent')[2] * num_real)
         # num_real_x_smooth = int(params.get('augment_type_percent')[3] / params.get('augment_type_percent')[2] * num_real)
 
+
         batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
         fn_im_paths = self.get_data_paths(img_dirs)
         aug_data_constant = self.load_aug_data(fn_im_paths,
@@ -497,7 +502,7 @@ class MRI_Resp_2D(Input):
                                                aug_type='constant',
                                                amp=params.get('flow_amplitude'),
                                                mask_type=params.get('mask_type'),
-                                               US=(params.get('us_rate')),
+                                               US_rate=(params.get('us_rate')),
                                                num_to_take=num_constant)
 
         np.random.shuffle(fn_im_paths)
@@ -506,16 +511,16 @@ class MRI_Resp_2D(Input):
                                              aug_type='smooth',
                                              amp=params.get('flow_amplitude'),
                                              mask_type=params.get('mask_type'),
-                                             US=(params.get('us_rate')),
+                                             US_rate=(params.get('us_rate')),
                                              num_to_take=num_smooth)
-
+        # np.save('/home/jpa19/PycharmProjects/MA/UnFlow/hardcoded_data_USfalse', aug_data_smooth)
         np.random.shuffle(fn_im_paths)
         aug_data_real = self.load_aug_data(fn_im_paths,
                                            slice_info,
                                            aug_type='real',
                                            amp=params.get('flow_amplitude'),
                                            mask_type=params.get('mask_type'),
-                                           US=(params.get('us_rate')),
+                                           US_rate=(params.get('us_rate')),
                                            num_to_take=num_real)
 
         np.random.shuffle(fn_im_paths)
@@ -524,7 +529,7 @@ class MRI_Resp_2D(Input):
                                                     aug_type='real_x_smooth',
                                                     amp=5,
                                                     mask_type=params.get('mask_type'),
-                                                    US=(params.get('us_rate')),
+                                                    US_rate=(params.get('us_rate')),
                                                     num_to_take=num_real_x_smooth)
 
         batches = np.concatenate((batches, aug_data_real, aug_data_constant, aug_data_smooth, aug_data_real_x_smooth), axis=0)

@@ -43,6 +43,7 @@ def restore_networks(sess, params, ckpt, ckpt_path=None):
     saver = tf.train.Saver(variables_to_save, max_to_keep=1000)
 
     sess.run(tf.global_variables_initializer())
+    sess.run(tf.local_variables_initializer())
 
     if ckpt is not None:
         # continue training

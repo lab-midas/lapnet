@@ -1,4 +1,2 @@
-python3 patch_eval_gui.py --ex srx028_drUS_1603
 python3 patch_eval_gui.py --ex srx424_drUS_1603
-
-
+python3 eval_gui_new.py --ex flown_srx424_noUS_2003

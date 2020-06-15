@@ -58,6 +58,28 @@ FLAGS = tf.app.flags.FLAGS
 
 NUM_EXAMPLES_PER_PAGE = 4
 
+def cal_loss_mean(loss_dir):
+    if os.path.exists(os.path.join(loss_dir, 'mean_loss_EPE.txt')):
+        raise ImportError('mean value of EPE already calculated')
+    if os.path.exists(os.path.join(loss_dir, 'mean_loss_EAE.txt')):
+        raise ImportError('mean value of EAE already calculated')
+    files = os.listdir(loss_dir)
+    files.sort()
+    mean = dict()
+    for file in files:
+        with open(os.path.join(loss_dir, file), 'r') as f:
+            data = [float(i) for i in f.readlines()]
+            mean[file.split('.')[0]] = np.mean(data)
+    f1 = open(os.path.join(loss_dir, 'mean_loss_EPE.txt'), "a")
+    f2 = open(os.path.join(loss_dir, 'mean_loss_EAE.txt'), "a")
+    for name in mean:
+        if 'EPE' in name:
+            f1.write('{}:{}\n'.format('_'.join(name.split('_')[:2]), round(mean[name], 5)))
+        else:
+            f2.write('{}:{}\n'.format('_'.join(name.split('_')[:2]), round(mean[name], 5)))
+    f1.close()
+    f2.close()
+
 
 def cal_loss_mean(loss_dir):
     if os.path.exists(os.path.join(loss_dir, 'mean_loss.txt')):
@@ -97,6 +119,8 @@ def _evaluate_experiment(name, data, config):
     batch_size = config['batch_size']
     height = params['height']
     width = params['width']
+    height = 192
+    width = 156
 
     with tf.Graph().as_default(): #, tf.device('gpu:' + FLAGS.gpu):
         test_batch, im1, im2, flow_orig = data()
@@ -122,25 +146,45 @@ def _evaluate_experiment(name, data, config):
             coord.request_stop()
             coord.join(threads)
 
-        u_GT = (flow_orig[..., 0], flow_orig[..., 1])  # tuple
-        u_est = (flow_final[..., 0], flow_final[..., 1])  # tuple
-        OF_index = u_GT[0] != np.nan  # *  u_GT[0] >= 0
-        error_data_pred = warp_assessment3D(u_GT, u_est, OF_index)
+        error_data_pred = []
+        for u_est, u_gt in zip(flow_final, flow_orig):
+            u_est_1 = (u_est[..., 0], u_est[..., 1])
+            u_gt_1 = (u_gt[..., 0], u_gt[..., 1])
+            OF_index = u_gt_1[0] != np.nan
+            error_single_pred = warp_assessment3D(u_gt_1, u_est_1, OF_index)
+            error_data_pred.append(error_single_pred)
 
-        size_mtx = np.shape(flow_orig[..., 0])
-        u_GT = (np.zeros(size_mtx, dtype=np.float32), np.zeros(size_mtx, dtype=np.float32))  # tuple
-        u_est = (flow_orig[..., 0], flow_orig[..., 1])  # tuple
-        OF_index = u_GT[0] != np.nan  # *  u_GT[0] >= 0
-        error_data_gt = warp_assessment3D(u_GT, u_est, OF_index)
+        error_data_gt = []
+        for u_est in flow_orig:
+            u_est_1 = (u_est[..., 0], u_est[..., 1])
+            u_gt_1 = [np.zeros((params['height'], params['width']), dtype=np.float32), ] * 2
+            OF_index = u_gt_1[0] != np.nan
+            error_single_gt = warp_assessment3D(u_gt_1, u_est_1, OF_index)
+            error_data_gt.append(error_single_gt)
 
-        final_loss_orig = error_data_gt['Abs_Error_mean']
-        final_loss = error_data_pred['Abs_Error_mean']
-        final_loss_orig_angel = error_data_gt['Angle_Error_Mean']
-        final_loss_angel = error_data_pred['Angle_Error_Mean']
-        # final_loss_orig = np.mean(np.sqrt(np.sum(np.square(flow_orig), 3)))
-        # #final_loss_orig = np.mean(np.square(flow_orig))
-        # final_loss = np.mean(np.sqrt(np.sum(np.square(flow_final-flow_orig), 3)))
-        # #final_loss = np.mean(np.square(flow_final-flow_orig))
+        final_loss_orig = [i['Abs_Error_mean'] for i in error_data_gt]
+        final_loss = [i['Abs_Error_mean'] for i in error_data_pred]
+        final_loss_orig_angel = [i['Angle_Error_Mean'] for i in error_data_gt]
+        final_loss_angel = [i['Angle_Error_Mean'] for i in error_data_pred]
+
+        # # deprecated
+        # u_GT = (flow_orig[..., 0], flow_orig[..., 1])  # tuple
+        # u_est = (flow_final[..., 0], flow_final[..., 1])  # tuple
+        # OF_index = u_GT[0] != np.nan  # *  u_GT[0] >= 0
+        # error_data_pred = warp_assessment3D(u_GT, u_est, OF_index)
+        # size_mtx = np.shape(flow_orig[..., 0])
+        # u_GT = (np.zeros(size_mtx, dtype=np.float32), np.zeros(size_mtx, dtype=np.float32))  # tuple
+        # u_est = (flow_orig[..., 0], flow_orig[..., 1])  # tuple
+        # OF_index = u_GT[0] != np.nan  # *  u_GT[0] >= 0
+        # error_data_gt = warp_assessment3D(u_GT, u_est, OF_index)
+        # final_loss_orig = error_data_gt['Abs_Error_mean']
+        # final_loss = error_data_pred['Abs_Error_mean']
+        # final_loss_orig_angel = error_data_gt['Angle_Error_Mean']
+        # final_loss_angel = error_data_pred['Angle_Error_Mean']
+        # # final_loss_orig = np.mean(np.sqrt(np.sum(np.square(flow_orig), 3)))
+        # # #final_loss_orig = np.mean(np.square(flow_orig))
+        # # final_loss = np.mean(np.sqrt(np.sum(np.square(flow_final-flow_orig), 3)))
+        # # #final_loss = np.mean(np.square(flow_final-flow_orig))
 
         im1_pred = [np_warp_2D(i, j) for i, j in zip(list(im2), list(-flow_final))]
         im1_gt = [np_warp_2D(i, j) for i, j in zip(list(im2), list(-flow_orig))]
@@ -227,21 +271,36 @@ def save_results(output_dir, results, config, input_cf):
         save_dir = os.path.join(output_dir, dir_name)
         if not os.path.exists(save_dir):
             os.mkdir(save_dir)
-        print("Original Flow Loss: {}".format(results['loss_orig']))
-        print("Smoothing Flow Loss: {}".format(results['loss_pred']))
-        file_name = test_name + '_EPE_loss.txt'
-        output_file_loss = os.path.join(save_dir, file_name)
-        f = open(output_file_loss, "a")
-        # f.write("{}\n".format(results['loss_ang_orig']))
-        f.write("{}\n".format(results['loss_pred']))
-        f.close()
+        file_name_EPE = test_name + '_EPE_loss.txt'
+        file_name_EAE = test_name + '_EAE_loss.txt'
+        output_file_EPE = os.path.join(save_dir, file_name_EPE)
+        output_file_EAE = os.path.join(save_dir, file_name_EAE)
+        f1 = open(output_file_EPE, "a")
+        f2 = open(output_file_EAE, "a")
+        for epe, eae in zip(results['loss_pred'], results['loss_ang_pred']):
+            print("EPE: {}".format(epe))
+            print("EAE: {}".format(eae))
+            f1.write("{}\n".format(epe))
+            f2.write("{}\n".format(eae))
+        f1.close()
+        f2.close()
 
-        file_name = test_name + '_EAE_loss.txt'
-        output_file_loss = os.path.join(save_dir, file_name)
-        f = open(output_file_loss, "a")
-        # f.write("{}\n".format(results['loss_orig']))
-        f.write("{}\n".format(results['loss_ang_pred']))
-        f.close()
+        # print("Original Flow Loss: {}".format(results['loss_orig']))
+        # print("Smoothing Flow Loss: {}".format(results['loss_pred']))
+        # file_name = test_name + '_EPE_loss.txt'
+        # output_file_loss = os.path.join(save_dir, file_name)
+        # f = open(output_file_loss, "a")
+        # # f.write("{}\n".format(results['loss_orig']))
+        # f.write("{}\n".format(results['loss_pred']))
+        # f.close()
+        #
+        # file_name = test_name + '_EAE_loss.txt'
+        # output_file_loss = os.path.join(save_dir, file_name)
+        # f = open(output_file_loss, "a")
+        # # f.write("{}\n".format(results['loss_ang_orig']))
+        # f.write("{}\n".format(results['loss_ang_pred']))
+        # f.close()
+
     patient = input_cf['path'].split('/')[-1].split('.')[0]
     i = 0
     for s in input_cf['slice']:
@@ -321,23 +380,33 @@ def main(argv=None):
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     config = {}
-    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk',
-    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/06_la',
-    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
-    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk']
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz']
+
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk',
+                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/06_la',
+                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz']
+
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_035.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_036.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
-     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
-    # config['test_types'] = [1, 1, 1, 2, 2, 2]
-    # config['US_acc'] = [1, 8, 30, 1, 8, 30]
-    config['test_types'] = list(np.ones(31, dtype=np.int))
-    config['US_acc'] = list(range(1, 32))
+
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
+                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
+                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz']
+    # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
+    config['test_types'] = [2,2]
+    config['US_acc'] = [1,8]
+    # config['US_acc'] = list(range(1, 32, 2))
+    # config['test_types'] = list(2 * np.ones(len(config['US_acc']), dtype=np.int))
+
+    # config['mask_type'] = 'center'
+    config['mask_type'] = 'US'
+
     config['selected_frames'] = [0]
-    config['selected_slices'] = [40]
+    config['selected_slices'] = [11]
     config['amplitude'] = 10
     config['network'] = 'flownet'
     config['batch_size'] = 64
@@ -346,7 +415,7 @@ def main(argv=None):
     config['save_data_npz'] = False
     config['save_loss'] = True
     config['save_pdf'] = False
-    config['save_png'] = True
+    config['save_png'] = False
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))
@@ -373,15 +442,19 @@ def main(argv=None):
     input_cf['use_given_US_mask'] = True
     input_cf['cross_test'] = False
 
-    info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info.ods"
+    info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/card/slice_info_card.ods"
     ods = get_data(info_file)
     slice_info = {value[0]: list(range(*[int(j) - 1 for j in value[1].split(',')])) for value in ods["Sheet1"] if
                   len(value) is not 0}
+    if 'selected_slices' in config:
+        for patient in config['test_dir']:
+            name_pat = patient.split('/')[-1].split('.')[0]
+            slice_info[name_pat] = config['selected_slices']
     input_cf['slice_info'] = slice_info
 
     for name in FLAGS.ex.split(','):
         if config['save_results']:
-            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'test')
+            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'_card')
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)
 
@@ -389,15 +462,15 @@ def main(argv=None):
             for patient in config['test_dir']:
                 for frame in config['selected_frames']:
                     input_cf['path'] = patient
-                    if not config['selected_slices']:
-                        name_pat = patient.split('/')[-1].split('.')[0]
-                        input_cf['slice'] = slice_info[name_pat]
-                        config['selected_slices'] = slice_info[name_pat]
-                    else:
-                        input_cf['slice'] = config['selected_slices']
+
+                    name_pat = patient.split('/')[-1].split('.')[0]
+                    input_cf['slice'] = slice_info[name_pat]
+                    config['selected_slices'] = input_cf['slice']
+
                     input_cf['frame'] = frame
                     input_cf['u_type'] = u_type
                     # input_cf['use_given_u'] = config['new_u'][i]
+                    input_cf['mask_type'] = config['mask_type']
                     input_cf['US_acc'] = config['US_acc'][i]
                     # input_cf['use_given_US_mask'] = config['new_US_mask'][i]
                     if config['save_results']:

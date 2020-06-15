@@ -4,6 +4,7 @@ out
 data/
 log/
 output/
+.idea/
 src/playground.py
 *npy
 *npz

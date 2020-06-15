@@ -3,7 +3,7 @@ import os
 import copy
 import json
 import numpy as np
-
+import random
 import tensorflow as tf
 from tensorflow.python.client import device_lib
 from pyexcel_ods import get_data
@@ -36,7 +36,13 @@ def main(argv=None):
     run_config = experiment.config['run']
 
     gpu_list_param = run_config['gpu_list']
-
+    np.random.seed(1)
+    tf.set_random_seed(1)
+    random.seed(1)
+    os.unsetenv('PYTHONHASHSEED')
+    os.environ['PYTHONHASHSEED'] = '1'
+    os.unsetenv('TF_CUDNN_DETERMINISTIC')
+    os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
     if isinstance(gpu_list_param, int):
         gpu_list = [gpu_list_param]
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_list_param)
@@ -83,12 +89,11 @@ def main(argv=None):
               devices=devices)
         tr.run(0, ftiters)
     elif train_dataset == 'resp_2D':
-        info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info.ods"
+        info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info_resp.ods"
         ods = get_data(info_file)
         slice_info = {value[0]: list(range(*[int(j) - 1 for j in value[1].split(',')])) for value in ods["Sheet1"] if
                       len(value) is not 0}
-        np.random.seed(0)
-        tf.set_random_seed(0)
+
         ftconfig = copy.deepcopy(experiment.config['train'])
         ftconfig.update(experiment.config['train_resp_2D'])
         convert_input_strings(ftconfig, dirs)

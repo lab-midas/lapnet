@@ -299,7 +299,6 @@ def flownet_s_kspace_in_33_out_4(inputs, channel_mult=1, full_res=False):
 
 
 def flownet_s_kspace_in_33(inputs, channel_mult=1, full_res=False):
-
     m = channel_mult
     # m = 3 / 8
     inputs = nhwc_to_nchw([inputs])[0]
@@ -318,7 +317,7 @@ def flownet_s_kspace_in_33(inputs, channel_mult=1, full_res=False):
         conv4_1 = slim.conv2d(conv4, int(1024 * m), 3, stride=1, scope='conv4_1')
 
     pool = slim.max_pool2d(conv4_1, 5, data_format='NCHW')
-    flatten_conv6_1 = slim.flatten(pool)
+    # flatten_conv6_1 = slim.flatten(pool)
 
     fc2 = slim.conv2d(pool,
                       2, [1, 1],

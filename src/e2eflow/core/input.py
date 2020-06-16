@@ -6,6 +6,7 @@ import tensorflow as tf
 import scipy.io as sio
 import h5py
 
+from skimage.util.shape import view_as_windows
 from .augment import random_crop
 
 
@@ -57,6 +58,83 @@ class Input():
         self.num_threads = num_threads
         self.normalize = normalize
         self.skipped_frames = skipped_frames
+
+    def get_data_paths(self, img_dirs):
+        fn_im_paths = []
+        if isinstance(img_dirs, str):
+            img_dirs = [img_dirs]
+        for img_dir in img_dirs:
+            if os.path.isfile(img_dir):
+                fn_im_paths.append(img_dir)
+                continue
+            img_dir = os.path.join(self.data.current_dir, img_dir)
+            img_files = os.listdir(img_dir)
+            for img_file in img_files:
+                if ('.mat' in img_file) or ('.npz' in img_file):
+                    im_path = os.path.join(img_dir, img_file)
+                    fn_im_paths.append(im_path)
+                else:
+                    if not img_file.startswith('.'):
+                        try:
+                            img_mat = os.listdir(os.path.join(img_dir, img_file))[0]
+                        except Exception:
+                            print("File {} is empty!".format(img_file))
+                            continue
+                        fn_im_paths.append(os.path.join(img_dir, img_file, img_mat))
+        return fn_im_paths
+
+    def crop2D_FixPts(self, arr, crop_size, box_num, pos):
+        """
+
+        :param arr: shape:[batch_size, img_size, img_size, n]
+        :param crop_size:
+        :param box_num:
+        :param pos:
+        :return:
+        """
+        arr_cropped_augmented = np.zeros((np.shape(arr)[0] * box_num, crop_size, crop_size, np.shape(arr)[-1]),
+                                         dtype=np.float32)
+        # if len(arr.shape()) is 4:
+        #     arr = arr[0, ...]
+        # elif len(arr.shape()) is 2:
+        #     arr = arr[..., np.newaxis]
+        # elif len(arr.shape()) is 3:
+        #     pass
+        # else:
+        #     raise ImportError
+        for batch in range(np.shape(arr)[0]):
+            for i in range(box_num):
+                arr_cropped_augmented[batch * box_num + i, ...] = arr[batch,
+                                                                      pos[0][i]:pos[0][i] + crop_size,
+                                                                      pos[1][i]:pos[1][i] + crop_size,
+                                                                      :]
+
+        return arr_cropped_augmented
+
+    def crop2D(self, arr, crop_size, box_num, pos=None, cut_margin=0):
+        """
+        :param arr:
+        :param crop_size:
+        :param box_num: crops per slices
+        :param pos: shape (2, n), pos_x and pos_y, n must be same as the box number. if pos=None, select random pos
+        :param cut_margin: margin that don't take into account
+        :return:
+        """
+        arr_cropped_augmented = np.zeros((arr.shape[0] * box_num, crop_size, crop_size, arr.shape[-1]), dtype=np.float32)
+        x_dim, y_dim = np.shape(arr)[1:3]
+        for i in range(box_num):
+            if pos is None:
+                x_pos = np.random.randint(0 + cut_margin, x_dim - crop_size + 1 - cut_margin, arr.shape[0])
+                y_pos = np.random.randint(0 + cut_margin, y_dim - crop_size + 1 - cut_margin, arr.shape[0])
+            else:
+                x_pos = pos[0]
+                y_pos = pos[1]
+
+            w = view_as_windows(arr, (1, crop_size, crop_size, 1))[..., 0, :, :, 0]
+            out = w[np.arange(arr.shape[0]), x_pos, y_pos]
+            out = out.transpose(0, 2, 3, 1)
+            arr_cropped_augmented[i * arr.shape[0]:(i + 1) * arr.shape[0], ...] = out
+        return arr_cropped_augmented
 
     def _resize_crop_or_pad(self, tensor):
         height, width = self.dims

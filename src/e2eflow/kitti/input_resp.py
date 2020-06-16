@@ -1,18 +1,11 @@
 import os
 import sys
 import math
-
 import time
 import cProfile
-
-
 import numpy as np
 import tensorflow as tf
 import random
-from skimage.util.shape import view_as_windows
-
-from pyexcel_ods import get_data
-from multiprocessing import Pool
 import matplotlib
 # matplotlib.use('pdf')
 # matplotlib.use('Agg')
@@ -24,8 +17,6 @@ from ..core.flow_util import flow_to_color
 from ..core.image_warp import np_warp_2D, np_warp_3D
 from ..core.sampling import generate_mask
 from ..core.sampling_center import sampleCenter
-from ..core.card_US.retrospective_radial import subsample_radial
-from ..core.sampling_2 import generate_mask_2
 from e2eflow.core.flow_util import flow_to_color_np
 
 
@@ -181,13 +172,6 @@ def _u_generation_2D(img_size, amplitude, motion_type=0):
 
     return u
 
-# # deprecated
-# def imgpair2kspace(arr, normalize=False):
-#     im1_kspace = to_freq_space(arr[..., 0])
-#     im2_kspace = to_freq_space(arr[..., 1])
-#
-#     return np.asarray(np.concatenate((im1_kspace, im2_kspace), axis=-1), dtype=np.float32)
-
 
 def arr2kspace(arr, normalize=False):
     """
@@ -203,23 +187,6 @@ def arr2kspace(arr, normalize=False):
         kspace = to_freq_space(arr[..., i], normalize=normalize)
         arr_kspace[..., 2*i:2*i+2] = kspace
     return arr_kspace
-
-
-# #deprecated
-# def image2kspace(y, normalize=False):
-#     """
-#     Prepares frequency data from image data: applies to_freq_space,
-#     expands the dimensions from 3D to 4D, and normalizes if normalize=True
-#     :param y: input image
-#     :param normalize: if True - the frequency data will be normalized
-#     :return: frequency data 4D array of size (1, im_size1, im_size2, 2)
-#     """
-#     x = to_freq_space(y)  # FFT: (256, 256, 2)
-#     #x = np.expand_dims(x, axis=0)  # (1, 256, 256, 2)
-#     if normalize:
-#         x = x - np.mean(x)
-#
-#     return x
 
 
 # haven't be tested
@@ -259,84 +226,6 @@ class MRI_Resp_2D(Input):
                  skipped_frames=False):
         super().__init__(data, batch_size, dims, num_threads=num_threads,
                          normalize=normalize, skipped_frames=skipped_frames)
-
-    def get_data_paths(self, img_dirs):
-        fn_im_paths = []
-        if isinstance(img_dirs, str):
-            img_dirs = [img_dirs]
-        for img_dir in img_dirs:
-            if os.path.isfile(img_dir):
-                fn_im_paths.append(img_dir)
-                continue
-            img_dir = os.path.join(self.data.current_dir, img_dir)
-            img_files = os.listdir(img_dir)
-            for img_file in img_files:
-                if ('.mat' in img_file) or ('.npz' in img_file):
-                    im_path = os.path.join(img_dir, img_file)
-                    fn_im_paths.append(im_path)
-                else:
-                    if not img_file.startswith('.'):
-                        try:
-                            img_mat = os.listdir(os.path.join(img_dir, img_file))[0]
-                        except Exception:
-                            print("File {} is empty!".format(img_file))
-                            continue
-                        fn_im_paths.append(os.path.join(img_dir, img_file, img_mat))
-        return fn_im_paths
-
-
-    def crop2D_FixPts(self, arr, crop_size, box_num, pos):
-        """
-
-        :param arr: shape:[batch_size, img_size, img_size, n]
-        :param crop_size:
-        :param box_num:
-        :param pos:
-        :return:
-        """
-        arr_cropped_augmented = np.zeros((np.shape(arr)[0] * box_num, crop_size, crop_size, np.shape(arr)[-1]),
-                                         dtype=np.float32)
-        # if len(arr.shape()) is 4:
-        #     arr = arr[0, ...]
-        # elif len(arr.shape()) is 2:
-        #     arr = arr[..., np.newaxis]
-        # elif len(arr.shape()) is 3:
-        #     pass
-        # else:
-        #     raise ImportError
-        for batch in range(np.shape(arr)[0]):
-            for i in range(box_num):
-                arr_cropped_augmented[batch * box_num + i, ...] = arr[batch,
-                                                                      pos[0][i]:pos[0][i] + crop_size,
-                                                                      pos[1][i]:pos[1][i] + crop_size,
-                                                                      :]
-
-        return arr_cropped_augmented
-
-    def crop2D(self, arr, crop_size, box_num, pos=None, cut_margin=0):
-        """
-        :param arr:
-        :param crop_size:
-        :param box_num: crops per slices
-        :param pos: shape (2, n), pos_x and pos_y, n must be same as the box number. if pos=None, select random pos
-        :param cut_margin: margin that don't take into account
-        :return:
-        """
-        arr_cropped_augmented = np.zeros((arr.shape[0] * box_num, crop_size, crop_size, arr.shape[-1]), dtype=np.float32)
-        x_dim, y_dim = np.shape(arr)[1:3]
-        for i in range(box_num):
-            if pos is None:
-                x_pos = np.random.randint(0 + cut_margin, x_dim - crop_size + 1 - cut_margin, arr.shape[0])
-                y_pos = np.random.randint(0 + cut_margin, y_dim - crop_size + 1 - cut_margin, arr.shape[0])
-            else:
-                x_pos = pos[0]
-                y_pos = pos[1]
-
-            w = view_as_windows(arr, (1, crop_size, crop_size, 1))[..., 0, :, :, 0]
-            out = w[np.arange(arr.shape[0]), x_pos, y_pos]
-            out = out.transpose(0, 2, 3, 1)
-            arr_cropped_augmented[i * arr.shape[0]:(i + 1) * arr.shape[0], ...] = out
-        return arr_cropped_augmented
 
     def save_real_simulated_data(self, fn_im_paths, selected_slices, save_path='/home/jpa19/PycharmProjects/MA/UnFlow/output/test/'):
         batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
@@ -457,7 +346,7 @@ class MRI_Resp_2D(Input):
                         continue
 
                 if mask_type == 'drUS':
-                    mask = np.transpose(generate_mask(acc=acc, nRep=4), (2, 1, 0))
+                    mask = np.transpose(generate_mask(acc=acc, size_y=256, nRep=4), (2, 1, 0))
                 elif mask_type == 'crUS':
                     mask = sampleCenter(1 / acc * 100, 256, 72)
                     mask = np.array([mask, ] * 4, dtype=np.float32)
@@ -492,7 +381,7 @@ class MRI_Resp_2D(Input):
 
         return np.asarray(output[:num_to_take, ...], dtype=np.float32)
 
-    def new_input_train_data(self, img_dirs, slice_info, params, case='train'):
+    def input_train_data(self, img_dirs, slice_info, params, case='train'):
         # strategy 1: fixed total number
         if case == 'train':
             total_data_num = params.get('total_data_num')
@@ -572,149 +461,6 @@ class MRI_Resp_2D(Input):
         else:
             raise ImportError('Wrong Network name is given')
         return [im1, im2, flow]
-
-    def input_train_data(self,
-                         img_dirs,
-                         img_dirs_real_simulated,
-                         selected_frames,
-                         params):
-
-        middle_slices = 40
-        slices_num_half = int(params.get('slices_to_take') / 2)
-        selected_slices = list(range(middle_slices - slices_num_half, middle_slices + slices_num_half))
-
-        if params.get('network') == 'flownet':
-            batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
-            real_simulated_data_num = math.floor(params.get('data_per_interval') * params.get('augment_type_percent')[2])
-            if real_simulated_data_num is not 0:
-                fn_im_paths = self.get_data_paths(img_dirs_real_simulated)
-                np.random.shuffle(fn_im_paths)
-                batches_real_simulated = self.load_real_simulated_data(fn_im_paths, selected_slices, real_simulated_data_num)
-                batches = np.concatenate((batches, batches_real_simulated), axis=0)
-
-            augmented_data_num = math.floor(params.get('data_per_interval') * sum(params.get('augment_type_percent')[:2]))
-            if augmented_data_num is not 0:
-                motion_1_share = params.get('augment_type_percent')[0] / sum(params.get('augment_type_percent')[:2])
-                motion_2_share = params.get('augment_type_percent')[1] / sum(params.get('augment_type_percent')[:2])
-                fn_im_paths = self.get_data_paths(img_dirs)
-                np.random.shuffle(fn_im_paths)
-                batches_augmented = self.augmentation_3D(fn_im_paths,
-                                                      [motion_1_share, motion_2_share],
-                                                      params.get('flow_amplitude'),
-                                                      selected_frames,
-                                                      selected_slices,
-                                                      given_u=False,
-                                                      max_num_to_take=augmented_data_num)
-                batches_augmented = batches_augmented[..., :4]  # no undersampling
-                batches = np.concatenate((batches, batches_augmented), axis=0)
-                # batches = np.concatenate((arr2kspace(batches[..., :2]), batches[..., 2:]), axis=-1)
-                np.random.shuffle(batches)
-
-            im1_queue = tf.train.slice_input_producer([batches[..., 0]], shuffle=False,
-                                                      capacity=len(list(batches[..., 0])), num_epochs=None)
-            im2_queue = tf.train.slice_input_producer([batches[..., 1]], shuffle=False,
-                                                      capacity=len(list(batches[..., 1])), num_epochs=None)
-            flow_queue = tf.train.slice_input_producer([batches[..., 2:]], shuffle=False,
-                                                       capacity=len(list(batches[..., 2:4])), num_epochs=None)
-            # num_queue = tf.train.slice_input_producer([patient_num], shuffle=False,
-            #                                            capacity=len(list(patient_num)), num_epochs=None)
-            train_batch = tf.train.batch([im1_queue, im2_queue, flow_queue],
-                                         batch_size=self.batch_size,
-                                         num_threads=self.num_threads)
-            return train_batch, len(batches)
-
-        elif params.get('network') == 'ftflownet':
-            batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
-            real_simulated_data_num = math.floor(
-                params.get('data_per_interval') * params.get('augment_type_percent')[2])
-            if real_simulated_data_num is not 0:
-                fn_im_paths = self.get_data_paths(img_dirs_real_simulated)
-                np.random.shuffle(fn_im_paths)
-                batches_real_simulated = self.load_real_simulated_data(fn_im_paths, selected_slices,
-                                                                       real_simulated_data_num)
-                # self.save_real_simulated_data(fn_im_paths, selected_slices)
-                batches = np.concatenate((batches, batches_real_simulated), axis=0)
-
-            augmented_data_num = math.floor(
-                params.get('data_per_interval') * sum(params.get('augment_type_percent')[:2]))
-            if augmented_data_num is not 0:
-                # batches = np.zeros((0, self.dims[0], self.dims[1], 6), dtype=np.float32)
-                fn_im_paths = self.get_data_paths(img_dirs)
-                np.random.shuffle(fn_im_paths)
-                motion_1_share = params.get('augment_type_percent')[0] / sum(params.get('augment_type_percent')[:2])
-                motion_2_share = params.get('augment_type_percent')[1] / sum(params.get('augment_type_percent')[:2])
-                batches_augmented = self.augmentation_3D(fn_im_paths,
-                                                      [motion_1_share, motion_2_share],
-                                                      params.get('flow_amplitude'),
-                                                      selected_frames,
-                                                      selected_slices,
-                                                      given_u=False,
-                                                      max_num_to_take=augmented_data_num)
-                batches_augmented = batches_augmented[..., :4]  # no undersampling
-                batches_augmented = np.concatenate((batches_augmented, batches), axis=0)
-            if not params.get('whole_kspace_training'):
-                radius = int((params.get('crop_size') - 1) / 2)
-                # if params.get('downsampling'):
-                #     batches_augmented[..., 2] = downsampling_2D(batches_augmented[..., 2])  # TODO
-                if params.get('padding'):
-                    batches_augmented = np.pad(batches_augmented,
-                                               ((0, 0), (radius, radius), (radius, radius), (0, 0)),
-                                               constant_values=0)
-                if params.get('random_crop'):
-                    batches_augmented = self.crop2D(batches_augmented,
-                                                    crop_size=params.get('crop_size'),
-                                                    box_num=params.get('crop_box_num'))
-                else:
-                    x_dim, y_dim = np.shape(batches_augmented)[1:3]
-                    pos = pos_generation_2D(intervall=[[0, x_dim - params.get('crop_size') + 1],
-                                                       [0, y_dim - params.get('crop_size') + 1]], stride=4)
-                    batches_augmented = self.crop2D_FixPts(batches_augmented,
-                                                           crop_size=params.get('crop_size'),
-                                                           box_num=np.shape(pos)[1], pos=pos)
-
-                batches = np.concatenate((arr2kspace(batches_augmented[..., :2]), batches_augmented[..., 2:]), axis=-1)
-                np.random.shuffle(batches)
-
-                flow = batches[:, radius, radius, 4:6]
-
-                # # take image domain as input, don't forget to change the queue channel number
-                # batches = batches_augmented
-                # np.random.shuffle(batches)
-                # radius = int((params.get('crop_size') - 1) / 2)
-                # flow = batches[:, radius, radius, 2:4]
-
-                # np.save('/home/jpa19/PycharmProjects/MA/UnFlow/same_data_for_test', batches)
-                # batches = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/same_data_for_test.npy')
-                im1_queue = tf.train.slice_input_producer([batches[..., :2]], shuffle=False,
-                                                          capacity=len(list(batches[..., 0])), num_epochs=None)
-                im2_queue = tf.train.slice_input_producer([batches[..., 2:4]], shuffle=False,
-                                                          capacity=len(list(batches[..., 1])), num_epochs=None)
-                flow_queue = tf.train.slice_input_producer([flow], shuffle=False,
-                                                           capacity=len(list(flow)), num_epochs=None)
-
-                train_batch = tf.train.batch([im1_queue, im2_queue, flow_queue],
-                                             batch_size=self.batch_size,
-                                             num_threads=self.num_threads)
-                return train_batch, len(batches)
-
-            else:  # whole k-space as input, fft(ux, uy) as label  TODO: a better solution for finding a proper label
-                batches_augmented = arr2kspace(batches_augmented)  # 4 (im1, im2, ux, uy)=> 8 channels
-                if params.get('random_crop'):
-                    batches = self.crop2D(batches_augmented, crop_size=33, box_num=params.get('crop_box_num'))
-                np.random.shuffle(batches)
-                radius = int((params.get('crop_size') - 1) / 2)
-                flow_k = batches[:, radius, radius, 4:8]
-
-                im1_queue = tf.train.slice_input_producer([batches[..., :2]], shuffle=False,
-                                                          capacity=len(list(batches[..., 0])), num_epochs=None)
-                im2_queue = tf.train.slice_input_producer([batches[..., 2:4]], shuffle=False,
-                                                          capacity=len(list(batches[..., 1])), num_epochs=None)
-                flow_queue = tf.train.slice_input_producer([flow_k], shuffle=False,
-                                                           capacity=len(list(flow_k)), num_epochs=None)
-                train_batch = tf.train.batch([im1_queue, im2_queue, flow_queue],
-                                             batch_size=self.batch_size,
-                                             num_threads=self.num_threads)
-                return train_batch, len(batches)
 
     def input_patch_test_data(self, config):
         test_types = config['test_types'][0]

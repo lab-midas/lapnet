@@ -97,7 +97,7 @@ def _eval_plot(results, image_names, title):
 
 
 class Trainer():
-    def __init__(self, train_batch_fn, train_whole_batch, eval_batch_fn, params,
+    def __init__(self, train_batch_fn, eval_batch_fn, params,
                  train_summaries_dir, eval_summaries_dir, ckpt_dir,
                  normalization, debug=False, experiment="", interactive_plot=False,
                  supervised=False, devices=None, LAP_layer=False):
@@ -108,7 +108,6 @@ class Trainer():
         self.params = params
         self.debug = debug
         self.train_batch_fn = train_batch_fn
-        self.train_whole_batch = train_whole_batch
         self.eval_batch_fn = eval_batch_fn
         self.normalization = normalization
         self.experiment = experiment
@@ -145,7 +144,7 @@ class Trainer():
 
         assert (max_iter - start_iter + 1) % save_interval == 0
         if self.params['long_term_train']:
-            pre_load_data = self.train_whole_batch()
+            pre_load_data = self.train_batch_fn()
             test_pro_load_data = self.eval_batch_fn()
             idx = 0
             percent = int(len(pre_load_data[0]) / self.params['divisor'])  # 20: hard code

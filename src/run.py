@@ -12,7 +12,7 @@ from e2eflow.core.train import Trainer
 from e2eflow.experiment import Experiment
 from e2eflow.util import convert_input_strings
 
-from e2eflow.kitti.input import KITTIInput, MRI_Resp_2D  # MRI_Resp_3D
+from e2eflow.kitti.input_resp import KITTIInput, MRI_Resp_2D  # MRI_Resp_3D
 from e2eflow.kitti.data import KITTIData
 
 
@@ -65,30 +65,7 @@ def main(argv=None):
                         normalize=False,
                         dims=(384, 1280))
 
-    if train_dataset == 'mri_resp_3D':
-        ftconfig = copy.deepcopy(experiment.config['train'])
-        ftconfig.update(experiment.config['train_resp_3D'])
-        convert_input_strings(ftconfig, dirs)
-        ftiters = ftconfig.get('num_iters', 0)
-        ftinput = MRI_Resp_3D(data=kdata,
-                             batch_size=gpu_batch_size,
-                             normalize=False,
-                             dims=(ftconfig['height'], ftconfig['width']))
-        tr = Trainer(
-              lambda shift: ftinput.input_train_gt(40),
-              lambda: einput.input_train_2015(40),
-              supervised=True,
-              params=ftconfig,
-              normalization=ftinput.get_normalization(),
-              train_summaries_dir=experiment.train_dir,
-              eval_summaries_dir=experiment.eval_dir,
-              experiment=FLAGS.ex,
-              ckpt_dir=experiment.save_dir,
-              debug=FLAGS.debug,
-              interactive_plot=run_config.get('interactive_plot'),
-              devices=devices)
-        tr.run(0, ftiters)
-    elif train_dataset == 'resp_2D':
+    if train_dataset == 'resp_2D':
         info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info_resp.ods"
         ods = get_data(info_file)
         slice_info = {value[0]: list(range(*[int(j) - 1 for j in value[1].split(',')])) for value in ods["Sheet1"] if
@@ -103,10 +80,41 @@ def main(argv=None):
                               normalize=False,
                               dims=(ftconfig['height'], ftconfig['width']))
         tr = Trainer(
-            lambda: ftinput.input_train_data(img_dirs=['resp/old_data/patient', 'resp/old_data/volunteer'],
-                                             img_dirs_real_simulated=['no_more_exists'],
-                                             selected_frames=[0, 3],
-                                             params=ftconfig),
+            lambda: ftinput.input_train_data(img_dirs=['resp/new_data/npz/train'],
+                                             slice_info=slice_info,
+                                             params=ftconfig,
+                                             case='train'),
+            lambda: ftinput.input_train_data(img_dirs=['resp/new_data/npz/test/'],
+                                             slice_info=slice_info,
+                                             params=ftconfig,
+                                             case='validation'),
+            supervised=True,
+            params=ftconfig,
+            normalization=ftinput.get_normalization(),
+            train_summaries_dir=experiment.train_dir,
+            eval_summaries_dir=experiment.eval_dir,
+            experiment=FLAGS.ex,
+            ckpt_dir=experiment.save_dir,
+            debug=FLAGS.debug,
+            interactive_plot=run_config.get('interactive_plot'),
+            devices=devices,
+            LAP_layer=ftconfig.get('lap_layer'))
+        tr.run(0, ftiters)
+    elif train_dataset == 'card_2D':
+        info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/card/slice_info_card.ods"
+        ods = get_data(info_file)
+        slice_info = {value[0]: list(range(*[int(j) - 1 for j in value[1].split(',')])) for value in ods["Sheet1"] if
+                      len(value) is not 0}
+
+        ftconfig = copy.deepcopy(experiment.config['train'])
+        ftconfig.update(experiment.config['train_card_2D'])
+        convert_input_strings(ftconfig, dirs)
+        ftiters = ftconfig.get('num_iters', 0)
+        ftinput = MRI_Resp_2D(data=kdata,
+                              batch_size=ftconfig.get('batch_size'),
+                              normalize=False,
+                              dims=(ftconfig['desired_height'], ftconfig['desired_width']))
+        tr = Trainer(
             lambda: ftinput.new_input_train_data(img_dirs=['resp/new_data/npz/train'],
                                                  slice_info=slice_info,
                                                  params=ftconfig,
@@ -127,8 +135,6 @@ def main(argv=None):
             devices=devices,
             LAP_layer=ftconfig.get('lap_layer'))
         tr.run(0, ftiters)
-    elif train_dataset == 'card_2D':
-        pass  # todo
     elif train_dataset == 'kitti_ft':
         ftconfig = copy.deepcopy(experiment.config['train'])
         ftconfig.update(experiment.config['train_kitti_ft'])
@@ -151,6 +157,29 @@ def main(argv=None):
               debug=FLAGS.debug,
               interactive_plot=run_config.get('interactive_plot'),
               devices=devices)
+        tr.run(0, ftiters)
+    elif train_dataset == 'mri_resp_3D':
+        ftconfig = copy.deepcopy(experiment.config['train'])
+        ftconfig.update(experiment.config['train_resp_3D'])
+        convert_input_strings(ftconfig, dirs)
+        ftiters = ftconfig.get('num_iters', 0)
+        ftinput = MRI_Resp_3D(data=kdata,
+                              batch_size=gpu_batch_size,
+                              normalize=False,
+                              dims=(ftconfig['height'], ftconfig['width']))
+        tr = Trainer(
+            lambda shift: ftinput.input_train_gt(40),
+            lambda: einput.input_train_2015(40),
+            supervised=True,
+            params=ftconfig,
+            normalization=ftinput.get_normalization(),
+            train_summaries_dir=experiment.train_dir,
+            eval_summaries_dir=experiment.eval_dir,
+            experiment=FLAGS.ex,
+            ckpt_dir=experiment.save_dir,
+            debug=FLAGS.debug,
+            interactive_plot=run_config.get('interactive_plot'),
+            devices=devices)
         tr.run(0, ftiters)
 
     else:

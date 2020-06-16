@@ -4,7 +4,7 @@ out
 data/
 log/
 output/
-.idea/workspace.xml
+.idea
 src/playground.py
 *npy
 *npz

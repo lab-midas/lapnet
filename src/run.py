@@ -12,7 +12,8 @@ from e2eflow.core.train import Trainer
 from e2eflow.experiment import Experiment
 from e2eflow.util import convert_input_strings
 
-from e2eflow.kitti.input_resp import KITTIInput, MRI_Resp_2D  # MRI_Resp_3D
+from e2eflow.kitti.input_resp import KITTIInput, MRI_Resp_2D
+from e2eflow.kitti.input_card import MRI_Card_2D
 from e2eflow.kitti.data import KITTIData
 
 
@@ -100,6 +101,7 @@ def main(argv=None):
             devices=devices,
             LAP_layer=ftconfig.get('lap_layer'))
         tr.run(0, ftiters)
+
     elif train_dataset == 'card_2D':
         info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/card/slice_info_card.ods"
         ods = get_data(info_file)
@@ -110,19 +112,19 @@ def main(argv=None):
         ftconfig.update(experiment.config['train_card_2D'])
         convert_input_strings(ftconfig, dirs)
         ftiters = ftconfig.get('num_iters', 0)
-        ftinput = MRI_Resp_2D(data=kdata,
+        ftinput = MRI_Card_2D(data=kdata,
                               batch_size=ftconfig.get('batch_size'),
                               normalize=False,
                               dims=(ftconfig['desired_height'], ftconfig['desired_width']))
         tr = Trainer(
-            lambda: ftinput.new_input_train_data(img_dirs=['resp/new_data/npz/train'],
-                                                 slice_info=slice_info,
-                                                 params=ftconfig,
-                                                 case='train'),
-            lambda: ftinput.new_input_train_data(img_dirs=['resp/new_data/npz/test/'],
-                                                 slice_info=slice_info,
-                                                 params=ftconfig,
-                                                 case='validation'),
+            lambda: ftinput.input_train_data(img_dirs=['card/npz/train'],
+                                             slice_info=slice_info,
+                                             params=ftconfig,
+                                             case='train'),
+            lambda: ftinput.input_train_data(img_dirs=['card/npz/test/'],
+                                             slice_info=slice_info,
+                                             params=ftconfig,
+                                             case='validation'),
             supervised=True,
             params=ftconfig,
             normalization=ftinput.get_normalization(),

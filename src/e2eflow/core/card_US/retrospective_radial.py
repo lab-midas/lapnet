@@ -176,16 +176,16 @@ def subsample_radial(img_cart, acc=1, cphases=[0,1]):
 
 
 if __name__ == "__main__":
-    sinpath = '/home/tk18/data/LAPNet/2DCINE_dicom.mat'
+    sinpath = '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/mat/train/Ca_090419.mat'
     indata = sio.loadmat(sinpath)
 
     # Cartesian image
     # np.ascontiguousarray IMPORTANT! otherwise wrong index shifting
-    img_cart = np.ascontiguousarray(indata['dImg'].astype(np.float32))  # x - y - sl - time
+    img_cart = np.ascontiguousarray(indata['dFixed'].astype(np.float32))  # x - y - sl - time
 
     # take slices
-    slices_sel = np.arange(0, 12) # from Excel: [1:12]
-    img_cart = img_cart[:,:,slices_sel,:]
+    slices_sel = np.arange(0, 8) # from Excel: [1:12]
+    img_cart = img_cart[..., slices_sel]
 
     # visualize
     import medutils

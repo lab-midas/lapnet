@@ -40,7 +40,7 @@ def zpad(x, s, mode='constant'):
     return np.pad(x, padval, mode=mode)
 
 
-def crop(x, s):
+def post_crop(x, s):
     # x: input data
     # s: desired size
     if type(s) is not np.ndarray:

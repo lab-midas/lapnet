@@ -381,40 +381,6 @@ class Trainer():
             values_ = []
             averages_ = []
 
-            # images_ = [image_warp(im1, flow) / 255,
-            #            flow_to_color(flow),
-            #            1 - (1 - occlusion(flow, flow_bw)[0]) * create_outgoing_mask(flow),
-            #            forward_warp(flow_bw) < DISOCC_THRESH]
-            # image_names = ['warped image', 'flow', 'occ', 'reverse disocc']
-            #
-            # values_ = []
-            # averages_ = []
-            # truth_tuples = []
-            # if len(truths) == 4:
-            #     flow_occ, mask_occ, flow_noc, mask_noc = truths
-            #     flow_occ = resize_output_crop(flow_occ, height, width, 2)
-            #     flow_noc = resize_output_crop(flow_noc, height, width, 2)
-            #     mask_occ = resize_output_crop(mask_occ, height, width, 1)
-            #     mask_noc = resize_output_crop(mask_noc, height, width, 1)
-            #
-            #     truth_tuples.append(('occluded', flow_occ, mask_occ))
-            #     truth_tuples.append(('non-occluded', flow_noc, mask_noc))
-            #     images_ += [flow_error_image(flow, flow_occ, mask_occ, mask_noc)]
-            #     image_names += ['flow error']
-            # else:
-            #     raise NotImplementedError()
-            #     truth_tuples.append(('flow', truths[0], truths[1]))
-
-            # for name, gt_flow, mask in truth_tuples:
-            #     error_ = flow_error_avg(gt_flow, flow, mask)
-            #     error_avg_ = summarized_placeholder('AEE/' + name, key='eval_avg')
-            #     outliers_ = outlier_pct(gt_flow, flow, mask)
-            #     outliers_avg = summarized_placeholder('outliers/' + name,
-            #                                           key='eval_avg')
-            #
-            #     values_.extend([error_, outliers_])
-            #     averages_.extend([error_avg_, outliers_avg])
-
             losses = tf.get_collection('losses')
             for l in losses:
                 values_.append(l)
@@ -468,16 +434,6 @@ class Trainer():
                 coord.request_stop()
                 coord.join(threads)
                 summary_writer.close()
-
-                # if self.interactive_plot:
-                #     if self.plot_proc:
-                #         self.plot_proc.terminate()
-                #     self.plot_proc = Process(target=_eval_plot,
-                #                              args=([image_lists], image_names,
-                #                                    "{} (i={})".format(self.experiment,
-                #                                                       global_step)))
-                #     self.plot_proc.start()
-
 
     def eval_kitti(self, num):
         assert num == 1  # TODO enable num > 1
@@ -534,8 +490,6 @@ class Trainer():
                 outliers_ = outlier_pct(gt_flow, flow, mask)
                 outliers_avg = summarized_placeholder('outliers/' + name,
                                                       key='eval_avg')
-
-
 
                 values_.extend([error_, outliers_])
                 averages_.extend([error_avg_, outliers_avg])

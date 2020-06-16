@@ -103,8 +103,8 @@ def main(argv=None):
     elif train_dataset == 'card_2D':
         info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/card/slice_info_card.ods"
         ods = get_data(info_file)
-        slice_info = {value[0]: list(range(*[int(j) - 1 for j in value[1].split(',')])) for value in ods["Sheet1"] if
-                      len(value) is not 0}
+        slice_info = {value[0]: list(range(*[int(j) - 1 if i == 0 else int(j)
+                      for i, j in enumerate(value[1].split(','))])) for value in ods["Sheet1"] if len(value) is not 0}
 
         ftconfig = copy.deepcopy(experiment.config['train'])
         ftconfig.update(experiment.config['train_card_2D'])

@@ -16,9 +16,8 @@ from e2eflow.core.flow_util import flow_to_color, flow_error_avg, outlier_pct, f
 from e2eflow.core.flow_util import flow_error_image
 from e2eflow.util import config_dict
 from e2eflow.core.image_warp import image_warp
-from e2eflow.kitti.input import KITTIInput
 from e2eflow.kitti.data import KITTIData
-from e2eflow.kitti.input import MRI_Resp_2D, np_warp_2D
+from e2eflow.kitti.input_resp import MRI_Resp_2D, KITTIInput, np_warp_2D
 from e2eflow.core.supervised import supervised_loss
 from e2eflow.core.input import resize_input, resize_output_crop, resize_output, resize_output_flow
 from e2eflow.core.train import restore_networks
@@ -119,8 +118,6 @@ def _evaluate_experiment(name, data, config):
     batch_size = config['batch_size']
     height = params['height']
     width = params['width']
-    height = 192
-    width = 156
 
     with tf.Graph().as_default(): #, tf.device('gpu:' + FLAGS.gpu):
         test_batch, im1, im2, flow_orig = data()
@@ -395,7 +392,7 @@ def main(argv=None):
     config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
                           '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
                           '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz']
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
     config['test_types'] = [2,2]
     config['US_acc'] = [1,8]
@@ -406,7 +403,7 @@ def main(argv=None):
     config['mask_type'] = 'US'
 
     config['selected_frames'] = [0]
-    config['selected_slices'] = [11]
+    config['selected_slices'] = [30]
     config['amplitude'] = 10
     config['network'] = 'flownet'
     config['batch_size'] = 64
@@ -454,7 +451,7 @@ def main(argv=None):
 
     for name in FLAGS.ex.split(','):
         if config['save_results']:
-            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'_card')
+            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'test1')
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)
 

@@ -19,9 +19,8 @@ from e2eflow.core.flow_util import flow_to_color, flow_error_avg, outlier_pct, f
 from e2eflow.core.flow_util import flow_error_image
 from e2eflow.util import config_dict
 from e2eflow.core.image_warp import image_warp
-from e2eflow.kitti.input import KITTIInput
 from e2eflow.kitti.data import KITTIData
-from e2eflow.kitti.input import MRI_Resp_2D, np_warp_2D
+from e2eflow.kitti.input_resp import MRI_Resp_2D, np_warp_2D, KITTIInput
 from e2eflow.core.supervised import supervised_loss
 from e2eflow.core.input import resize_input, resize_output_crop, resize_output, resize_output_flow
 from e2eflow.core.train import restore_networks
@@ -512,7 +511,7 @@ def main(argv=None):
 
     for name in FLAGS.ex.split(','):
         if config['save_results']:
-            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'_card')
+            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'_card1')
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)
 

@@ -119,8 +119,8 @@ def _evaluate_experiment(name, data, config):
     smooth_wind_size = config['smooth_wind_size']
     height = params['height']
     width = params['width']
-    height = 192
-    width = 156
+    # height = 192
+    # width = 156
     with tf.Graph().as_default(): #, tf.device('gpu:' + FLAGS.gpu):
         test_batch, im1, im2, flow_orig, pos = data()
 
@@ -431,7 +431,7 @@ def main(argv=None):
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
 
     config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz']
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz']
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz']
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_035.npz',
@@ -453,7 +453,7 @@ def main(argv=None):
     # config['mask_type'] = 'US'
 
     config['selected_frames'] = [0]
-    config['selected_slices'] = [11]
+    config['selected_slices'] = [30]
     config['amplitude'] = 10
     config['network'] = 'ftflownet'
     config['batch_size'] = 64
@@ -510,8 +510,9 @@ def main(argv=None):
     input_cf['slice_info'] = slice_info
 
     for name in FLAGS.ex.split(','):
+        name = name.split('/')[-1]
         if config['save_results']:
-            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'_card1')
+            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'_test11')
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)
 

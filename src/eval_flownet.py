@@ -41,7 +41,7 @@ tf.app.flags.DEFINE_integer('num', 1,
                             'Number of examples to evaluate. Set to -1 to evaluate all.')
 tf.app.flags.DEFINE_integer('num_vis', 1,
                             'Number of evalutations to visualize. Set to -1 to visualize all.')
-tf.app.flags.DEFINE_string('gpu', '1',
+tf.app.flags.DEFINE_string('gpu', '0',
                            'GPU device to evaluate on.')
 tf.app.flags.DEFINE_boolean('output_benchmark', False,
                             'Output raw flow files.')
@@ -450,6 +450,7 @@ def main(argv=None):
     input_cf['slice_info'] = slice_info
 
     for name in FLAGS.ex.split(','):
+        name = name.split('/')[-1]
         if config['save_results']:
             output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'test1')
             if not os.path.exists(output_dir):

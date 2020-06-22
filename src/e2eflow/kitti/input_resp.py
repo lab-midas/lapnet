@@ -20,6 +20,7 @@ from ..core.sampling_center import sampleCenter
 from e2eflow.core.flow_util import flow_to_color_np
 
 
+
 def _read_flow(filenames, num_epochs=None):
     """Given a list of filenames, constructs a reader op for ground truth."""
     filename_queue = tf.train.string_input_producer(filenames,

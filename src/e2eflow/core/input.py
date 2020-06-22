@@ -3,10 +3,15 @@ import random
 
 import numpy as np
 import tensorflow as tf
-import scipy.io as sio
-import h5py
-from skimage.util.shape import view_as_windows
 
+from skimage.util.shape import view_as_windows
+from ..core.util import pos_generation_2D, _u_generation_3D, _u_generation_2D, arr2kspace, load_mat_file
+from ..core.image_warp import np_warp_2D, np_warp_3D
+
+from ..core.sampling import generate_mask
+from ..core.sampling_center import sampleCenter
+from ..core.card_US.retrospective_radial import subsample_radial
+from ..core.card_US.pad_crop import post_crop
 
 from .augment import random_crop
 
@@ -136,6 +141,136 @@ class Input():
             out = out.transpose(0, 2, 3, 1)
             arr_cropped_augmented[i * arr.shape[0]:(i + 1) * arr.shape[0], ...] = out
         return arr_cropped_augmented
+
+    def test_flown(self, config):
+        batches = self.test_set_generation(config)
+        if len(batches.shape) == 3:
+            batches = batches[np.newaxis, ...]
+        im1_queue = tf.train.slice_input_producer([batches[..., 0]], shuffle=False,
+                                                  capacity=len(list(batches[..., 0])), num_epochs=None)
+        im2_queue = tf.train.slice_input_producer([batches[..., 1]], shuffle=False,
+                                                  capacity=len(list(batches[..., 1])), num_epochs=None)
+        flow_queue = tf.train.slice_input_producer([batches[..., 2:]], shuffle=False,
+                                                   capacity=len(list(batches[..., 2:4])), num_epochs=None)
+        # num_queue = tf.train.slice_input_producer([patient_num], shuffle=False,
+        #                                            capacity=len(list(patient_num)), num_epochs=None)
+
+        im1 = batches[..., 0]
+        im2 = batches[..., 1]
+        flow_orig = batches[..., 2:4]
+        test_batches = tf.train.batch([im1_queue, im2_queue, flow_queue],
+                                      batch_size=min(self.batch_size, np.shape(batches)[1]),
+                                      num_threads=self.num_threads,
+                                      allow_smaller_final_batch=True)
+
+        return test_batches, im1, im2, flow_orig
+
+    def test_2D_slice(self, config):
+
+        # batch = self.old_test_set_generation(config)
+        batch = self.test_set_generation(config)
+        batch = batch[np.newaxis, ...]
+
+        radius = int((config['crop_size'] - 1) / 2)
+        if config['padding']:
+            batch = np.pad(batch, ((0, 0), (radius, radius), (radius, radius), (0, 0)), constant_values=0)
+        x_dim, y_dim = np.shape(batch)[1:3]
+        pos = pos_generation_2D(intervall=[[0, x_dim - config['crop_size'] + 1],
+                                           [0, y_dim - config['crop_size'] + 1]], stride=config['crop_stride'])
+
+        batches_cp = self.crop2D_FixPts(batch, crop_size=config['crop_size'], box_num=np.shape(pos)[1], pos=pos)
+        batches_cp = np.concatenate((arr2kspace(batches_cp[..., :2]), batches_cp[..., 2:4]), axis=-1)
+        flow = batches_cp[:, radius, radius, 4:6]
+
+        im1_patch_k_queue = tf.train.slice_input_producer([batches_cp[..., :2]], shuffle=False,
+                                                          capacity=len(list(batches_cp[..., 0])), num_epochs=None)
+        im2_patch_k_queue = tf.train.slice_input_producer([batches_cp[..., 2:4]], shuffle=False,
+                                                          capacity=len(list(batches_cp[..., 1])), num_epochs=None)
+        flow_patch_gt = tf.train.slice_input_producer([flow], shuffle=False,
+                                                      capacity=len(flow), num_epochs=None)
+
+        im1 = batch[..., 0]
+        im2 = batch[..., 1]
+        flow_orig = batch[..., 2:4]
+
+        test_batch = tf.train.batch([im1_patch_k_queue, im2_patch_k_queue, flow_patch_gt],
+                                    batch_size=self.batch_size,
+                                    num_threads=self.num_threads)
+
+        return test_batch, im1, im2, flow_orig, np.transpose(pos)
+
+    def test_set_generation(self, config):
+        path = config['path']
+        slice = config['slice']
+        u_type = config['u_type']
+        US_acc = config['US_acc']
+        data_type = config['data']
+        mask_type = config['mask_type']
+        use_given_US_mask = config['use_given_US_mask']
+        use_given_u = config['use_given_u']
+
+        try:
+            f = load_mat_file(path)
+        except:
+            try:
+                f = np.load(path)
+            except ImportError:
+                print("Wrong Data Format")
+
+        ref = np.asarray(f['dFixed'], dtype=np.float32)
+        ux = np.asarray(f['ux'], dtype=np.float32)  # ux for warp
+        uy = np.asarray(f['uy'], dtype=np.float32)
+        uz = np.zeros(np.shape(ux), dtype=np.float32)
+        if (self.dims[1] != np.shape(ref)[1]) or (self.dims[0] != np.shape(ref)[0]):
+            pad_size_x = int((self.dims[0] - np.shape(ref)[0]) / 2)
+            pad_size_y = int((self.dims[1] - np.shape(ref)[1]) / 2)
+            ref = np.pad(ref, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
+            ux = np.pad(ux, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
+            uy = np.pad(uy, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
+            uz = np.pad(uz, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
+
+        u = np.stack((ux, uy, uz), axis=-1)
+
+        if u_type == 3:
+            u_syn = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
+            u = np.multiply(u, u_syn)
+        elif u_type == 1:
+            u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
+        elif u_type == 0:
+            u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_constant_amp10_3D.npy')
+        elif u_type == 2:
+            pass
+        else:
+            raise ImportError('wrong augmentation type is given')
+        try:
+            mov = np_warp_3D(ref, u)
+        except:
+            u = u[:192, :192, :np.shape(ref)[-1]]
+            mov = np_warp_3D(ref, u)
+        if US_acc > 1:
+            if mask_type == 'drUS':
+                mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/data/mask/mask_acc{}.npy'.format(US_acc))
+            elif mask_type == 'crUS':
+                mask = sampleCenter(1/US_acc*100, 256, 72)
+                mask = np.array([mask, ] * 4, dtype=np.float32)
+            elif mask_type == 'radial':
+                im_pair = np.stack((ref, mov), axis=-1)[..., slice, :]
+                u = u[..., slice, :][..., :2]
+                im_pair_US = np.squeeze(subsample_radial(im_pair[..., np.newaxis, :], acc=US_acc))
+                im_pair = np.absolute(im_pair_US)
+                data = np.concatenate((im_pair, u), axis=-1)
+                return np.asarray(data, dtype=np.float32)
+
+            k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
+            k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
+            ref = (np.fft.ifftn(k_dset)).real
+            mov = (np.fft.ifftn(k_warped_dset)).real
+
+        data_3D = np.stack((ref, mov, u[..., 0], u[..., 1]), axis=-1)
+        data_3D = np.moveaxis(data_3D, 2, 0)
+
+        Imgs = data_3D[slice, ...]
+        return np.asarray(Imgs, dtype=np.float32)
 
     def _resize_crop_or_pad(self, tensor):
         height, width = self.dims
@@ -299,13 +434,3 @@ def read_png_image(filenames, num_epochs=None):
     return image
 
 
-def load_mat_file(fn_im_path):
-    try:
-        f = sio.loadmat(fn_im_path)
-    except Exception:
-        try:
-            f = h5py.File(fn_im_path, 'r')
-        except IOError:
-            # print("File {} is defective and cannot be read!".format(fn_im_path))
-            raise IOError("File {} is defective and cannot be read!".format(fn_im_path))
-    return f

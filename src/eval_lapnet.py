@@ -20,7 +20,8 @@ from e2eflow.core.flow_util import flow_error_image
 from e2eflow.util import config_dict
 from e2eflow.core.image_warp import image_warp
 from e2eflow.kitti.data import KITTIData
-from e2eflow.kitti.input_resp import MRI_Resp_2D, np_warp_2D, KITTIInput
+from e2eflow.kitti.input_resp import MRI_Resp_2D
+from e2eflow.kitti.input_card import MRI_Card_2D
 from e2eflow.core.supervised import supervised_loss
 from e2eflow.core.input import resize_input, resize_output_crop, resize_output, resize_output_flow
 from e2eflow.core.train import restore_networks
@@ -44,7 +45,7 @@ tf.app.flags.DEFINE_integer('num', 1,
                             'Number of examples to evaluate. Set to -1 to evaluate all.')
 tf.app.flags.DEFINE_integer('num_vis', 1,
                             'Number of evalutations to visualize. Set to -1 to visualize all.')
-tf.app.flags.DEFINE_string('gpu', '1',
+tf.app.flags.DEFINE_string('gpu', '0',
                            'GPU device to evaluate on.')
 tf.app.flags.DEFINE_boolean('output_benchmark', False,
                             'Output raw flow files.')
@@ -106,7 +107,8 @@ def _evaluate_experiment(name, data, config):
     config_train = config_dict(config_path)
     params = config_train['train']
     convert_input_strings(params, config_dict('../config.ini')['dirs'])
-    dataset_params_name = 'train_' + FLAGS.dataset
+    # dataset_params_name = 'train_' + FLAGS.dataset
+    dataset_params_name = 'train_' + config_train['run']['dataset']
     if dataset_params_name in config_train:
         params.update(config_train[dataset_params_name])
     ckpt = tf.train.get_checkpoint_state(exp_dir)
@@ -117,10 +119,12 @@ def _evaluate_experiment(name, data, config):
     batch_size = config['batch_size']
     crop_stride = config['crop_stride']
     smooth_wind_size = config['smooth_wind_size']
-    height = params['height']
-    width = params['width']
-    # height = 192
-    # width = 156
+    try:
+        height = params['height']
+        width = params['width']
+    except:
+        height = params['desired_height']
+        width = params['desired_width']
     with tf.Graph().as_default(): #, tf.device('gpu:' + FLAGS.gpu):
         test_batch, im1, im2, flow_orig, pos = data()
 
@@ -430,8 +434,8 @@ def main(argv=None):
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/06_la',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
 
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz']
-    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz']
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz']
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat2.npz']
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_035.npz',
@@ -444,16 +448,17 @@ def main(argv=None):
 
     # 0: constant generated flow, 1: smooth generated flow, 2: matlab simulated test data 3: simulated_x smooth 4: cross test without gt
     config['test_types'] = [2]
-    config['US_acc'] = [1]
+    config['US_acc'] = [7]
     # config['US_acc'] = list(range(1, 32, 2))
     # config['test_types'] = list(2*np.ones(len(config['US_acc']), dtype=np.int))
 
-
-    config['mask_type'] = 'center'
-    # config['mask_type'] = 'US'
+    config['data'] = [i.split('/')[7] for i in config['test_dir']]
+    # config['mask_type'] = 'crUS'
+    # config['mask_type'] = 'drUS'
+    config['mask_type'] = 'radial'
 
     config['selected_frames'] = [0]
-    config['selected_slices'] = [30]
+    config['selected_slices'] = [10]
     config['amplitude'] = 10
     config['network'] = 'ftflownet'
     config['batch_size'] = 64
@@ -471,24 +476,20 @@ def main(argv=None):
     default_config = config_dict()
     dirs = default_config['dirs']
 
-    if FLAGS.dataset == 'kitti':
-        data = KITTIData(dirs['data'], development=True)
-        data_input = KITTIInput(data, batch_size=1, normalize=False,
-                                dims=(384, 1280))
+    if config['data'][0] == 'card':
+        kdata = KITTIData(data_dir=dirs['data'], development=True)
+        data_input = MRI_Card_2D(data=kdata,
+                                 batch_size=config['batch_size'],
+                                 normalize=False,
+                                 dims=(192, 192))
 
-    elif FLAGS.dataset == 'resp_2D':
+    elif config['data'][0] == 'resp':
         kdata = KITTIData(data_dir=dirs['data'], development=True)
         data_input = MRI_Resp_2D(data=kdata,
                                  batch_size=config['batch_size'],
                                  normalize=False,
-                                 dims=(192, 174))
-        FLAGS.num = 1
-
-
-    # for name in FLAGS.ex.split(','):
-    #     results = _evaluate_experiment(name, lambda: data_input.input_patch_test_data(config=config))
-    #     show_results(results)
-    #     # results.append(result)
+                                 dims=(256, 256))
+    FLAGS.num = 1
 
     input_cf = dict()
     input_cf['use_given_u'] = True
@@ -512,12 +513,12 @@ def main(argv=None):
     for name in FLAGS.ex.split(','):
         name = name.split('/')[-1]
         if config['save_results']:
-            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'_test11')
+            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'_test1')
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)
 
         for i, u_type in enumerate(config['test_types']):
-            for patient in config['test_dir']:
+            for j, patient in enumerate(config['test_dir']):
                 for frame in config['selected_frames']:
                     name_pat = patient.split('/')[-1].split('.')[0]
                     config['selected_slices'] = slice_info[name_pat]
@@ -527,6 +528,7 @@ def main(argv=None):
                         input_cf['frame'] = frame
                         input_cf['slice'] = slice
                         input_cf['u_type'] = u_type
+                        input_cf['data'] = config['data'][j]
                         input_cf['mask_type'] = config['mask_type']
                         # input_cf['use_given_u'] = config['new_u'][i]
                         input_cf['US_acc'] = config['US_acc'][i]

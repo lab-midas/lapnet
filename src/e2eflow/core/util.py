@@ -11,6 +11,7 @@ import matplotlib
 # matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pylab
+import operator
 
 
 def summarized_placeholder(name, prefix=None, key=tf.GraphKeys.SUMMARIES):
@@ -235,6 +236,7 @@ def to_freq_space(img, normalize=False):
         img_real_imag = (img_real_imag.transpose() - np.mean(img_real_imag, axis=(1, 2, 3))).transpose()
     return img_real_imag
 
+
 def load_mat_file(fn_im_path):
     try:
         f = sio.loadmat(fn_im_path)
@@ -245,3 +247,60 @@ def load_mat_file(fn_im_path):
             # print("File {} is defective and cannot be read!".format(fn_im_path))
             raise IOError("File {} is defective and cannot be read!".format(fn_im_path))
     return f
+
+
+# def cal_loss_mean(loss_dir):
+#     if os.path.exists(os.path.join(loss_dir, 'mean_loss.txt')):
+#         raise ImportError('mean value already calculated')
+#     files = os.listdir(loss_dir)
+#     files.sort()
+#     mean = dict()
+#     for file in files:
+#         with open(os.path.join(loss_dir, file), 'r') as f:
+#             data = [float(i) for i in f.readlines()]
+#             mean[file.split('.')[0]] = np.mean(data)
+#     with open(os.path.join(loss_dir, 'mean_loss.txt'), "a") as f:
+#         for name in mean:
+#             f.write('{}:{}\n'.format(name, round(mean[name], 5)))
+
+def central_crop(img, bounding):
+    """
+    central crop for 2D/3D arrays
+    # alternative code:
+    cutting_part = int((crop_size - 1)/2)
+    flow_gt_cut = flow_gt[cutting_part:(np.shape(flow_gt)[0] - cutting_part - 1),
+    cutting_part:(np.shape(flow_gt)[0] - cutting_part - 1), :]
+
+    :param img:
+    :param bounding:
+    :return:
+    """
+    start = tuple(map(lambda a, da: a//2-da//2, img.shape, bounding))
+    end = tuple(map(operator.add, start, bounding))
+    slices = tuple(map(slice, start, end))
+    return img[slices]
+
+def cal_loss_mean(loss_dir):
+    if os.path.exists(os.path.join(loss_dir, 'mean_loss_EPE.txt')):
+        raise ImportError('mean value of EPE already calculated')
+    if os.path.exists(os.path.join(loss_dir, 'mean_loss_EAE.txt')):
+        raise ImportError('mean value of EAE already calculated')
+    if os.path.exists(os.path.join(loss_dir, 'mean_loss.txt')):
+        raise ImportError('mean value already calculated')
+    files = os.listdir(loss_dir)
+    files.sort()
+    mean = dict()
+    for file in files:
+        with open(os.path.join(loss_dir, file), 'r') as f:
+            data = [float(i) for i in f.readlines()]
+            mean[file.split('.')[0]] = np.mean(data)
+    f1 = open(os.path.join(loss_dir, 'mean_loss_EPE.txt'), "a")
+    f2 = open(os.path.join(loss_dir, 'mean_loss_EAE.txt'), "a")
+    for name in mean:
+        if 'EPE' in name:
+            f1.write('{}:{}\n'.format('_'.join(name.split('_')[:2]), round(mean[name], 5)))
+        else:
+            f2.write('{}:{}\n'.format('_'.join(name.split('_')[:2]), round(mean[name], 5)))
+    f1.close()
+    f2.close()
+

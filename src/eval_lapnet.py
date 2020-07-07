@@ -5,12 +5,12 @@ import PIL
 import tensorflow as tf
 import numpy as np
 from scipy import signal
+import scipy.io as sio
 import pylab as plt
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pylab
-import operator
 from scipy.interpolate import griddata
 from pyexcel_ods import get_data
 import time
@@ -18,6 +18,7 @@ import time
 from e2eflow.core.flow_util import flow_to_color, flow_error_avg, outlier_pct, flow_to_color_np
 from e2eflow.core.flow_util import flow_error_image
 from e2eflow.util import config_dict
+from e2eflow.core.util import cal_loss_mean, central_crop
 from e2eflow.core.image_warp import image_warp
 from e2eflow.kitti.data import KITTIData
 from e2eflow.kitti.input_resp import MRI_Resp_2D
@@ -62,39 +63,6 @@ FLAGS = tf.app.flags.FLAGS
 NUM_EXAMPLES_PER_PAGE = 4
 
 
-def central_crop(img, bounding):
-    """
-    central crop for 2D/3D arrays
-    # alternative code:
-    cutting_part = int((crop_size - 1)/2)
-    flow_gt_cut = flow_gt[cutting_part:(np.shape(flow_gt)[0] - cutting_part - 1),
-    cutting_part:(np.shape(flow_gt)[0] - cutting_part - 1), :]
-
-    :param img:
-    :param bounding:
-    :return:
-    """
-    start = tuple(map(lambda a, da: a//2-da//2, img.shape, bounding))
-    end = tuple(map(operator.add, start, bounding))
-    slices = tuple(map(slice, start, end))
-    return img[slices]
-
-
-def cal_loss_mean(loss_dir):
-    if os.path.exists(os.path.join(loss_dir, 'mean_loss.txt')):
-        raise ImportError('mean value already calculated')
-    files = os.listdir(loss_dir)
-    files.sort()
-    mean = dict()
-    for file in files:
-        with open(os.path.join(loss_dir, file), 'r') as f:
-            data = [float(i) for i in f.readlines()]
-            mean[file.split('.')[0]] = np.mean(data)
-    with open(os.path.join(loss_dir, 'mean_loss.txt'), "a") as f:
-        for name in mean:
-            f.write('{}:{}\n'.format(name, round(mean[name], 5)))
-
-
 def _evaluate_experiment(name, data, config):
 
     current_config = config_dict('../config.ini')
@@ -119,12 +87,10 @@ def _evaluate_experiment(name, data, config):
     batch_size = config['batch_size']
     crop_stride = config['crop_stride']
     smooth_wind_size = config['smooth_wind_size']
-    try:
-        height = params['height']
-        width = params['width']
-    except:
-        height = params['desired_height']
-        width = params['desired_width']
+
+    height = config['cropped_image_size'][0]
+    width = config['cropped_image_size'][1]
+
     with tf.Graph().as_default(): #, tf.device('gpu:' + FLAGS.gpu):
         test_batch, im1, im2, flow_orig, pos = data()
 
@@ -224,6 +190,9 @@ def _evaluate_experiment(name, data, config):
             im1_gt = np_warp_2D(im2_cut, -flow_gt_cut)
             im1_error_gt = im1_cut - im1_gt
 
+            # flow_gt_cut = flow_gt_cut[:, 20:, :]
+            # flow_final = flow_final[:, 20:, :]
+
             u_GT = (flow_gt_cut[..., 0], flow_gt_cut[..., 1])  # tuple
             u_est = (flow_final[..., 0], flow_final[..., 1])  # tuple
             OF_index = u_GT[0] != np.nan  # *  u_GT[0] >= 0
@@ -275,9 +244,9 @@ def _evaluate_experiment(name, data, config):
             results['mov_corr'] = im1_pred
             results['color_flow_pred'] = color_flow_final
             results['color_flow_gt'] = color_flow_gt
-            results['err_pred'] = im_error_pred
-            results['err_orig'] = im_error
-            results['err_gt'] = im1_error_gt
+            # results['err_pred'] = im_error_pred
+            # results['err_orig'] = im_error
+            # results['err_gt'] = im1_error_gt
             results['flow_pred'] = flow_final
             results['flow_gt'] = flow_gt_cut
             results['loss_pred'] = final_loss
@@ -348,7 +317,7 @@ def save_results(output_dir, results, config, input_cf):
     patient = input_cf['path'].split('/')[-1].split('.')[0]
     file_name = test_type + '_' + patient + '_' + str(input_cf['frame']) + '_' + str(input_cf['slice'])
 
-    if config['save_data_npz']:
+    if config['save_npz']:
         dir_name = test_name + '_data_npz'
         save_dir = os.path.join(output_dir, dir_name)
         if not os.path.exists(save_dir):
@@ -358,6 +327,14 @@ def save_results(output_dir, results, config, input_cf):
                  img_ref=results['img_ref'],
                  flow_gt=results['flow_gt'],
                  flow_pred=results['flow_pred'])
+
+    if config['save_mat']:
+        dir_name = test_name + '_data_mat'
+        save_dir = os.path.join(output_dir, dir_name)
+        if not os.path.exists(save_dir):
+            os.mkdir(save_dir)
+        output_file_flow = os.path.join(save_dir, file_name)
+        sio.savemat(output_file_flow + '.mat', results)
 
     if config['save_png']:
         dir_name = test_name + '_png'
@@ -435,22 +412,23 @@ def main(argv=None):
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
 
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz']
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat2.npz']
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz']
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz',
+                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat2.npz',
+                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat3.npz',
+                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Ga_160419.npz',
+                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Ha_020519.npz']
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_035.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_036.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
 
-    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
-    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
-    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
-
     # 0: constant generated flow, 1: smooth generated flow, 2: matlab simulated test data 3: simulated_x smooth 4: cross test without gt
-    config['test_types'] = [2]
-    config['US_acc'] = [7]
-    # config['US_acc'] = list(range(1, 32, 2))
-    # config['test_types'] = list(2*np.ones(len(config['US_acc']), dtype=np.int))
+    # config['test_types'] = [2, 2, 2, 2, 2]
+    # config['US_acc'] = [5, 1, 9, 13, 17]
+    config['US_acc'] = list(range(1, 32, 2))
+    config['test_types'] = list(2*np.ones(len(config['US_acc']), dtype=np.int))
 
     config['data'] = [i.split('/')[7] for i in config['test_dir']]
     # config['mask_type'] = 'crUS'
@@ -458,17 +436,19 @@ def main(argv=None):
     config['mask_type'] = 'radial'
 
     config['selected_frames'] = [0]
-    config['selected_slices'] = [10]
+    # config['selected_slices'] = [10]
     config['amplitude'] = 10
     config['network'] = 'ftflownet'
     config['batch_size'] = 64
     config['smooth_wind_size'] = 17  # None for no smoothing
     config['crop_stride'] = 2
     config['save_results'] = True
-    config['save_data_npz'] = False
     config['save_loss'] = True
     config['save_pdf'] = False
     config['save_png'] = True
+    config['save_mat'] = False
+    config['save_npz'] = False
+    config['cropped_image_size'] = [176, 132]
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))
@@ -499,6 +479,7 @@ def main(argv=None):
     input_cf['crop_size'] = 33
     input_cf['crop_stride'] = config['crop_stride']
     input_cf['cross_test'] = False
+    input_cf['size'] = config['cropped_image_size']
 
     info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/card/slice_info_card.ods"
     ods = get_data(info_file)
@@ -513,7 +494,7 @@ def main(argv=None):
     for name in FLAGS.ex.split(','):
         name = name.split('/')[-1]
         if config['save_results']:
-            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'_test1')
+            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name)
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)
 

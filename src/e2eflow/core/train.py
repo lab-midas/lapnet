@@ -128,18 +128,12 @@ class Trainer():
         save_interval = self.params['save_interval']
 
         ckpt = tf.train.get_checkpoint_state(self.ckpt_dir)
-        # if ckpt is not None:
-        #     ckpt_path = ckpt.model_checkpoint_path
-        #     global_step = int(ckpt_path.split('/')[-1].split('-')[-1])
-        #     assert global_step >= min_iter, 'training stage not reached'
-        #
-        #     start_iter = global_step + 1
-        #     if start_iter > max_iter:
-        #         print('-- train: max_iter reached')
-        #         return
-        # else:
-        #     start_iter = min_iter + 1
-        start_iter = min_iter + 1
+        if ckpt is not None:
+            start_iter = 120000 + 1
+            max_iter += 120000
+        else:
+            start_iter = min_iter + 1
+
         print('-- training from i = {} to {}'.format(start_iter, max_iter))
 
         assert (max_iter - start_iter + 1) % save_interval == 0

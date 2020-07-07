@@ -143,7 +143,7 @@ class Input():
         return arr_cropped_augmented
 
     def test_flown(self, config):
-        batches = self.test_set_generation(config)
+        batches = self.test_set_generation_flownet(config)
         if len(batches.shape) == 3:
             batches = batches[np.newaxis, ...]
         im1_queue = tf.train.slice_input_producer([batches[..., 0]], shuffle=False,
@@ -208,6 +208,7 @@ class Input():
         mask_type = config['mask_type']
         use_given_US_mask = config['use_given_US_mask']
         use_given_u = config['use_given_u']
+        cropped_size = config['size']
 
         try:
             f = load_mat_file(path)
@@ -224,10 +225,80 @@ class Input():
         if (self.dims[1] != np.shape(ref)[1]) or (self.dims[0] != np.shape(ref)[0]):
             pad_size_x = int((self.dims[0] - np.shape(ref)[0]) / 2)
             pad_size_y = int((self.dims[1] - np.shape(ref)[1]) / 2)
-            ref = np.pad(ref, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
-            ux = np.pad(ux, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
-            uy = np.pad(uy, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
-            uz = np.pad(uz, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
+
+        u = np.stack((ux, uy, uz), axis=-1)
+
+        if u_type == 3:
+            u_syn = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
+            u = np.multiply(u, u_syn)
+        elif u_type == 1:
+            u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
+        elif u_type == 0:
+            u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_constant_amp10_3D.npy')
+        elif u_type == 2:
+            pass
+        else:
+            raise ImportError('wrong augmentation type is given')
+        try:
+            mov = np_warp_3D(ref, u)
+        except:
+            u = u[::np.shape(ref)[0], ::np.shape(ref)[1], :np.shape(ref)[-1]]
+            mov = np_warp_3D(ref, u)
+        if US_acc > 1:
+            if mask_type == 'drUS':
+                mask = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/data/mask/mask_acc{}.npy'.format(US_acc))
+            elif mask_type == 'crUS':
+                mask = sampleCenter(1/US_acc*100, 256, 72)
+                mask = np.array([mask, ] * 4, dtype=np.float32)
+            elif mask_type == 'radial':
+                im_pair = np.stack((ref, mov), axis=-1)[..., slice, :]
+                u = u[..., slice, :][..., :2]
+                im_pair_US = np.squeeze(subsample_radial(im_pair[..., np.newaxis, :], acc=US_acc))
+                im_pair = np.absolute(post_crop(im_pair_US, np.shape(im_pair)))
+                # im_pair = np.absolute(im_pair_US)
+                data = np.concatenate((im_pair, u), axis=-1)
+                data = np.pad(data, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
+                data = post_crop(data, (cropped_size[0], cropped_size[1], 4))
+                return np.asarray(data, dtype=np.float32)
+
+            k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
+            k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
+            ref = (np.fft.ifftn(k_dset)).real
+            mov = (np.fft.ifftn(k_warped_dset)).real
+
+        data_3D = np.stack((ref, mov, u[..., 0], u[..., 1]), axis=-1)
+        data_3D = np.moveaxis(data_3D, 2, 0)
+
+        Imgs = data_3D[slice, ...]
+        if list(np.shape(Imgs)[:2]) != cropped_size:
+            Imgs = post_crop(Imgs, (cropped_size[0], cropped_size[1], 4))
+        return np.asarray(Imgs, dtype=np.float32)
+
+    def test_set_generation_flownet(self, config):
+        path = config['path']
+        slice = config['slice']
+        u_type = config['u_type']
+        US_acc = config['US_acc']
+        data_type = config['data']
+        mask_type = config['mask_type']
+        use_given_US_mask = config['use_given_US_mask']
+        use_given_u = config['use_given_u']
+
+        try:
+            f = load_mat_file(path)
+        except:
+            try:
+                f = np.load(path)
+            except ImportError:
+                print("Wrong Data Format")
+
+        ref = np.asarray(f['dFixed'], dtype=np.float32)
+        ux = np.asarray(f['ux'], dtype=np.float32)  # ux for warp
+        uy = np.asarray(f['uy'], dtype=np.float32)
+        uz = np.zeros(np.shape(ux), dtype=np.float32)
+        if (self.dims[1] != np.shape(ref)[1]) or (self.dims[0] != np.shape(ref)[0]):
+            pad_size_x = int((self.dims[0] - np.shape(ref)[0]) / 2)
+            pad_size_y = int((self.dims[1] - np.shape(ref)[1]) / 2)
 
         u = np.stack((ux, uy, uz), axis=-1)
 
@@ -256,10 +327,17 @@ class Input():
             elif mask_type == 'radial':
                 im_pair = np.stack((ref, mov), axis=-1)[..., slice, :]
                 u = u[..., slice, :][..., :2]
-                im_pair_US = np.squeeze(subsample_radial(im_pair[..., np.newaxis, :], acc=US_acc))
-                im_pair = np.absolute(im_pair_US)
-                data = np.concatenate((im_pair, u), axis=-1)
-                return np.asarray(data, dtype=np.float32)
+                output = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
+                for i in range(len(slice)):
+                    im_pair_single = im_pair[..., i, :]
+                    u_single = u[..., i, :]
+                    im_pair_US = np.squeeze(subsample_radial(im_pair_single[..., np.newaxis, :], acc=US_acc))
+                    im_pair_single = np.absolute(post_crop(im_pair_US, np.shape(im_pair_single)))
+
+                    data = np.concatenate((im_pair_single, u_single), axis=-1)
+                    data = np.pad(data, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
+                    output = np.concatenate((output, data[np.newaxis, ...]), axis=0)
+                return np.asarray(output, dtype=np.float32)
 
             k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
             k_warped_dset = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
@@ -270,6 +348,8 @@ class Input():
         data_3D = np.moveaxis(data_3D, 2, 0)
 
         Imgs = data_3D[slice, ...]
+        if list(np.shape(Imgs)[1:3]) != [self.dims[0], self.dims[1]]:
+            Imgs = np.pad(Imgs, ((0, 0), (pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
         return np.asarray(Imgs, dtype=np.float32)
 
     def _resize_crop_or_pad(self, tensor):

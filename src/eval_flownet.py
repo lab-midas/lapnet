@@ -8,18 +8,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 from pyexcel_ods import get_data
+import scipy.io as sio
 import pylab
-import operator
 import time
 from multiprocessing import Pool
 from e2eflow.core.flow_util import flow_to_color, flow_error_avg, outlier_pct, flow_to_color_np
 from e2eflow.core.flow_util import flow_error_image
+from e2eflow.core.util import cal_loss_mean, central_crop
 from e2eflow.util import config_dict
 from e2eflow.core.image_warp import image_warp
 from e2eflow.kitti.data import KITTIData
-from e2eflow.kitti.input_resp import MRI_Resp_2D, KITTIInput, np_warp_2D
+from e2eflow.kitti.input_card import MRI_Card_2D
+from e2eflow.kitti.input_resp import MRI_Resp_2D
 from e2eflow.core.supervised import supervised_loss
-from e2eflow.core.input import resize_input, resize_output_crop, resize_output, resize_output_flow
+from e2eflow.core.input import resize_input, resize_output_crop, resize_output, resize_output_flow, np_warp_2D
 from e2eflow.core.train import restore_networks
 from e2eflow.core.input import load_mat_file
 from e2eflow.gui import display
@@ -57,43 +59,6 @@ FLAGS = tf.app.flags.FLAGS
 
 NUM_EXAMPLES_PER_PAGE = 4
 
-def cal_loss_mean(loss_dir):
-    if os.path.exists(os.path.join(loss_dir, 'mean_loss_EPE.txt')):
-        raise ImportError('mean value of EPE already calculated')
-    if os.path.exists(os.path.join(loss_dir, 'mean_loss_EAE.txt')):
-        raise ImportError('mean value of EAE already calculated')
-    files = os.listdir(loss_dir)
-    files.sort()
-    mean = dict()
-    for file in files:
-        with open(os.path.join(loss_dir, file), 'r') as f:
-            data = [float(i) for i in f.readlines()]
-            mean[file.split('.')[0]] = np.mean(data)
-    f1 = open(os.path.join(loss_dir, 'mean_loss_EPE.txt'), "a")
-    f2 = open(os.path.join(loss_dir, 'mean_loss_EAE.txt'), "a")
-    for name in mean:
-        if 'EPE' in name:
-            f1.write('{}:{}\n'.format('_'.join(name.split('_')[:2]), round(mean[name], 5)))
-        else:
-            f2.write('{}:{}\n'.format('_'.join(name.split('_')[:2]), round(mean[name], 5)))
-    f1.close()
-    f2.close()
-
-
-def cal_loss_mean(loss_dir):
-    if os.path.exists(os.path.join(loss_dir, 'mean_loss.txt')):
-        raise ImportError('mean value already calculated')
-    files = os.listdir(loss_dir)
-    files.sort()
-    mean = dict()
-    for file in files:
-        with open(os.path.join(loss_dir, file), 'r') as f:
-            data = [float(i) for i in f.readlines()]
-            mean[file.split('.')[0]] = np.mean(data)
-    with open(os.path.join(loss_dir, 'mean_loss.txt'), "a") as f:
-        for name in mean:
-            f.write('{}:{}\n'.format(name, mean[name]))
-
 
 def _evaluate_experiment(name, data, config):
 
@@ -107,7 +72,7 @@ def _evaluate_experiment(name, data, config):
     config_train = config_dict(config_path)
     params = config_train['train']
     convert_input_strings(params, config_dict('../config.ini')['dirs'])
-    dataset_params_name = 'train_' + FLAGS.dataset
+    dataset_params_name = 'train_' + config_train['run']['dataset']
     if dataset_params_name in config_train:
         params.update(config_train[dataset_params_name])
     ckpt = tf.train.get_checkpoint_state(exp_dir)
@@ -116,8 +81,8 @@ def _evaluate_experiment(name, data, config):
     ckpt_path = exp_dir + "/" + os.path.basename(ckpt.model_checkpoint_path)
 
     batch_size = config['batch_size']
-    height = params['height']
-    width = params['width']
+    height = config['cropped_image_size'][0]
+    width = config['cropped_image_size'][1]
 
     with tf.Graph().as_default(): #, tf.device('gpu:' + FLAGS.gpu):
         test_batch, im1, im2, flow_orig = data()
@@ -135,13 +100,19 @@ def _evaluate_experiment(name, data, config):
             sess.run(tf.local_variables_initializer())
             restore_networks(sess, params, ckpt, ckpt_path)
             coord = tf.train.Coordinator()
-            threads = tf.train.start_queue_runners(sess=sess,                                                   coord=coord)
+            threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
             #flow_final = np.zeros((height, width, len(config['selected_slices'])), dtype=np.float32)
             flow_final, _ = sess.run([flow, loss])  # todo: doesn't work if slices > batch_size
             flow_final = flow_final[:len(config['selected_slices']), ...]
             coord.request_stop()
             coord.join(threads)
+
+        cut_size = (np.shape(flow_orig)[0], height, width)
+        flow_orig = central_crop(flow_orig, cut_size)
+        flow_final = central_crop(flow_final, cut_size)
+        im1 = central_crop(im1, cut_size)
+        im2 = central_crop(im2, cut_size)
 
         error_data_pred = []
         for u_est, u_gt in zip(flow_final, flow_orig):
@@ -154,7 +125,7 @@ def _evaluate_experiment(name, data, config):
         error_data_gt = []
         for u_est in flow_orig:
             u_est_1 = (u_est[..., 0], u_est[..., 1])
-            u_gt_1 = [np.zeros((params['height'], params['width']), dtype=np.float32), ] * 2
+            u_gt_1 = [np.zeros((height, width), dtype=np.float32), ] * 2
             OF_index = u_gt_1[0] != np.nan
             error_single_gt = warp_assessment3D(u_gt_1, u_est_1, OF_index)
             error_data_gt.append(error_single_gt)
@@ -213,9 +184,9 @@ def _evaluate_experiment(name, data, config):
         results['mov_corr'] = im1_pred
         results['color_flow_pred'] = color_flow_final
         results['color_flow_gt'] = color_flow_gt
-        results['err_pred'] = im_error_pred
-        results['err_orig'] = im_error
-        results['err_gt'] = im_error_gt
+        # results['err_pred'] = im_error_pred
+        # results['err_orig'] = im_error
+        # results['err_gt'] = im_error_gt
         results['flow_pred'] = list(flow_final)
         results['flow_gt'] = list(flow_orig)
         results['loss_pred'] = final_loss
@@ -303,7 +274,7 @@ def save_results(output_dir, results, config, input_cf):
     for s in input_cf['slice']:
         file_name = test_type + '_' + patient + '_' + str(input_cf['frame']) + '_' + str(s)
 
-        if config['save_data_npz']:
+        if config['save_npz']:
             dir_name = test_name + '_data_npz'
             save_dir = os.path.join(output_dir, dir_name)
             if not os.path.exists(save_dir):
@@ -313,6 +284,14 @@ def save_results(output_dir, results, config, input_cf):
                      img_ref=results['img_ref'][i],
                      flow_gt=results['flow_gt'][i],
                      flow_pred=results['flow_pred'][i])
+
+        if config['save_mat']:
+            dir_name = test_name + '_data_mat'
+            save_dir = os.path.join(output_dir, dir_name)
+            if not os.path.exists(save_dir):
+                os.mkdir(save_dir)
+            output_file_flow = os.path.join(save_dir, file_name)
+            sio.savemat(output_file_flow + '.mat', {key: np.squeeze(results[key][i]) for key in results})
 
         if config['save_png']:
             dir_name = test_name + '_png'
@@ -388,31 +367,41 @@ def main(argv=None):
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_035.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_036.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
-
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz']
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz']
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz',
+                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat2.npz',
+                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat3.npz',
+                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Ga_160419.npz',
+                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Ha_020519.npz']
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz']
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
-    config['test_types'] = [2,2]
-    config['US_acc'] = [1,8]
-    # config['US_acc'] = list(range(1, 32, 2))
-    # config['test_types'] = list(2 * np.ones(len(config['US_acc']), dtype=np.int))
+    # config['test_types'] = [2,2,2,2,2]
+    # config['US_acc'] = [1,5,9,13,17]
+    config['US_acc'] = list(range(1, 32, 2))
+    config['test_types'] = list(2 * np.ones(len(config['US_acc']), dtype=np.int))
 
-    # config['mask_type'] = 'center'
-    config['mask_type'] = 'US'
-
+    config['data'] = [i.split('/')[7] for i in config['test_dir']]
+    # config['mask_type'] = 'crUS'
+    # config['mask_type'] = 'drUS'
+    config['mask_type'] = 'radial'
+    config['data'] = [i.split('/')[7] for i in config['test_dir']]
     config['selected_frames'] = [0]
-    config['selected_slices'] = [30]
+    # config['selected_slices'] = [10, 11, 12]
     config['amplitude'] = 10
+    config['cropped_image_size'] = [176, 132]
     config['network'] = 'flownet'
     config['batch_size'] = 64
 
     config['save_results'] = True
-    config['save_data_npz'] = False
     config['save_loss'] = True
     config['save_pdf'] = False
-    config['save_png'] = False
+    config['save_png'] = True
+    config['save_npz'] = False
+    config['save_mat'] = False
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))
@@ -420,12 +409,14 @@ def main(argv=None):
     default_config = config_dict()
     dirs = default_config['dirs']
 
-    if FLAGS.dataset == 'kitti':
-        data = KITTIData(dirs['data'], development=True)
-        data_input = KITTIInput(data, batch_size=1, normalize=False,
-                                dims=(384, 1280))
+    if config['data'][0] == 'card':
+        kdata = KITTIData(data_dir=dirs['data'], development=True)
+        data_input = MRI_Card_2D(data=kdata,
+                                 batch_size=config['batch_size'],
+                                 normalize=False,
+                                 dims=(192, 192))
 
-    elif FLAGS.dataset == 'resp_2D':
+    elif config['data'][0] == 'resp':
         kdata = KITTIData(data_dir=dirs['data'], development=True)
         data_input = MRI_Resp_2D(data=kdata,
                                  batch_size=config['batch_size'],
@@ -452,12 +443,12 @@ def main(argv=None):
     for name in FLAGS.ex.split(','):
         name = name.split('/')[-1]
         if config['save_results']:
-            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name+'test1')
+            output_dir = os.path.join("/home/jpa19/PycharmProjects/MA/UnFlow/output/", name)
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)
 
         for i, u_type in enumerate(config['test_types']):
-            for patient in config['test_dir']:
+            for j, patient in enumerate(config['test_dir']):
                 for frame in config['selected_frames']:
                     input_cf['path'] = patient
 
@@ -467,6 +458,7 @@ def main(argv=None):
 
                     input_cf['frame'] = frame
                     input_cf['u_type'] = u_type
+                    input_cf['data'] = config['data'][j]
                     # input_cf['use_given_u'] = config['new_u'][i]
                     input_cf['mask_type'] = config['mask_type']
                     input_cf['US_acc'] = config['US_acc'][i]

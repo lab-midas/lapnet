@@ -36,6 +36,8 @@ class MRI_Card_2D(Input):
                       US_rate='random',
                       num_to_take=1500):
         output = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
+        # output = np.zeros((0, 176, 132, 4), dtype=np.float32)
+
         if num_to_take == 0:
             return output
         i = 0
@@ -53,6 +55,8 @@ class MRI_Card_2D(Input):
                 except ImportError:
                     print("Wrong Data Format")
 
+            # f = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz')
+
             name = fn_im_path.split('/')[-1].split('.')[0]
 
             ref = np.asarray(f['dFixed'], dtype=np.float32)
@@ -61,9 +65,9 @@ class MRI_Card_2D(Input):
             ux = np.asarray(f['ux'], dtype=np.float32)  # ux for warp
             uy = np.asarray(f['uy'], dtype=np.float32)
 
-            ref = np.pad(ref, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
-            ux = np.pad(ux, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
-            uy = np.pad(uy, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
+            # ref = np.pad(ref, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
+            # ux = np.pad(ux, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
+            # uy = np.pad(uy, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
 
             uxy = np.stack((ux, uy), axis=-1)
             slice2take = slice_info[name]
@@ -82,7 +86,6 @@ class MRI_Card_2D(Input):
                 else:
                     raise ImportError('wrong augmentation type is given')
                 mov_2D = np_warp_2D(ref_2D, u)
-
                 im_pair = np.stack((ref_2D, mov_2D), axis=-1)
 
                 if US_rate:
@@ -99,13 +102,14 @@ class MRI_Card_2D(Input):
                             continue
                     if acc != 1:
                         im_pair_US = np.squeeze(subsample_radial(im_pair[..., np.newaxis, :], acc=acc))
-                        im_pair = np.absolute(im_pair_US)
-
-                # fig = plt.figure(figsize=(5, 5), dpi=100)
-                # plt.imshow(im_pair[..., 1])
-                # fig.savefig('/home/jpa19/PycharmProjects/MA/UnFlow/see0_m.png')
+                        im_pair = np.absolute(post_crop(im_pair_US, np.shape(im_pair)))
+                        # fig = plt.figure(figsize=(5, 5), dpi=100)
+                        # plt.imshow(im_pair[..., 0])
+                        # fig.savefig('/home/jpa19/PycharmProjects/MA/UnFlow/US_without_pad.png')
 
                 data = np.concatenate((im_pair, u), axis=-1)
+                data = np.pad(data, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
+                # data = post_crop(data, (176, 132, 4))
                 output = np.concatenate((output, data[np.newaxis, ...]), axis=0)
 
             i += 1
@@ -130,6 +134,7 @@ class MRI_Card_2D(Input):
         assert (num_real <= 475 and case == 'train') or (num_real <= 72 and case == 'validation')
 
         batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
+        # batches = np.zeros((0, 176, 132, 4), dtype=np.float32)
         fn_im_paths = self.get_data_paths(img_dirs)
         aug_data_constant = self.load_aug_data(fn_im_paths,
                                                slice_info,

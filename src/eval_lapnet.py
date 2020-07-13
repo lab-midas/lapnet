@@ -412,12 +412,12 @@ def main(argv=None):
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
 
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz']
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz']
     config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz',
                           '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat2.npz',
                           '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat3.npz',
                           '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Ga_160419.npz',
                           '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Ha_020519.npz']
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz']
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_035.npz',
@@ -425,8 +425,8 @@ def main(argv=None):
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
 
     # 0: constant generated flow, 1: smooth generated flow, 2: matlab simulated test data 3: simulated_x smooth 4: cross test without gt
-    # config['test_types'] = [2, 2, 2, 2, 2]
-    # config['US_acc'] = [5, 1, 9, 13, 17]
+    # config['test_types'] = [2, 2, 2]
+    # config['US_acc'] = [1, 9, 17]
     config['US_acc'] = list(range(1, 32, 2))
     config['test_types'] = list(2*np.ones(len(config['US_acc']), dtype=np.int))
 
@@ -443,10 +443,10 @@ def main(argv=None):
     config['smooth_wind_size'] = 17  # None for no smoothing
     config['crop_stride'] = 2
     config['save_results'] = True
-    config['save_loss'] = True
+    config['save_loss'] = False
     config['save_pdf'] = False
-    config['save_png'] = True
-    config['save_mat'] = False
+    config['save_png'] = False
+    config['save_mat'] = True
     config['save_npz'] = False
     config['cropped_image_size'] = [176, 132]
 

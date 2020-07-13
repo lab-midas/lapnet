@@ -43,7 +43,7 @@ tf.app.flags.DEFINE_integer('num', 1,
                             'Number of examples to evaluate. Set to -1 to evaluate all.')
 tf.app.flags.DEFINE_integer('num_vis', 1,
                             'Number of evalutations to visualize. Set to -1 to visualize all.')
-tf.app.flags.DEFINE_string('gpu', '0',
+tf.app.flags.DEFINE_string('gpu', '1',
                            'GPU device to evaluate on.')
 tf.app.flags.DEFINE_boolean('output_benchmark', False,
                             'Output raw flow files.')
@@ -397,11 +397,11 @@ def main(argv=None):
     config['batch_size'] = 64
 
     config['save_results'] = True
-    config['save_loss'] = True
+    config['save_loss'] = False
     config['save_pdf'] = False
-    config['save_png'] = True
+    config['save_png'] = False
     config['save_npz'] = False
-    config['save_mat'] = False
+    config['save_mat'] = True
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))

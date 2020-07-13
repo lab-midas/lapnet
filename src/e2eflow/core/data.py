@@ -23,8 +23,6 @@ class Data():
         if not os.path.isdir(data_dir):
             os.makedirs(data_dir)
 
-        self._fetch_if_missing()
-
         self.fast_dir = fast_dir
         if fast_dir:
             print(">> Copying files to {}".format(fast_dir))

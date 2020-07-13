@@ -99,7 +99,7 @@ def _eval_plot(results, image_names, title):
 class Trainer():
     def __init__(self, train_batch_fn, eval_batch_fn, params,
                  train_summaries_dir, eval_summaries_dir, ckpt_dir,
-                 normalization, debug=False, experiment="", interactive_plot=False,
+                 debug=False, experiment="", interactive_plot=False,
                  supervised=False, devices=None, LAP_layer=False):
 
         self.train_summaries_dir = train_summaries_dir
@@ -109,7 +109,6 @@ class Trainer():
         self.debug = debug
         self.train_batch_fn = train_batch_fn
         self.eval_batch_fn = eval_batch_fn
-        self.normalization = normalization
         self.experiment = experiment
         self.interactive_plot = interactive_plot
         self.plot_proc = None
@@ -179,7 +178,7 @@ class Trainer():
 
         if len(self.devices) == 1:
             # loss_, _ = self.loss_fn(batch, self.params, self.normalization)
-            loss_, _ = supervised_loss(batch, self.params, self.normalization)
+            loss_, _ = supervised_loss(batch, self.params)
             train_op = opt.minimize(loss_)
             _add_summaries()
         else:   # JP: below is for multi-gpu train, haven't seen yet
@@ -188,7 +187,7 @@ class Trainer():
                 for i, devid in enumerate(self.devices):
                     with tf.device(devid):
                         with tf.name_scope('tower_{}'.format(i)) as scope:
-                            loss_ = self.loss_fn(batch, self.params, self.normalization)
+                            loss_ = self.loss_fn(batch, self.params)
                             _add_summaries()
 
                             # Reuse variables for the next tower.

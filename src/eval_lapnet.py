@@ -14,17 +14,15 @@ import pylab
 from scipy.interpolate import griddata
 from pyexcel_ods import get_data
 import time
-
-from e2eflow.core.flow_util import flow_to_color, flow_error_avg, outlier_pct, flow_to_color_np
+from e2eflow.core.data import Data
+from e2eflow.core.flow_util import flow_to_color, flow_error_avg, flow_to_color_np
 from e2eflow.core.flow_util import flow_error_image
 from e2eflow.util import config_dict
 from e2eflow.core.util import cal_loss_mean, central_crop
 from e2eflow.core.image_warp import image_warp
-from e2eflow.kitti.data import KITTIData
-from e2eflow.kitti.input_resp import MRI_Resp_2D
-from e2eflow.kitti.input_card import MRI_Card_2D
+from e2eflow.resp_and_card.input_resp import MRI_Resp_2D
+from e2eflow.resp_and_card.input_card import MRI_Card_2D
 from e2eflow.core.supervised import supervised_loss
-from e2eflow.core.input import resize_input, resize_output_crop, resize_output, resize_output_flow
 from e2eflow.core.train import restore_networks
 from e2eflow.core.input import load_mat_file
 from e2eflow.gui import display
@@ -66,7 +64,7 @@ NUM_EXAMPLES_PER_PAGE = 4
 def _evaluate_experiment(name, data, config):
 
     current_config = config_dict('../config.ini')
-    exp_dir = os.path.join(current_config['dirs']['log'], 'ex', name)
+    exp_dir = os.path.join(current_config['dirs']['log'], 'ex', 'resp', name)
     config_path = os.path.join(exp_dir, 'config.ini')
     if not os.path.isfile(config_path):
         config_path = '../config.ini'
@@ -96,7 +94,6 @@ def _evaluate_experiment(name, data, config):
 
         loss, flow = supervised_loss(
                              test_batch,
-                             normalization=None,
                              augment=False,
                              params=params)
 
@@ -411,12 +408,12 @@ def main(argv=None):
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/06_la',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
 
-    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz']
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat2.npz',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat3.npz',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Ga_160419.npz',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Ha_020519.npz']
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz']
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat2.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat3.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Ga_160419.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Ha_020519.npz']
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz']
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
@@ -425,18 +422,18 @@ def main(argv=None):
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
 
     # 0: constant generated flow, 1: smooth generated flow, 2: matlab simulated test data 3: simulated_x smooth 4: cross test without gt
-    # config['test_types'] = [2, 2, 2]
-    # config['US_acc'] = [1, 9, 17]
-    config['US_acc'] = list(range(1, 32, 2))
-    config['test_types'] = list(2*np.ones(len(config['US_acc']), dtype=np.int))
+    config['test_types'] = [2, 2, 2]
+    config['US_acc'] = [1, 9, 17]
+    # config['US_acc'] = list(range(1, 32, 2))
+    # config['test_types'] = list(2*np.ones(len(config['US_acc']), dtype=np.int))
 
     config['data'] = [i.split('/')[7] for i in config['test_dir']]
     # config['mask_type'] = 'crUS'
-    # config['mask_type'] = 'drUS'
-    config['mask_type'] = 'radial'
+    config['mask_type'] = 'drUS'
+    # config['mask_type'] = 'radial'
 
     config['selected_frames'] = [0]
-    # config['selected_slices'] = [10]
+    config['selected_slices'] = [10]
     config['amplitude'] = 10
     config['network'] = 'ftflownet'
     config['batch_size'] = 64
@@ -448,7 +445,7 @@ def main(argv=None):
     config['save_png'] = False
     config['save_mat'] = True
     config['save_npz'] = False
-    config['cropped_image_size'] = [176, 132]
+    config['cropped_image_size'] = [256, 256]
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))
@@ -457,14 +454,14 @@ def main(argv=None):
     dirs = default_config['dirs']
 
     if config['data'][0] == 'card':
-        kdata = KITTIData(data_dir=dirs['data'], development=True)
+        kdata = Data(data_dir=dirs['data'], development=True, stat_log_dir=None)
         data_input = MRI_Card_2D(data=kdata,
                                  batch_size=config['batch_size'],
                                  normalize=False,
                                  dims=(192, 192))
 
     elif config['data'][0] == 'resp':
-        kdata = KITTIData(data_dir=dirs['data'], development=True)
+        kdata = Data(data_dir=dirs['data'], development=True, stat_log_dir=None)
         data_input = MRI_Resp_2D(data=kdata,
                                  batch_size=config['batch_size'],
                                  normalize=False,
@@ -481,7 +478,7 @@ def main(argv=None):
     input_cf['cross_test'] = False
     input_cf['size'] = config['cropped_image_size']
 
-    info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/card/slice_info_card.ods"
+    info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info_resp.ods"
     ods = get_data(info_file)
     slice_info = {value[0]: list(range(*[int(j) - 1 for j in value[1].split(',')])) for value in ods["Sheet1"] if
                   len(value) is not 0}
@@ -517,7 +514,7 @@ def main(argv=None):
                         if config['save_results']:
                             save_test_info(output_dir, input_cf)
 
-                        results = _evaluate_experiment(name, lambda: data_input.test_2D_slice(config=input_cf), config)
+                        results = _evaluate_experiment(name, lambda: data_input.test_lapnet(config=input_cf), config)
                         # show_results(results)
 
                         if config['save_results']:

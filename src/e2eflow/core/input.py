@@ -3,13 +3,10 @@ import random
 
 import numpy as np
 import tensorflow as tf
-
 from skimage.util.shape import view_as_windows
-from ..core.util import pos_generation_2D, _u_generation_3D, _u_generation_2D, arr2kspace, load_mat_file
-from ..core.image_warp import np_warp_2D, np_warp_3D
-
-from ..core.sampling import generate_mask
-from ..core.sampling_center import sampleCenter
+from ..core.util import pos_generation_2D, arr2kspace, load_mat_file
+from ..core.image_warp import np_warp_3D
+from e2eflow.core.resp_US.sampling_center import sampleCenter
 from ..core.card_US.retrospective_radial import subsample_radial
 from ..core.card_US.pad_crop import post_crop
 
@@ -50,9 +47,7 @@ def frame_name_to_num(name):
     return int(stripped)
 
 
-class Input():
-    mean = [104.920005, 110.1753, 114.785955]
-    stddev = 1 / 0.0039216
+class Input:
 
     def __init__(self, data, batch_size, dims, *,
                  num_threads=1, normalize=True,
@@ -165,7 +160,7 @@ class Input():
 
         return test_batches, im1, im2, flow_orig
 
-    def test_2D_slice(self, config):
+    def test_lapnet(self, config):
 
         # batch = self.old_test_set_generation(config)
         batch = self.test_set_generation(config)
@@ -206,8 +201,6 @@ class Input():
         US_acc = config['US_acc']
         data_type = config['data']
         mask_type = config['mask_type']
-        use_given_US_mask = config['use_given_US_mask']
-        use_given_u = config['use_given_u']
         cropped_size = config['size']
 
         try:
@@ -229,12 +222,12 @@ class Input():
         u = np.stack((ux, uy, uz), axis=-1)
 
         if u_type == 3:
-            u_syn = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
+            u_syn = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/data/u_3D/u_smooth_apt10_3D.npy')
             u = np.multiply(u, u_syn)
         elif u_type == 1:
-            u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
+            u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/data/u_3D/u_smooth_apt10_3D.npy')
         elif u_type == 0:
-            u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_constant_amp10_3D.npy')
+            u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/data/u_3D/u_constant_amp10_3D.npy')
         elif u_type == 2:
             pass
         else:
@@ -281,8 +274,6 @@ class Input():
         US_acc = config['US_acc']
         data_type = config['data']
         mask_type = config['mask_type']
-        use_given_US_mask = config['use_given_US_mask']
-        use_given_u = config['use_given_u']
 
         try:
             f = load_mat_file(path)
@@ -303,12 +294,12 @@ class Input():
         u = np.stack((ux, uy, uz), axis=-1)
 
         if u_type == 3:
-            u_syn = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
+            u_syn = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/data/u_3D/u_smooth_apt10_3D.npy')
             u = np.multiply(u, u_syn)
         elif u_type == 1:
-            u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_smooth_apt10_3D.npy')
+            u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/data/u_3D/u_smooth_apt10_3D.npy')
         elif u_type == 0:
-            u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/u_constant_amp10_3D.npy')
+            u = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/data/u_3D/u_constant_amp10_3D.npy')
         elif u_type == 2:
             pass
         else:
@@ -411,8 +402,8 @@ class Input():
             num_threads=self.num_threads,
             allow_smaller_final_batch=True)
 
-    def get_normalization(self):
-        return self.mean, self.stddev
+    # def get_normalization(self):
+    #     return self.mean, self.stddev
 
     def input_raw(self, swap_images=True, sequence=True,
                   needs_crop=True, shift=0, seed=0,

@@ -14,14 +14,13 @@ import time
 from multiprocessing import Pool
 from e2eflow.core.flow_util import flow_to_color, flow_error_avg, outlier_pct, flow_to_color_np
 from e2eflow.core.flow_util import flow_error_image
+from e2eflow.core.data import Data
 from e2eflow.core.util import cal_loss_mean, central_crop
 from e2eflow.util import config_dict
 from e2eflow.core.image_warp import image_warp
-from e2eflow.kitti.data import KITTIData
-from e2eflow.kitti.input_card import MRI_Card_2D
-from e2eflow.kitti.input_resp import MRI_Resp_2D
+from e2eflow.resp_and_card.input_card import MRI_Card_2D
+from e2eflow.resp_and_card.input_resp import MRI_Resp_2D
 from e2eflow.core.supervised import supervised_loss
-from e2eflow.core.input import resize_input, resize_output_crop, resize_output, resize_output_flow, np_warp_2D
 from e2eflow.core.train import restore_networks
 from e2eflow.core.input import load_mat_file
 from e2eflow.gui import display
@@ -89,7 +88,6 @@ def _evaluate_experiment(name, data, config):
 
         loss, flow = supervised_loss(
                              test_batch,
-                             normalization=None,
                              augment=False,
                              params=params)
 
@@ -367,13 +365,13 @@ def main(argv=None):
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_035.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_036.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
-    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz']
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz']
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat2.npz',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat3.npz',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Ga_160419.npz',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Ha_020519.npz']
+    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz']
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz']
+    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat2.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat3.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Ga_160419.npz',
+    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Ha_020519.npz']
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
@@ -386,22 +384,22 @@ def main(argv=None):
 
     config['data'] = [i.split('/')[7] for i in config['test_dir']]
     # config['mask_type'] = 'crUS'
-    # config['mask_type'] = 'drUS'
-    config['mask_type'] = 'radial'
+    config['mask_type'] = 'drUS'
+    # config['mask_type'] = 'radial'
     config['data'] = [i.split('/')[7] for i in config['test_dir']]
     config['selected_frames'] = [0]
     # config['selected_slices'] = [10, 11, 12]
     config['amplitude'] = 10
-    config['cropped_image_size'] = [176, 132]
+    config['cropped_image_size'] = [256, 256]
     config['network'] = 'flownet'
     config['batch_size'] = 64
 
     config['save_results'] = True
-    config['save_loss'] = False
+    config['save_loss'] = True
     config['save_pdf'] = False
-    config['save_png'] = False
+    config['save_png'] = True
     config['save_npz'] = False
-    config['save_mat'] = True
+    config['save_mat'] = False
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))
@@ -410,14 +408,14 @@ def main(argv=None):
     dirs = default_config['dirs']
 
     if config['data'][0] == 'card':
-        kdata = KITTIData(data_dir=dirs['data'], development=True)
+        kdata = Data(data_dir=dirs['data'], development=True, stat_log_dir=None)
         data_input = MRI_Card_2D(data=kdata,
                                  batch_size=config['batch_size'],
                                  normalize=False,
                                  dims=(192, 192))
 
     elif config['data'][0] == 'resp':
-        kdata = KITTIData(data_dir=dirs['data'], development=True)
+        kdata = Data(data_dir=dirs['data'], development=True, stat_log_dir=None)
         data_input = MRI_Resp_2D(data=kdata,
                                  batch_size=config['batch_size'],
                                  normalize=False,
@@ -430,7 +428,7 @@ def main(argv=None):
     input_cf['use_given_US_mask'] = True
     input_cf['cross_test'] = False
 
-    info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/card/slice_info_card.ods"
+    info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info_resp.ods"
     ods = get_data(info_file)
     slice_info = {value[0]: list(range(*[int(j) - 1 for j in value[1].split(',')])) for value in ods["Sheet1"] if
                   len(value) is not 0}

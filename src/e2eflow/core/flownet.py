@@ -270,22 +270,6 @@ def flownet_s_kspace_in_33_out_4(inputs, channel_mult=1, full_res=False):
         conv4_1 = slim.conv2d(conv4, int(1024 * m), 3, stride=1, scope='conv4_1')
 
     pool = slim.max_pool2d(conv4_1, 5, data_format='NCHW')
-    flatten_conv6_1 = slim.flatten(pool)
-
-    # fc1 = slim.fully_connected(flatten_conv6_1,
-    #                            4096,
-    #                            weights_initializer=layers.variance_scaling_initializer(),
-    #                            biases_initializer=tf.constant_initializer(0.1),
-    #                            scope='fc1')
-    # dp1 = slim.dropout(fc1, 0.5, is_training=True,
-    #                    scope='dropout6')
-
-    # fc2 = slim.fully_connected(flatten_conv6_1,
-    #                            2,
-    #                            weights_initializer=layers.variance_scaling_initializer(),
-    #                            biases_initializer=tf.zeros_initializer(),
-    #                            activation_fn=None,
-    #                            scope='fc2')
     fc2 = slim.conv2d(pool,
                       4, [1, 1],
                       activation_fn=None,
@@ -318,6 +302,20 @@ def flownet_s_kspace_in_33(inputs, channel_mult=1, full_res=False):
 
     pool = slim.max_pool2d(conv4_1, 5, data_format='NCHW')
     # flatten_conv6_1 = slim.flatten(pool)
+    # fc1 = slim.fully_connected(flatten_conv6_1,
+    #                            4096,
+    #                            weights_initializer=layers.variance_scaling_initializer(),
+    #                            biases_initializer=tf.constant_initializer(0.1),
+    #                            scope='fc1')
+    # dp1 = slim.dropout(fc1, 0.5, is_training=True,
+    #                    scope='dropout6')
+
+    # fc2 = slim.fully_connected(flatten_conv6_1,
+    #                            2,
+    #                            weights_initializer=layers.variance_scaling_initializer(),
+    #                            biases_initializer=tf.zeros_initializer(),
+    #                            activation_fn=None,
+    #                            scope='fc2')
 
     fc2 = slim.conv2d(pool,
                       2, [1, 1],
@@ -351,22 +349,7 @@ def flownet_s_kspace_in_33_large_receptive(inputs, channel_mult=1, full_res=Fals
         conv4_1 = slim.conv2d(conv4, int(1024 * m), 3, stride=1, scope='conv4_1')
 
     pool = slim.max_pool2d(conv4_1, 5, data_format='NCHW')
-    flatten_conv6_1 = slim.flatten(pool)
 
-    # fc1 = slim.fully_connected(flatten_conv6_1,
-    #                            4096,
-    #                            weights_initializer=layers.variance_scaling_initializer(),
-    #                            biases_initializer=tf.constant_initializer(0.1),
-    #                            scope='fc1')
-    # dp1 = slim.dropout(fc1, 0.5, is_training=True,
-    #                    scope='dropout6')
-
-    # fc2 = slim.fully_connected(flatten_conv6_1,
-    #                            2,
-    #                            weights_initializer=layers.variance_scaling_initializer(),
-    #                            biases_initializer=tf.zeros_initializer(),
-    #                            activation_fn=None,
-    #                            scope='fc2')
     fc2 = slim.conv2d(pool,
                       2, [1, 1],
                       activation_fn=None,
@@ -399,22 +382,6 @@ def flownet_s_kspace_in_65(inputs, channel_mult=1, full_res=False):
         conv4_1 = slim.conv2d(conv4, int(1024 * m), 3, stride=1, scope='conv4_1')
 
     pool = slim.max_pool2d(conv4_1, 5, data_format='NCHW')
-    flatten_conv6_1 = slim.flatten(pool)
-
-    # fc1 = slim.fully_connected(flatten_conv6_1,
-    #                            4096,
-    #                            weights_initializer=layers.variance_scaling_initializer(),
-    #                            biases_initializer=tf.constant_initializer(0.1),
-    #                            scope='fc1')
-    # dp1 = slim.dropout(fc1, 0.5, is_training=True,
-    #                    scope='dropout6')
-
-    # fc2 = slim.fully_connected(flatten_conv6_1,
-    #                            2,
-    #                            weights_initializer=layers.variance_scaling_initializer(),
-    #                            biases_initializer=tf.zeros_initializer(),
-    #                            activation_fn=None,
-    #                            scope='fc2')
     fc2 = slim.conv2d(pool,
                       2, [1, 1],
                       activation_fn=None,
@@ -449,24 +416,7 @@ def flownet_s_kspace_in_full(inputs, channel_mult=1, full_res=False):
         conv6 = slim.conv2d(conv5_1, int(1024 * m), 3, stride=2, scope='conv6')
         conv6_1 = slim.conv2d(conv6, int(1024 * m), 3, stride=1, scope='conv6_1')
 
-
     pool = slim.max_pool2d(conv6_1, 4, data_format='NCHW')
-    flatten_conv6_1 = slim.flatten(pool)
-
-    # fc1 = slim.fully_connected(flatten_conv6_1,
-    #                            4096,
-    #                            weights_initializer=layers.variance_scaling_initializer(),
-    #                            biases_initializer=tf.constant_initializer(0.1),
-    #                            scope='fc1')
-    # dp1 = slim.dropout(fc1, 0.5, is_training=True,
-    #                    scope='dropout6')
-
-    # fc2 = slim.fully_connected(flatten_conv6_1,
-    #                            2,
-    #                            weights_initializer=layers.variance_scaling_initializer(),
-    #                            biases_initializer=tf.zeros_initializer(),
-    #                            activation_fn=None,
-    #                            scope='fc2')
     fc2 = slim.conv2d(pool,
                       2, [1, 1],
                       activation_fn=None,

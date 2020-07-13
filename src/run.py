@@ -9,12 +9,11 @@ from tensorflow.python.client import device_lib
 from pyexcel_ods import get_data
 
 from e2eflow.core.train import Trainer
+from e2eflow.core.data import Data
 from e2eflow.experiment import Experiment
 from e2eflow.util import convert_input_strings
-
-from e2eflow.kitti.input_resp import KITTIInput, MRI_Resp_2D
-from e2eflow.kitti.input_card import MRI_Card_2D
-from e2eflow.kitti.data import KITTIData
+from e2eflow.resp_and_card.input_resp import MRI_Resp_2D
+from e2eflow.resp_and_card.input_card import MRI_Card_2D
 
 
 tf.app.flags.DEFINE_string('ex', 'default',
@@ -57,14 +56,10 @@ def main(argv=None):
 
     train_dataset = run_config.get('dataset', 'kitti')
 
-    kdata = KITTIData(data_dir=dirs['data'],
-                      fast_dir=dirs.get('fast'),
-                      stat_log_dir=None,
-                      development=run_config['development'])
-    einput = KITTIInput(data=kdata,
-                        batch_size=1,
-                        normalize=False,
-                        dims=(384, 1280))
+    kdata = Data(data_dir=dirs['data'],
+                 fast_dir=dirs.get('fast'),
+                 stat_log_dir=None,
+                 development=run_config['development'])
 
     if train_dataset == 'resp_2D':
         info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info_resp.ods"
@@ -91,7 +86,6 @@ def main(argv=None):
                                              case='validation'),
             supervised=True,
             params=ftconfig,
-            normalization=ftinput.get_normalization(),
             train_summaries_dir=experiment.train_dir,
             eval_summaries_dir=experiment.eval_dir,
             experiment=FLAGS.ex,
@@ -127,7 +121,6 @@ def main(argv=None):
                                              case='validation'),
             supervised=True,
             params=ftconfig,
-            normalization=ftinput.get_normalization(),
             train_summaries_dir=experiment.train_dir,
             eval_summaries_dir=experiment.eval_dir,
             experiment=FLAGS.ex,
@@ -137,57 +130,9 @@ def main(argv=None):
             devices=devices,
             LAP_layer=ftconfig.get('lap_layer'))
         tr.run(0, ftiters)
-    elif train_dataset == 'kitti_ft':
-        ftconfig = copy.deepcopy(experiment.config['train'])
-        ftconfig.update(experiment.config['train_kitti_ft'])
-        convert_input_strings(ftconfig, dirs)
-        ftiters = ftconfig.get('num_iters', 0)
-        ftinput = KITTIInput(data=kdata,
-                             batch_size=gpu_batch_size,
-                             normalize=False,
-                             dims=(ftconfig['height'], ftconfig['width']))
-        tr = Trainer(
-              lambda shift: ftinput.input_train_gt(40),
-              lambda: einput.input_train_2015(40),
-              supervised=True,
-              params=ftconfig,
-              normalization=ftinput.get_normalization(),
-              train_summaries_dir=experiment.train_dir,
-              eval_summaries_dir=experiment.eval_dir,
-              experiment=FLAGS.ex,
-              ckpt_dir=experiment.save_dir,
-              debug=FLAGS.debug,
-              interactive_plot=run_config.get('interactive_plot'),
-              devices=devices)
-        tr.run(0, ftiters)
-    elif train_dataset == 'mri_resp_3D':
-        ftconfig = copy.deepcopy(experiment.config['train'])
-        ftconfig.update(experiment.config['train_resp_3D'])
-        convert_input_strings(ftconfig, dirs)
-        ftiters = ftconfig.get('num_iters', 0)
-        ftinput = MRI_Resp_3D(data=kdata,
-                              batch_size=gpu_batch_size,
-                              normalize=False,
-                              dims=(ftconfig['height'], ftconfig['width']))
-        tr = Trainer(
-            lambda shift: ftinput.input_train_gt(40),
-            lambda: einput.input_train_2015(40),
-            supervised=True,
-            params=ftconfig,
-            normalization=ftinput.get_normalization(),
-            train_summaries_dir=experiment.train_dir,
-            eval_summaries_dir=experiment.eval_dir,
-            experiment=FLAGS.ex,
-            ckpt_dir=experiment.save_dir,
-            debug=FLAGS.debug,
-            interactive_plot=run_config.get('interactive_plot'),
-            devices=devices)
-        tr.run(0, ftiters)
-
     else:
       raise ValueError(
-          "Invalid dataset. Dataset must be one of "
-          "{synthia, kitti, kitti_ft, cityscapes, chairs}")
+          "Invalid dataset. Dataset must be one of ")
 
     if not FLAGS.debug:
         experiment.conclude()

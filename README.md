@@ -121,6 +121,7 @@ successfully running the full CSS model with a GTX 960 with 4GB memory. Note tha
 in the `[dir]`, `[run]` and `[compile]` sections for your environment (see comments in the file).
 
 ### Train & validate experiments
+- `mkdir data`, copy the data and its corresponding `slice_to_take.ods` file to this dir 
 - adapt settings in `./config.ini` depending on your experiment (which dataset and which network), 
 the corresponding parameters should be set as the following:
 
@@ -149,6 +150,7 @@ experiment's name should align with this experiment. Don't forget to modify the 
 in the corresponding experiment's dir.  
 
 ### Evaluation of experiments
+- `mkdir output`, the results of evaluation are saved in this dir
 - adapt setting and flags in `eval_lapnet.py` (for LAP-Net )or `eval_flownet.py` (for FlowNet-S) 
 The crucial parameters which should be checked or modified are:
     - `slice_info_file`: there are two files (for resp and card data) which documents which slices to take for 

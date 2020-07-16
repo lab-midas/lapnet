@@ -22,6 +22,18 @@ class MRI_Resp_2D(Input):
                       mask_type='drUS',
                       US_rate='random',
                       num_to_take=1500):
+        """
+
+        :param fn_im_paths: list, the subject list for training
+        :param slice_info: list, which slices to take
+        :param aug_type: synthetic motion augmentation type
+        :param amp: amplitude of augmented motion
+        :param mask_type: currently only 2D radial is available
+        :param US_rate:
+        :param num_to_take:
+        :return:
+        """
+
         output = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
         if num_to_take == 0:
             return output
@@ -70,7 +82,12 @@ class MRI_Resp_2D(Input):
 
             if US_rate:
                 if US_rate == 'random':
-                    acc = np.random.choice(np.arange(1, 32, 6))
+                    if mask_type == 'drUS':
+                        acc = np.random.choice(np.arange(1, 32, 6))  # TODO the US-rate can be modified here
+                    elif mask_type == 'crUS':
+                        acc = np.random.choice(np.arange(1, 15, 4))
+                    elif mask_type == 'radial':
+                        acc = np.random.choice(np.arange(1, 18, 4))
                 else:
                     try:
                         acc = US_rate

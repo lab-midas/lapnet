@@ -199,9 +199,12 @@ class Input:
         slice = config['slice']
         u_type = config['u_type']
         US_acc = config['US_acc']
-        data_type = config['data']
+        # data_type = config['data']
         mask_type = config['mask_type']
-        cropped_size = config['size']
+        if 'size' in config:
+            cropped_size = config['size']
+        else:
+            cropped_size = False
 
         try:
             f = load_mat_file(path)
@@ -251,7 +254,8 @@ class Input:
                 # im_pair = np.absolute(im_pair_US)
                 data = np.concatenate((im_pair, u), axis=-1)
                 data = np.pad(data, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
-                data = post_crop(data, (cropped_size[0], cropped_size[1], 4))
+                if cropped_size:
+                    data = post_crop(data, (cropped_size[0], cropped_size[1], 4))
                 return np.asarray(data, dtype=np.float32)
 
             k_dset = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
@@ -263,7 +267,7 @@ class Input:
         data_3D = np.moveaxis(data_3D, 2, 0)
 
         Imgs = data_3D[slice, ...]
-        if list(np.shape(Imgs)[:2]) != cropped_size:
+        if list(np.shape(Imgs)[:2]) != cropped_size and cropped_size:
             Imgs = post_crop(Imgs, (cropped_size[0], cropped_size[1], 4))
         return np.asarray(Imgs, dtype=np.float32)
 

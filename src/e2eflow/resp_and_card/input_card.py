@@ -4,20 +4,18 @@ import math
 import time
 import numpy as np
 import tensorflow as tf
-import random
 from pyexcel_ods import get_data
-from multiprocessing import Pool
 import matplotlib
 import matplotlib.pyplot as plt
 from ..core.input import Input, load_mat_file
 from ..core.image_warp import np_warp_2D
 from ..core.card_US.retrospective_radial import subsample_radial
 from ..core.card_US.pad_crop import post_crop
-from e2eflow.core.flow_util import flow_to_color_np
 from ..core.util import pos_generation_2D, _u_generation_2D, arr2kspace
 
 
 class MRI_Card_2D(Input):
+
     def __init__(self, data, batch_size, dims, *,
                  num_threads=1, normalize=True,
                  skipped_frames=False):
@@ -32,9 +30,19 @@ class MRI_Card_2D(Input):
                       mask_type='radial',
                       US_rate='random',
                       num_to_take=1500):
-        output = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
-        # output = np.zeros((0, 176, 132, 4), dtype=np.float32)
+        """
 
+        :param fn_im_paths: list, the subject list for training
+        :param slice_info: list, which slices to take
+        :param aug_type: synthetic motion augmentation type
+        :param amp: amplitude of augmented motion
+        :param mask_type: currently only 2D radial is available
+        :param US_rate:
+        :param num_to_take:
+        :return:
+        """
+
+        output = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
         if num_to_take == 0:
             return output
         i = 0
@@ -51,7 +59,6 @@ class MRI_Card_2D(Input):
                     f = np.load(fn_im_path)
                 except ImportError:
                     print("Wrong Data Format")
-
             # f = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz')
 
             name = fn_im_path.split('/')[-1].split('.')[0]
@@ -61,10 +68,6 @@ class MRI_Card_2D(Input):
             pad_size_y = int((self.dims[1] - np.shape(ref)[1]) / 2)
             ux = np.asarray(f['ux'], dtype=np.float32)  # ux for warp
             uy = np.asarray(f['uy'], dtype=np.float32)
-
-            # ref = np.pad(ref, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
-            # ux = np.pad(ux, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
-            # uy = np.pad(uy, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
 
             uxy = np.stack((ux, uy), axis=-1)
             slice2take = slice_info[name]
@@ -90,7 +93,7 @@ class MRI_Card_2D(Input):
                         # acc1 = 1
                         # acc2 = np.random.choice(np.arange(2, 21, 6))
                         # acc = np.random.choice([acc1, acc2])
-                        acc = np.random.choice(np.arange(1, 18, 4))
+                        acc = np.random.choice(np.arange(1, 18, 4))  # TODO the US-rate can be modified here
                     else:
                         try:
                             acc = US_rate
@@ -106,7 +109,6 @@ class MRI_Card_2D(Input):
 
                 data = np.concatenate((im_pair, u), axis=-1)
                 data = np.pad(data, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
-                # data = post_crop(data, (176, 132, 4))
                 output = np.concatenate((output, data[np.newaxis, ...]), axis=0)
 
             i += 1

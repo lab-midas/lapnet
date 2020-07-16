@@ -80,8 +80,12 @@ def _evaluate_experiment(name, data, config):
     ckpt_path = exp_dir + "/" + os.path.basename(ckpt.model_checkpoint_path)
 
     batch_size = config['batch_size']
-    height = config['cropped_image_size'][0]
-    width = config['cropped_image_size'][1]
+    if 'cropped_image_size' in config:
+        height = config['cropped_image_size'][0]
+        width = config['cropped_image_size'][1]
+    else:
+        height = params['height']
+        width = params['width']
 
     with tf.Graph().as_default(): #, tf.device('gpu:' + FLAGS.gpu):
         test_batch, im1, im2, flow_orig = data()
@@ -133,44 +137,10 @@ def _evaluate_experiment(name, data, config):
         final_loss_orig_angel = [i['Angle_Error_Mean'] for i in error_data_gt]
         final_loss_angel = [i['Angle_Error_Mean'] for i in error_data_pred]
 
-        # # deprecated
-        # u_GT = (flow_orig[..., 0], flow_orig[..., 1])  # tuple
-        # u_est = (flow_final[..., 0], flow_final[..., 1])  # tuple
-        # OF_index = u_GT[0] != np.nan  # *  u_GT[0] >= 0
-        # error_data_pred = warp_assessment3D(u_GT, u_est, OF_index)
-        # size_mtx = np.shape(flow_orig[..., 0])
-        # u_GT = (np.zeros(size_mtx, dtype=np.float32), np.zeros(size_mtx, dtype=np.float32))  # tuple
-        # u_est = (flow_orig[..., 0], flow_orig[..., 1])  # tuple
-        # OF_index = u_GT[0] != np.nan  # *  u_GT[0] >= 0
-        # error_data_gt = warp_assessment3D(u_GT, u_est, OF_index)
-        # final_loss_orig = error_data_gt['Abs_Error_mean']
-        # final_loss = error_data_pred['Abs_Error_mean']
-        # final_loss_orig_angel = error_data_gt['Angle_Error_Mean']
-        # final_loss_angel = error_data_pred['Angle_Error_Mean']
-        # # final_loss_orig = np.mean(np.sqrt(np.sum(np.square(flow_orig), 3)))
-        # # #final_loss_orig = np.mean(np.square(flow_orig))
-        # # final_loss = np.mean(np.sqrt(np.sum(np.square(flow_final-flow_orig), 3)))
-        # # #final_loss = np.mean(np.square(flow_final-flow_orig))
-
         im1_pred = [np_warp_2D(i, j) for i, j in zip(list(im2), list(-flow_final))]
         im1_gt = [np_warp_2D(i, j) for i, j in zip(list(im2), list(-flow_orig))]
         color_flow_final = [flow_to_color_np(i) for i in list(flow_final)]
         color_flow_gt = [flow_to_color_np(i) for i in list(flow_orig)]
-
-
-        # flow_neg = list(-flow_final)
-        # flow_gt_neg = list(-flow_orig)
-        # flow_gt, flow_final, im1, im2 = list(flow_orig), list(flow_final), list(im1), list(im2)
-        #
-        # with Pool(16) as p:
-        #     im1_pred = p.apply_async(np_warp_2D, args=(im2, flow_neg,))
-        #     # im1_gt = p.map(np_warp_2D, (im2, flow_gt_neg))
-        #     # color_flow_final = p.map(flow_to_color_np, flow)
-        #     # color_flow_gt = p.map(flow_to_color_np, flow_gt)
-        # p.close()
-        # p.join()
-        # im1_pred = im1_pred.get()
-
 
         im_error = list(im1-im2)
         im_error_gt = list(im1-im1_gt)
@@ -354,11 +324,7 @@ def main(argv=None):
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     config = {}
-
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/06_la',
-                          '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
-    config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz']
+    slice_info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info_resp.ods"
 
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
@@ -372,13 +338,8 @@ def main(argv=None):
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat3.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Ga_160419.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Ha_020519.npz']
-    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_12_hs.npz',
-    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz',
-    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
-    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz']
+
     # 0: constant generated flow, 1: smooth generated flow, 2: cross test without gt, 3: matlab simulated test data
-    # config['test_types'] = [2,2,2,2,2]
-    # config['US_acc'] = [1,5,9,13,17]
     config['US_acc'] = list(range(1, 32, 2))
     config['test_types'] = list(2 * np.ones(len(config['US_acc']), dtype=np.int))
 
@@ -388,10 +349,8 @@ def main(argv=None):
     # config['mask_type'] = 'radial'
     config['data'] = [i.split('/')[7] for i in config['test_dir']]
     config['selected_frames'] = [0]
-    # config['selected_slices'] = [10, 11, 12]
     config['amplitude'] = 10
     config['cropped_image_size'] = [256, 256]
-    config['network'] = 'flownet'
     config['batch_size'] = 64
 
     config['save_results'] = True
@@ -428,8 +387,7 @@ def main(argv=None):
     input_cf['use_given_US_mask'] = True
     input_cf['cross_test'] = False
 
-    info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info_resp.ods"
-    ods = get_data(info_file)
+    ods = get_data(slice_info_file)
     slice_info = {value[0]: list(range(*[int(j) - 1 for j in value[1].split(',')])) for value in ods["Sheet1"] if
                   len(value) is not 0}
     if 'selected_slices' in config:

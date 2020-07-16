@@ -136,11 +136,11 @@ class Trainer():
         print('-- training from i = {} to {}'.format(start_iter, max_iter))
 
         assert (max_iter - start_iter + 1) % save_interval == 0
-        if self.params['long_term_train']:
+        if self.params['long_term_train']:  # TODO the drawback of tensorflow 1.x and queue mechanism, not all the data can be loaded for the training. Would be better if we use tf.data
             pre_load_data = self.train_batch_fn()
             test_pro_load_data = self.eval_batch_fn()
             idx = 0
-            percent = int(len(pre_load_data[0]) / self.params['divisor'])  # 20: hard code
+            percent = int(len(pre_load_data[0]) / self.params['divisor'])  # TODO hard-coded
         else:
             pre_load_data = None
 

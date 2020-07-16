@@ -62,7 +62,7 @@ def main(argv=None):
                  development=run_config['development'])
 
     if train_dataset == 'resp_2D':
-        info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info_resp.ods"
+        info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info_resp.ods"  # TODO hard-coded path
         ods = get_data(info_file)
         slice_info = {value[0]: list(range(*[int(j) - 1 for j in value[1].split(',')])) for value in ods["Sheet1"] if
                       len(value) is not 0}
@@ -76,7 +76,7 @@ def main(argv=None):
                               normalize=False,
                               dims=(ftconfig['height'], ftconfig['width']))
         tr = Trainer(
-            lambda: ftinput.input_train_data(img_dirs=['resp/new_data/npz/train'],
+            lambda: ftinput.input_train_data(img_dirs=['resp/new_data/npz/train'],  # TODO: hard-coded path
                                              slice_info=slice_info,
                                              params=ftconfig,
                                              case='train'),
@@ -97,7 +97,7 @@ def main(argv=None):
         tr.run(0, ftiters)
 
     elif train_dataset == 'card_2D':
-        info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/card/slice_info_card.ods"
+        info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/card/slice_info_card.ods"  # TODO hard-coded path
         ods = get_data(info_file)
         slice_info = {value[0]: list(range(*[int(j) - 1 if i == 0 else int(j)
                       for i, j in enumerate(value[1].split(','))])) for value in ods["Sheet1"] if len(value) is not 0}
@@ -111,7 +111,7 @@ def main(argv=None):
                               normalize=False,
                               dims=(ftconfig['desired_height'], ftconfig['desired_width']))
         tr = Trainer(
-            lambda: ftinput.input_train_data(img_dirs=['card/npz/train'],
+            lambda: ftinput.input_train_data(img_dirs=['card/npz/train'],  # TODO hard-coded path
                                              slice_info=slice_info,
                                              params=ftconfig,
                                              case='train'),

@@ -86,9 +86,12 @@ def _evaluate_experiment(name, data, config):
     crop_stride = config['crop_stride']
     smooth_wind_size = config['smooth_wind_size']
 
-    height = config['cropped_image_size'][0]
-    width = config['cropped_image_size'][1]
-
+    if 'cropped_image_size' in config:
+        height = config['cropped_image_size'][0]
+        width = config['cropped_image_size'][1]
+    else:
+        height = params['height']
+        width = params['width']
     with tf.Graph().as_default(): #, tf.device('gpu:' + FLAGS.gpu):
         test_batch, im1, im2, flow_orig, pos = data()
 
@@ -404,9 +407,7 @@ def main(argv=None):
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     config = dict()
-    # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/21_tk',
-    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/06_la',
-    #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/test_data/035']
+    slice_info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info_resp.ods"
 
     config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_004.npz']
     # config['test_dir'] = ['/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz',
@@ -421,13 +422,13 @@ def main(argv=None):
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/patient_036.npz',
     #                       '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/test/volunteer_06_la.npz']
 
-    # 0: constant generated flow, 1: smooth generated flow, 2: matlab simulated test data 3: simulated_x smooth 4: cross test without gt
+    # 0: constant generated flow, 1: smooth generated flow, 2: matlab simulated test data 3: simulated x smooth
     config['test_types'] = [2, 2, 2]
-    config['US_acc'] = [1, 9, 17]
+    config['US_acc'] = [2, 9, 17]
     # config['US_acc'] = list(range(1, 32, 2))
     # config['test_types'] = list(2*np.ones(len(config['US_acc']), dtype=np.int))
-
     config['data'] = [i.split('/')[7] for i in config['test_dir']]
+
     # config['mask_type'] = 'crUS'
     config['mask_type'] = 'drUS'
     # config['mask_type'] = 'radial'
@@ -435,17 +436,16 @@ def main(argv=None):
     config['selected_frames'] = [0]
     config['selected_slices'] = [10]
     config['amplitude'] = 10
-    config['network'] = 'ftflownet'
     config['batch_size'] = 64
     config['smooth_wind_size'] = 17  # None for no smoothing
     config['crop_stride'] = 2
+    # config['cropped_image_size'] = [176, 132]
     config['save_results'] = True
     config['save_loss'] = False
     config['save_pdf'] = False
     config['save_png'] = False
     config['save_mat'] = True
     config['save_npz'] = False
-    config['cropped_image_size'] = [256, 256]
 
     print("-- evaluating: on {} pairs from {}"
           .format(FLAGS.num, FLAGS.dataset))
@@ -476,10 +476,11 @@ def main(argv=None):
     input_cf['crop_size'] = 33
     input_cf['crop_stride'] = config['crop_stride']
     input_cf['cross_test'] = False
-    input_cf['size'] = config['cropped_image_size']
+    if 'cropped_image_size' in config:
+        input_cf['size'] = config['cropped_image_size']
 
-    info_file = "/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/slice_info_resp.ods"
-    ods = get_data(info_file)
+
+    ods = get_data(slice_info_file)
     slice_info = {value[0]: list(range(*[int(j) - 1 for j in value[1].split(',')])) for value in ods["Sheet1"] if
                   len(value) is not 0}
     if 'selected_slices' in config:

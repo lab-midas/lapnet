@@ -130,6 +130,7 @@ LAP-Net & resp |64 |1000 | 20|lapnet |resp_2D
 FlowNet-S & resp|16 |100 | 5|flownet|card_2D
 LAP-Net & card|64 |1000| 10|lapnet|resp_2D
 FlowNet-S & card|16 |100 | 3|flownet|card_2D
+
 Tabel 1: Basic parameters to be set for training 
 
 - The crucial parameters in `./config.ini` which should be checked or modified are:

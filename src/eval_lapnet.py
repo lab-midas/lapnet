@@ -1,3 +1,8 @@
+#################################################
+# DEPRECATED
+# Remaining here only for backward compatibility
+#################################################
+
 import os
 import sys
 import shutil

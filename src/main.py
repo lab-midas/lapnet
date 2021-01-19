@@ -119,7 +119,7 @@ checkpoint_path_cropping = '/mnt/data/projects/MoCo/LAPNet/UnFlow/log/ex/resp/sr
 # Train or Test the Model
 # ===============================================================================
 # run
-mode_run = 'traiin'
+mode_run = 'train'
 # mode_run = 'test'
 if mode_run == 'train':
     # Track accuracy and loss in real-time

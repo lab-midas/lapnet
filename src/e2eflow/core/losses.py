@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.contrib.distributions import Normal
 
-from ..ops import backward_warp, forward_warp
+# from ..ops import backward_warp, forward_warp
 from .image_warp import image_warp
 
 

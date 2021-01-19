@@ -1,15 +1,14 @@
 import os
 import random
-
+import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 from skimage.util.shape import view_as_windows
-from ..core.util import pos_generation_2D, arr2kspace, load_mat_file
+from ..core.util import pos_generation_2D, arr2kspace, load_mat_file, fftnshift, rectangulartapering2d, flowCrop
 from ..core.image_warp import np_warp_3D
 from e2eflow.core.resp_US.sampling_center import sampleCenter
 from ..core.card_US.retrospective_radial import subsample_radial
 from ..core.card_US.pad_crop import post_crop
-
 from .augment import random_crop
 
 
@@ -86,7 +85,6 @@ class Input:
 
     def crop2D_FixPts(self, arr, crop_size, box_num, pos):
         """
-
         :param arr: shape:[batch_size, img_size, img_size, n]
         :param crop_size:
         :param box_num:
@@ -112,6 +110,37 @@ class Input:
 
         return arr_cropped_augmented
 
+    def taper2D_FixPts(self, arr, crop_size, box_num, pos):
+        """
+        :param arr: shape:[batch_size, img_size, img_size, n]
+        :param crop_size:
+        :param box_num:
+        :param pos:
+        :return:
+        """
+        radius = int((crop_size - 1) / 2)
+        arr_tappered_augmented = np.zeros((arr.shape[0] * box_num, crop_size, crop_size, 4), dtype=np.float32)
+        flow_cropped_augmented = np.zeros((arr.shape[0] * box_num, crop_size, crop_size, 2), dtype=np.float32)
+        img = arr[..., :2]
+        flow = arr[..., 2:]
+        k_arr = fftnshift(img)
+        for i in range(box_num):
+            x_pos = np.arange(pos[0][i], pos[0][i] + crop_size)
+            y_pos = np.arange(pos[1][i], pos[1][i] + crop_size)
+            for k in range(2):
+                outk = rectangulartapering2d(k_arr[:, :, :, k], x_pos, y_pos, crop_size)
+                arr_tappered_augmented[i * arr.shape[0]:(i + 1) * arr.shape[0], :, :, 2 * k:2 + 2 * k] = outk
+
+        for batch in range(np.shape(arr)[0]):
+            for i in range(box_num):
+                flow_cropped_augmented[batch * box_num + i, ...] = flow[batch, pos[0][i]:pos[0][i] + crop_size, pos[1][i]:pos[1][i] + crop_size, :]
+        # flow = flow_cropped_augmented[:, radius, radius, 4:6]
+        res = np.concatenate((arr_tappered_augmented, flow_cropped_augmented), axis=-1)
+        # k_ref = arr_tappered_augmented[..., :2]
+        # k_mov = arr_tappered_augmented[..., 2:4]
+        # return (k_ref, k_mov, flow)
+        return res
+
     def crop2D(self, arr, crop_size, box_num, pos=None, cut_margin=0):
         """
         :param arr:
@@ -136,6 +165,39 @@ class Input:
             out = out.transpose(0, 2, 3, 1)
             arr_cropped_augmented[i * arr.shape[0]:(i + 1) * arr.shape[0], ...] = out
         return arr_cropped_augmented
+
+    def taper2D(self, arr, crop_size, box_num, pos=None, cut_margin=0):
+        arr_tappered_augmented = np.zeros((arr.shape[0] * box_num, crop_size, crop_size, 4), dtype=np.float32)
+        flow_cropped_augmented = np.zeros((arr.shape[0] * box_num, crop_size, crop_size, 2), dtype=np.float32)
+        # flow = np.zeros((arr.shape[0] * box_num, 2), dtype=np.float32)
+        img = arr[..., :2]
+        flow_arr = arr[..., 2:]
+        x_dim, y_dim = np.shape(arr)[1:3]
+        k_arr = fftnshift(img)
+        for i in range(box_num):
+            if pos is None:
+                x_pos = np.random.randint(0 + cut_margin, x_dim - crop_size + 1 - cut_margin, arr.shape[0])
+                y_pos = np.random.randint(0 + cut_margin, y_dim - crop_size + 1 - cut_margin, arr.shape[0])
+            else:
+                x_pos = pos[0]
+                y_pos = pos[1]
+            for k in range(2):
+                outk = rectangulartapering2d(k_arr[:, :, :, k], x_pos, y_pos, crop_size)
+                arr_tappered_augmented[i * arr.shape[0]:(i + 1) * arr.shape[0], :, :, 2 * k:2 + 2 * k] = outk
+            # p = flowCrop(flow_arr, x_pos, y_pos, crop_size)
+            # flow[i * arr.shape[0]:(i + 1) * arr.shape[0], :] = p
+            win = view_as_windows(flow_arr, (1, crop_size, crop_size, 1))[..., 0, :, :, 0]
+            outflow = win[np.arange(arr.shape[0]), x_pos, y_pos]
+            outflow = outflow.transpose(0, 2, 3, 1)
+            flow_cropped_augmented[i * arr.shape[0]:(i + 1) * arr.shape[0], ...] = outflow
+
+        # x = arr_tappered_augmented[0, :, :, 0] + 1j * arr_tappered_augmented[0, :, :, 1]
+        # plottaperedkspace(x)
+        res = np.concatenate((arr_tappered_augmented, flow_cropped_augmented), axis=-1)
+        # k_ref = arr_tappered_augmented[..., :2]
+        # k_mov = arr_tappered_augmented[..., 2:4]
+        # return (k_ref, k_mov, flow)
+        return res
 
     def test_flown(self, config):
         batches = self.test_set_generation_flownet(config)
@@ -413,7 +475,6 @@ class Input:
                   needs_crop=True, shift=0, seed=0,
                   center_crop=False, skip=0):
         """Constructs input of raw data.
-
         Args:
             sequence: Assumes that image file order in data_dirs corresponds to
                 temporal order, if True. Otherwise, assumes uncorrelated pairs of
@@ -507,5 +568,3 @@ def read_png_image(filenames, num_epochs=None):
     image_uint8 = tf.image.decode_png(value, channels=3)
     image = tf.cast(image_uint8, tf.float32)
     return image
-
-

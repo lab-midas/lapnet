@@ -106,7 +106,8 @@ def automap(x):
 
 
 
-    with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
+    with slim.arg_scope([slim.
+                                 conv2d, slim.conv2d_transpose],
                         data_format='NHWC',
                         weights_regularizer=slim.l2_regularizer(0.0004),
                         weights_initializer=layers.variance_scaling_initializer(),

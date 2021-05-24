@@ -1,12 +1,13 @@
 import tensorflow as tf
-from tensorflow.keras.initializers import VarianceScaling
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, LeakyReLU, Lambda
-from tensorflow.keras.regularizers import l2
-import tensorflow.keras as keras
-# from ..ops import correlation
+import tensorflow.contrib.slim as slim
+import tensorflow.contrib.layers as layers
+
+
+from ..ops import correlation
 from .image_warp import image_warp
-from keras.layers.core import Activation
+
 from .flow_util import flow_to_color
+
 
 FLOW_SCALE = 5
 
@@ -62,7 +63,6 @@ def flownet(im1, im2, flownet_spec='S', full_resolution=False, train_all=False, 
                                      full_res=full_res,
                                      channel_mult=channel_mult,
                                      LAP_layer=LAP_layer)
-
                 stacked = len(flows_fw) > 0
                 with tf.variable_scope('flownet_s') as scope:
                     flow_fw = _flownet_s(im1, im2, flows_fw[-1][0] if stacked else None)
@@ -89,71 +89,67 @@ def _leaky_relu(x):
         return tf.maximum(0.1 * x, x)
 
 
-def leaky_relu(x):
-    return tf.maximum(0.1 * x, x)
-
-
 def _flownet_upconv(conv6_1, conv5_1, conv4_1, conv3_1, conv2, conv1=None, inputs=None,
                     channel_mult=1, full_res=False, channels=2):
     m = channel_mult
-    import tensorflow.contrib.slim as slim
+
     flow6 = slim.conv2d(conv6_1, channels, 3, scope='flow6',
                         activation_fn=None)
     deconv5 = slim.conv2d_transpose(conv6_1, int(512 * m), 4, stride=2,
-                                    scope='deconv5')
+                                   scope='deconv5')
     flow6_up5 = slim.conv2d_transpose(flow6, channels, 4, stride=2,
-                                      scope='flow6_up5',
-                                      activation_fn=None)
+                                     scope='flow6_up5',
+                                     activation_fn=None)
     concat5 = tf.concat([conv5_1, deconv5, flow6_up5], 1)
     flow5 = slim.conv2d(concat5, channels, 3, scope='flow5',
-                        activation_fn=None)
+                       activation_fn=None)
 
     deconv4 = slim.conv2d_transpose(concat5, int(256 * m), 4, stride=2,
-                                    scope='deconv4')
+                                   scope='deconv4')
     flow5_up4 = slim.conv2d_transpose(flow5, channels, 4, stride=2,
-                                      scope='flow5_up4',
-                                      activation_fn=None)
+                                     scope='flow5_up4',
+                                     activation_fn=None)
     concat4 = tf.concat([conv4_1, deconv4, flow5_up4], 1)
     flow4 = slim.conv2d(concat4, channels, 3, scope='flow4',
-                        activation_fn=None)
+                       activation_fn=None)
 
     deconv3 = slim.conv2d_transpose(concat4, int(128 * m), 4, stride=2,
-                                    scope='deconv3')
+                                   scope='deconv3')
     flow4_up3 = slim.conv2d_transpose(flow4, channels, 4, stride=2,
-                                      scope='flow4_up3',
-                                      activation_fn=None)
+                                     scope='flow4_up3',
+                                     activation_fn=None)
     concat3 = tf.concat([conv3_1, deconv3, flow4_up3], 1)
     flow3 = slim.conv2d(concat3, channels, 3, scope='flow3',
-                        activation_fn=None)
+                       activation_fn=None)
 
     deconv2 = slim.conv2d_transpose(concat3, int(64 * m), 4, stride=2,
-                                    scope='deconv2')
+                                   scope='deconv2')
     flow3_up2 = slim.conv2d_transpose(flow3, channels, 4, stride=2,
-                                      scope='flow3_up2',
-                                      activation_fn=None)
+                                     scope='flow3_up2',
+                                     activation_fn=None)
     concat2 = tf.concat([conv2, deconv2, flow3_up2], 1)
 
     flow2 = slim.conv2d(concat2, channels, 3, scope='flow2',
-                        activation_fn=None)
+                       activation_fn=None)
 
     flows = [flow2, flow3, flow4, flow5, flow6]
 
     if full_res:
         with tf.variable_scope('full_res'):
             deconv1 = slim.conv2d_transpose(concat2, int(32 * m), 4, stride=2,
-                                            scope='deconv1')
+                                           scope='deconv1')
             flow2_up1 = slim.conv2d_transpose(flow2, channels, 4, stride=2,
-                                              scope='flow2_up1',
-                                              activation_fn=None)
+                                             scope='flow2_up1',
+                                             activation_fn=None)
             concat1 = tf.concat([conv1, deconv1, flow2_up1], 1)
             flow1 = slim.conv2d(concat1, channels, 3, scope='flow1',
                                 activation_fn=None)
 
             deconv0 = slim.conv2d_transpose(concat1, int(16 * m), 4, stride=2,
-                                            scope='deconv0')
+                                           scope='deconv0')
             flow1_up0 = slim.conv2d_transpose(flow1, channels, 4, stride=2,
-                                              scope='flow1_up0',
-                                              activation_fn=None)
+                                             scope='flow1_up0',
+                                             activation_fn=None)
             concat0 = tf.concat([inputs, deconv0, flow1_up0], 1)
             flow0 = slim.conv2d(concat0, channels, 3, scope='flow0',
                                 activation_fn=None)
@@ -178,8 +174,7 @@ def flownet_s_kspace(inputs, channel_mult=1, full_res=False, LAP_layer=False):
     """
     m = channel_mult
     inputs = nhwc_to_nchw([inputs])[0]
-    import tensorflow.contrib.slim as slim
-    import tensorflow.contrib.layers as layers
+
     with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
                         data_format='NCHW',
                         weights_regularizer=slim.l2_regularizer(0.0004),
@@ -200,8 +195,8 @@ def flownet_s_kspace(inputs, channel_mult=1, full_res=False, LAP_layer=False):
             channels = 3
         else:
             channels = 2
-        conv6_1_i = tf.complex(conv6_1[:, :tf.cast(tf.shape(conv6_1)[1] / 2, dtype=tf.int32), :, :],
-                               conv6_1[:, tf.cast(tf.shape(conv6_1)[1] / 2, dtype=tf.int32):, :, :])
+        conv6_1_i = tf.complex(conv6_1[:, :tf.cast(tf.shape(conv6_1)[1]/2, dtype=tf.int32), :, :],
+                               conv6_1[:, tf.cast(tf.shape(conv6_1)[1]/2, dtype=tf.int32):, :, :])
         conv5_1_i = tf.complex(conv5_1[:, :tf.cast(tf.shape(conv5_1)[1] / 2, dtype=tf.int32), :, :],
                                conv5_1[:, tf.cast(tf.shape(conv5_1)[1] / 2, dtype=tf.int32):, :, :])
         conv4_1_i = tf.complex(conv4_1[:, :tf.cast(tf.shape(conv4_1)[1] / 2, dtype=tf.int32), :, :],
@@ -229,8 +224,7 @@ def flownet_s(inputs, channel_mult=1, full_res=False, LAP_layer=False):
     m = channel_mult
     m = 1  # todo
     inputs = nhwc_to_nchw([inputs])[0]
-    import tensorflow.contrib.slim as slim
-    import tensorflow.contrib.layers as layers
+
     with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
                         data_format='NCHW',
                         weights_regularizer=slim.l2_regularizer(0.0004),
@@ -257,11 +251,11 @@ def flownet_s(inputs, channel_mult=1, full_res=False, LAP_layer=False):
 
 
 def flownet_s_kspace_in_33_out_4(inputs, channel_mult=1, full_res=False):
+
     m = channel_mult
     # m = 3 / 8
     inputs = nhwc_to_nchw([inputs])[0]
-    import tensorflow.contrib.slim as slim
-    import tensorflow.contrib.layers as layers
+
     with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
                         data_format='NCHW',
                         weights_regularizer=slim.l2_regularizer(0.0004),
@@ -292,8 +286,7 @@ def flownet_s_kspace_in_33(inputs, channel_mult=1, full_res=False):
     m = channel_mult
     # m = 3 / 8
     inputs = nhwc_to_nchw([inputs])[0]
-    import tensorflow.contrib.slim as slim
-    import tensorflow.contrib.layers as layers
+
     with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
                         data_format='NCHW',
                         weights_regularizer=slim.l2_regularizer(0.0004),
@@ -337,11 +330,11 @@ def flownet_s_kspace_in_33(inputs, channel_mult=1, full_res=False):
 
 
 def flownet_s_kspace_in_33_large_receptive(inputs, channel_mult=1, full_res=False):
+
     m = channel_mult
     # m = 3 / 8
     inputs = nhwc_to_nchw([inputs])[0]
-    import tensorflow.contrib.slim as slim
-    import tensorflow.contrib.layers as layers
+
     with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
                         data_format='NCHW',
                         weights_regularizer=slim.l2_regularizer(0.0004),
@@ -370,11 +363,11 @@ def flownet_s_kspace_in_33_large_receptive(inputs, channel_mult=1, full_res=Fals
 
 
 def flownet_s_kspace_in_65(inputs, channel_mult=1, full_res=False):
+
     m = channel_mult
     # m = 3 / 8
     inputs = nhwc_to_nchw([inputs])[0]
-    import tensorflow.contrib.slim as slim
-    import tensorflow.contrib.layers as layers
+
     with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
                         data_format='NCHW',
                         weights_regularizer=slim.l2_regularizer(0.0004),
@@ -402,11 +395,11 @@ def flownet_s_kspace_in_65(inputs, channel_mult=1, full_res=False):
 
 
 def flownet_s_kspace_in_full(inputs, channel_mult=1, full_res=False):
+
     m = channel_mult
     # m = 3 / 8
     inputs = nhwc_to_nchw([inputs])[0]
-    import tensorflow.contrib.slim as slim
-    import tensorflow.contrib.layers as layers
+
     with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
                         data_format='NCHW',
                         weights_regularizer=slim.l2_regularizer(0.0004),
@@ -439,8 +432,6 @@ def flownet_s_kspace_in_full(inputs, channel_mult=1, full_res=False):
 def flownet_c_features(im, channel_mult=1, reuse=None):
     m = channel_mult
     im = nhwc_to_nchw([im])[0]
-    import tensorflow.contrib.slim as slim
-    import tensorflow.contrib.layers as layers
     with slim.arg_scope([slim.conv2d],
                         data_format='NCHW',
                         weights_regularizer=slim.l2_regularizer(0.0004),
@@ -458,9 +449,7 @@ def flownet_c(conv3_a, conv3_b, conv2_a, channel_mult=1, full_res=False, LAP_lay
     Uses FlowNetCorr.
     """
     m = channel_mult
-    import tensorflow.contrib.slim as slim
-    from ..ops import correlation
-    import tensorflow.contrib.layers as layers
+
     with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
                         data_format='NCHW',
                         weights_regularizer=slim.l2_regularizer(0.0004),
@@ -488,99 +477,3 @@ def flownet_c(conv3_a, conv3_b, conv2_a, channel_mult=1, full_res=False, LAP_lay
         res = _flownet_upconv(conv6_1, conv5_1, conv4_1, conv3_1, conv2_a,
                               channel_mult=channel_mult, full_res=full_res, channels=channels)
         return nchw_to_nhwc(res)
-
-
-def tensor_in_checkpoint_file(tensor_name):
-    file_name = '/mnt/data/projects/MoCo/LAPNet/UnFlow/log/ex/resp/srx424_drUS_1603/model.ckpt'
-    reader = tf.python.training.py_checkpoint_reader.NewCheckpointReader(file_name)
-    res = tf.constant_initializer(reader.get_tensor(tensor_name))
-    return res
-
-
-# Create the model
-def buildLAPNet_model(input):
-    model = keras.Sequential()
-    initializer = VarianceScaling(scale=2.0)
-    model.add(input)
-    model.add(Conv2D(filters=64,
-                     kernel_size=7,
-                     strides=2,
-                     padding='same',
-                     kernel_regularizer=l2(0.0004),
-                     kernel_initializer=initializer,
-                     name="conv1"))
-    # model.add(Activation(leaky_relu, name='act1'))
-    model.add(LeakyReLU(alpha=0.1, name='act1'))
-    model.add(Conv2D(filters=128,
-                     kernel_size=5,
-                     strides=2,
-                     padding='same',
-                     kernel_regularizer=l2(0.0004),
-                     kernel_initializer=initializer,
-                     name="conv2"))
-    # model.add(Activation(leaky_relu, name='act2'))
-    model.add(LeakyReLU(alpha=0.1, name='act2'))
-    model.add(Conv2D(filters=256,
-                     kernel_size=5,
-                     strides=1,
-                     padding='same',
-                     kernel_regularizer=l2(0.0004),
-                     kernel_initializer=initializer,
-                     name="conv2_1"))
-    # model.add(Activation(leaky_relu, name='act2_1'))
-    model.add(LeakyReLU(alpha=0.1, name='act2_1'))
-    model.add(Conv2D(filters=512,
-                     kernel_size=3,
-                     strides=1,
-                     padding='same',
-                     kernel_regularizer=l2(0.0004),
-                     kernel_initializer=initializer,
-                     name="conv3_1"))
-    # model.add(Activation(leaky_relu, name='act3_1'))
-    model.add(LeakyReLU(alpha=0.1, name='act3_1'))
-    model.add(Conv2D(filters=1024,
-                     kernel_size=3,
-                     strides=2,
-                     padding='same',
-                     kernel_regularizer=l2(0.0004),
-                     kernel_initializer=initializer,
-                     name="conv4"))
-    # model.add(Activation(leaky_relu, name='act4'))
-    model.add(LeakyReLU(alpha=0.1, name='act4'))
-    model.add(Conv2D(filters=1024,
-                     kernel_size=3,
-                     strides=1,
-                     padding='same',
-                     kernel_regularizer=l2(0.0004),
-                     kernel_initializer=initializer,
-                     name="conv4_1"))
-    # model.add(Activation(leaky_relu, name='act4_1'))
-    model.add(LeakyReLU(alpha=0.1, name='act4_1'))
-    model.add(MaxPooling2D(pool_size=5, name='pool'))
-    model.add(Conv2D(2, [1, 1], name="fc2"))
-    model.add(Lambda(squeeze_func, name="fc8/squeezed"))
-    return model
-
-
-def squeeze_func(x):
-    return tf.squeeze(x, axis=[1, 2])
-
-
-# EPE function modified
-def End_Point_Error_loss(y_true, y_pred):
-    squared_difference = tf.square(y_true - y_pred)
-    final_loss = tf.reduce_mean(squared_difference)
-    return final_loss
-
-
-def load_cropping_ckpt(model, checkpoint_path_old):
-    reader = tf.compat.v1.train.NewCheckpointReader(checkpoint_path_old)
-    layers_name = ['conv1', 'conv2', 'conv2_1', 'conv3_1', 'conv4', 'conv4_1', 'fc2']
-    num_layers = len(layers_name)
-    for i in range(num_layers):
-        weights_key = 'flownet_s/' + layers_name[i] + '/weights'
-        bias_key = 'flownet_s/' + layers_name[i] + '/biases'
-        weights = reader.get_tensor(weights_key)
-        biases = reader.get_tensor(bias_key)
-        model.get_layer(layers_name[i]).set_weights([weights, biases])  # name the layers
-    return model

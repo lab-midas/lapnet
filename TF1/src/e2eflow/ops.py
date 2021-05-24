@@ -3,6 +3,7 @@ import sys
 import tensorflow as tf
 import subprocess
 from tensorflow.python.framework import ops
+
 import configparser
 
 
@@ -50,16 +51,13 @@ def compile(op=None):
 if __name__ == "__main__":
     compile()
 
-x = tf.load_op_library('./backward_warp_op.so')
-print(5)
-module = sys.modules[__name__]
 
+module = sys.modules[__name__]
 for n in OP_NAMES:
     lib_path = './{}_op.so'.format(n)
     import os
     try:
         cwd = os.getcwd()
-        print(os.path.exists(lib_path))
         if os.path.exists(lib_path):
             op_lib = tf.load_op_library(lib_path)
     except:
@@ -69,7 +67,6 @@ for n in OP_NAMES:
 
 
 os.chdir(cwd)
-
 
 
 def correlation(first, second, **kwargs):

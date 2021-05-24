@@ -61,6 +61,7 @@ def flow_compute_color(u, v, convert_to_bgr=False):
     :param convert_to_bgr: bool, whether to change ordering and output BGR instead of RGB
     :return:
     '''
+
     flow_image = np.zeros((u.shape[0], u.shape[1], 3), np.uint8)
 
     colorwheel = make_colorwheel()  # shape [55x3]

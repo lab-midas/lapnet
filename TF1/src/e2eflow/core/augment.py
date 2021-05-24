@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from e2eflow.core.resp_US.spatial_transformer import transformer
+from .spatial_transformer import transformer
 
 
 def random_affine(tensors, *,

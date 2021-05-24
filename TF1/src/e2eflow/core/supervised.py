@@ -50,7 +50,7 @@ def supervised_loss(batch, params, augment=False):
     full_resolution = params.get('full_res')
     train_all = params.get('train_all')
     # -------------------------------------------------------------------------
-    print(im1.get_shape().as_list()[2])
+
     if params.get('network') == 'flownet':
         # FlowNet
         flows_fw = flownet(im1_photo, im2_photo,

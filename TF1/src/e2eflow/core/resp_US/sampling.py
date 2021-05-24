@@ -3,11 +3,11 @@ import numpy as np
 import e2eflow.VD_CASPR_CINE as VD_CASPR_CINE
 
 
-def generate_mask(nSegments=14, acc=15, size_y=256, nRep=1, numPar=72):
+def generate_mask(nSegments=14, acc=15, size_y=256, nRep=1):
         sType = 'CINE'
         sMode = 'interleaved'  # 'interleaved' (CINE), 'noninterleaved' (free-running, CMRA, T2Mapping, ...)
         numLin = size_y  # ky points (store it the other way round, for right dim)
-        # numPar = 72  # kz points
+        numPar = 72  # kz points
         nRep = nRep # number of time points, should be 1 if you subsample each image individually otherwise it is 4 (resp) or 16 (cardiac)
         #acc = 4  # acceleration
         isVariable = 1  # VDCASPR (=1) or CASPR (=0)

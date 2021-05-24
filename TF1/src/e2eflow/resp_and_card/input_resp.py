@@ -1,20 +1,13 @@
-import os
-import sys
 import math
-import time
 import numpy as np
-import tensorflow as tf
-from pyexcel_ods import get_data
-import matplotlib
-import matplotlib.pyplot as plt
-from ..core.image_warp import np_warp_2D
-from ..core.card_US.retrospective_radial import subsample_radial
-from ..core.card_US.pad_crop import post_crop
-from ..core.util import pos_generation_2D, _u_generation_2D, arr2kspace, load_mat_file
+from ..core.input import Input, load_mat_file
+from ..core.image_warp import np_warp_3D
+from e2eflow.core.resp_US.sampling import generate_mask
+from e2eflow.core.resp_US.sampling_center import sampleCenter
+from ..core.util import pos_generation_2D, _u_generation_3D, arr2kspace
 
 
-class MRI_Card_2D(Input):
-
+class MRI_Resp_2D(Input):
     def __init__(self, data, batch_size, dims, *,
                  num_threads=1, normalize=True,
                  skipped_frames=False):
@@ -26,7 +19,7 @@ class MRI_Card_2D(Input):
                       slice_info,
                       aug_type,
                       amp=5,
-                      mask_type='radial',
+                      mask_type='drUS',
                       US_rate='random',
                       num_to_take=1500):
         """
@@ -51,6 +44,7 @@ class MRI_Card_2D(Input):
             flag = 1
         while len(output) <= num_to_take:
             fn_im_path = fn_im_paths[i]
+            # fn_im_path = '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/train/volunteer_01_cw.npz'
             try:
                 f = load_mat_file(fn_im_path)
             except:
@@ -58,58 +52,74 @@ class MRI_Card_2D(Input):
                     f = np.load(fn_im_path)
                 except ImportError:
                     print("Wrong Data Format")
-            # f = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz')
 
             name = fn_im_path.split('/')[-1].split('.')[0]
 
             ref = np.asarray(f['dFixed'], dtype=np.float32)
-            pad_size_x = int((self.dims[0] - np.shape(ref)[0]) / 2)
-            pad_size_y = int((self.dims[1] - np.shape(ref)[1]) / 2)
             ux = np.asarray(f['ux'], dtype=np.float32)  # ux for warp
             uy = np.asarray(f['uy'], dtype=np.float32)
+            uz = np.zeros(np.shape(ux), dtype=np.float32)
+            u = np.stack((ux, uy, uz), axis=-1)
 
-            uxy = np.stack((ux, uy), axis=-1)
-            slice2take = slice_info[name]
+            if aug_type == 'real_x_smooth':
+                u_syn = _u_generation_3D(np.shape(ux), amp, motion_type=1)
+                u = np.multiply(u, u_syn)
+            elif aug_type == 'smooth':
+                u = _u_generation_3D(np.shape(ux), amp, motion_type=1)
+            elif aug_type == 'constant':
+                u = _u_generation_3D(np.shape(ux), amp, motion_type=0)
+            elif aug_type == 'real':
+                pass
+            else:
+                raise ImportError('wrong augmentation type is given')
+            mov = np_warp_3D(ref, u)
 
-            for s in slice2take:
-                ref_2D = ref[..., s]
-                if aug_type == 'real_x_smooth':
-                    u_syn = _u_generation_2D(np.shape(ux)[:2], amp, motion_type=1)
-                    u = np.multiply(uxy[:, :, s], u_syn)
-                elif aug_type == 'smooth':
-                    u = _u_generation_2D(np.shape(ux)[:2], amp, motion_type=1)
-                elif aug_type == 'constant':
-                    u = _u_generation_2D(np.shape(ux)[:2], amp, motion_type=0)
-                elif aug_type == 'real':
-                    u = uxy[:, :, s]
+            # # for showing of arrows
+            # im1 = ref[..., 35]
+            # im2 = mov[..., 35]
+            # u = u[..., :2][..., 35, :]
+            # save_imgs_with_arrow(im1, im2, u)
+
+            if US_rate:
+                if US_rate == 'random':
+                    if mask_type == 'drUS':
+                        acc = np.random.choice(np.arange(1, 32, 6))  # TODO the US-rate can be modified here
+                    elif mask_type == 'crUS':
+                        acc = np.random.choice(np.arange(1, 15, 4))
+                    elif mask_type == 'radial':
+                        acc = np.random.choice(np.arange(1, 18, 4))
                 else:
-                    raise ImportError('wrong augmentation type is given')
-                mov_2D = np_warp_2D(ref_2D, u)
-                im_pair = np.stack((ref_2D, mov_2D), axis=-1)
+                    try:
+                        acc = US_rate
+                    except ImportError:
+                        print("Wrong undersampling rate is given")
+                        continue
 
-                if US_rate:
-                    if US_rate == 'random':
-                        # acc1 = 1
-                        # acc2 = np.random.choice(np.arange(2, 21, 6))
-                        # acc = np.random.choice([acc1, acc2])
-                        acc = np.random.choice(np.arange(1, 18, 4))  # TODO the US-rate can be modified here
-                    else:
-                        try:
-                            acc = US_rate
-                        except ImportError:
-                            print("Wrong undersampling rate is given")
-                            continue
-                    if acc != 1:
-                        im_pair_US = np.squeeze(subsample_radial(im_pair[..., np.newaxis, :], acc=acc))
-                        im_pair = np.absolute(post_crop(im_pair_US, np.shape(im_pair)))
-                        # fig = plt.figure(figsize=(5, 5), dpi=100)
-                        # plt.imshow(im_pair[..., 0])
-                        # fig.savefig('/home/jpa19/PycharmProjects/MA/UnFlow/US_without_pad.png')
+                if mask_type == 'drUS':
+                    mask = np.transpose(generate_mask(acc=acc, size_y=256, nRep=4), (2, 1, 0))
+                elif mask_type == 'crUS':
+                    mask = sampleCenter(1 / acc * 100, 256, 72)
+                    mask = np.array([mask, ] * 4, dtype=np.float32)
+                k_ref = np.multiply(np.fft.fftn(ref), np.fft.ifftshift(mask[0, ...]))
+                k_mov = np.multiply(np.fft.fftn(mov), np.fft.ifftshift(mask[3, ...]))
+                ref = (np.fft.ifftn(k_ref)).real
+                mov = (np.fft.ifftn(k_mov)).real
 
-                data = np.concatenate((im_pair, u), axis=-1)
-                data = np.pad(data, ((pad_size_x, pad_size_x), (pad_size_y, pad_size_y), (0, 0)), constant_values=0)
-                output = np.concatenate((output, data[np.newaxis, ...]), axis=0)
+            # save_img(mov[..., 40], '/home/jpa19/PycharmProjects/MA/UnFlow/output/temp/'+'us_mov30')
+            # save_img(mask[3, ...], '/home/jpa19/PycharmProjects/MA/UnFlow/output/temp/' + 'mask_mov30')
 
+            data_3D = np.stack((ref, mov, u[..., 0], u[..., 1]), axis=-1)
+            data_3D = np.moveaxis(data_3D, 2, 0)
+            slice2take = slice_info[name]
+            Imgs = data_3D[slice2take, ...]
+
+            # fig, ax = plt.subplots(1, 2, figsize=(12, 8))
+            # plt.axis('off')
+            # ax[0].imshow(Imgs[10,...,0], cmap='gray')
+            # ax[1].imshow(Imgs[10,...,1], cmap='gray')
+            # plt.show()
+
+            output = np.concatenate((output, Imgs), axis=0)
             i += 1
             if i == len(fn_im_paths):
                 if flag == 0:
@@ -117,22 +127,29 @@ class MRI_Card_2D(Input):
                 else:
                     break
         print("{} real {} data are generated".format(num_to_take, aug_type))
+
         return np.asarray(output[:num_to_take, ...], dtype=np.float32)
 
     def input_train_data(self, img_dirs, slice_info, params, case='train'):
-
+        # strategy 1: fixed total number
         if case == 'train':
             total_data_num = params.get('total_data_num')
         elif case == 'validation':
-            total_data_num = 72
+            total_data_num = 128
         num_constant = math.floor(total_data_num * params.get('augment_type_percent')[0])
         num_smooth = math.floor(total_data_num * params.get('augment_type_percent')[1])
         num_real = math.floor(total_data_num * params.get('augment_type_percent')[2])
         num_real_x_smooth = math.floor(total_data_num * params.get('augment_type_percent')[3])
-        assert (num_real <= 475 and case == 'train') or (num_real <= 72 and case == 'validation')
+        assert (num_real <= 1585 and case == 'train') or (num_real <= 136 and case == 'validation')
+
+        # # strategy 2: use all real_simulated data
+        # num_real = 1721
+        # num_constant = int(params.get('augment_type_percent')[0]/params.get('augment_type_percent')[2]*num_real)
+        # num_smooth = int(params.get('augment_type_percent')[1] / params.get('augment_type_percent')[2] * num_real)
+        # num_real_x_smooth = int(params.get('augment_type_percent')[3] / params.get('augment_type_percent')[2] * num_real)
+
 
         batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
-        # batches = np.zeros((0, 176, 132, 4), dtype=np.float32)
         fn_im_paths = self.get_data_paths(img_dirs)
         aug_data_constant = self.load_aug_data(fn_im_paths,
                                                slice_info,
@@ -141,6 +158,7 @@ class MRI_Card_2D(Input):
                                                mask_type=params.get('mask_type'),
                                                US_rate=(params.get('us_rate')),
                                                num_to_take=num_constant)
+
         np.random.shuffle(fn_im_paths)
         aug_data_smooth = self.load_aug_data(fn_im_paths,
                                              slice_info,
@@ -149,6 +167,7 @@ class MRI_Card_2D(Input):
                                              mask_type=params.get('mask_type'),
                                              US_rate=(params.get('us_rate')),
                                              num_to_take=num_smooth)
+        # np.save('/home/jpa19/PycharmProjects/MA/UnFlow/hardcoded_data_USfalse', aug_data_smooth)
         np.random.shuffle(fn_im_paths)
         aug_data_real = self.load_aug_data(fn_im_paths,
                                            slice_info,
@@ -167,14 +186,12 @@ class MRI_Card_2D(Input):
                                                     US_rate=(params.get('us_rate')),
                                                     num_to_take=num_real_x_smooth)
 
-        batches = np.concatenate((batches, aug_data_real, aug_data_constant, aug_data_smooth, aug_data_real_x_smooth),
-                                 axis=0)
+        batches = np.concatenate((batches, aug_data_real, aug_data_constant, aug_data_smooth, aug_data_real_x_smooth), axis=0)
         np.random.shuffle(batches)
         if params.get('network') == 'lapnet':
             radius = int((params.get('crop_size') - 1) / 2)
             if params.get('padding'):
-                # here only x-axis will be padded cause y-axis has been padded much in load_aug_data()
-                batches = np.pad(batches, ((0, 0), (radius, radius), (0, 0), (0, 0)), constant_values=0)
+                batches = np.pad(batches, ((0, 0), (radius, radius), (radius, radius), (0, 0)), constant_values=0)
             if params.get('random_crop'):
                 batches = self.crop2D(batches, crop_size=params.get('crop_size'), box_num=params.get('crop_box_num'), cut_margin=20)
             else:
@@ -193,6 +210,3 @@ class MRI_Card_2D(Input):
         else:
             raise ImportError('Wrong Network name is given')
         return [im1, im2, flow]
-
-
-

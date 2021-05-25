@@ -176,7 +176,7 @@ def subsample_radial(img_cart, acc=1, cphases=[0,1]):
 
 
 if __name__ == "__main__":
-    sinpath = '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/mat/train/Ca_090419.mat'
+    sinpath = 'card_radial.mat'
     indata = sio.loadmat(sinpath)
 
     # Cartesian image
@@ -200,4 +200,4 @@ if __name__ == "__main__":
 
     img_rad = subsample_radial(img_cart, acc)
 
-    sio.savemat('/home/tk18/data/LAPNet/testrad.mat', {'img_rad': img_rad, 'img_cart': img_cart})
+    sio.savemat('testrad.mat', {'img_rad': img_rad, 'img_cart': img_cart})

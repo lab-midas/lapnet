@@ -58,7 +58,6 @@ class MRI_Card_2D(Input):
                     f = np.load(fn_im_path)
                 except ImportError:
                     print("Wrong Data Format")
-            # f = np.load('/home/jpa19/PycharmProjects/MA/UnFlow/data/card/npz/test/Pat1.npz')
 
             name = fn_im_path.split('/')[-1].split('.')[0]
 

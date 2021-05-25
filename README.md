@@ -40,8 +40,8 @@ Therefore, in this work we introduced a novel deep learning-based registration m
 motion estimation problem directly in the acquired (and undersampled) k-space. 
 
 ## LAPNet
-![Network Architecture](https://user-images.githubusercontent.com/46929357/87417780-f4d9b800-c5d0-11ea-98c0-276d61aa89be.png)
-Figure 1: Network Architecture of LAP-Net
+![LAPNet](https://user-images.githubusercontent.com/15344655/119488462-df89fa00-bd5a-11eb-95ef-8a8ad89a2e38.png)
+Figure 1: Network architecture of LAPNet
 
 ### Other Supported Architectures
 There are also some network architectures which are supported in this work: 

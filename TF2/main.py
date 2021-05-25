@@ -15,7 +15,7 @@ from tensorflow.keras import backend as K
 # read config file
 # ===============================================================================
 # read yaml file
-with open("../config.yaml", 'r') as stream:
+with open("config.yaml", 'r') as stream:
     data_loaded = yaml.safe_load(stream)
 general_setup = data_loaded['Setup']
 mode_run = general_setup['mode_run']

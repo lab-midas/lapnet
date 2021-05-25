@@ -211,7 +211,7 @@ def eval_cropping(model, experiment_setup):
     eval(flow_pixel, im1, im2, flow_orig, experiment_setup, pos, save_path=save_path)
 
 
-def eval_tapering(model, experiment_setup, dimentionality):
+def eval_tapering(model, experiment_setup, dimensionality):
     weights_path = experiment_setup['weights']
     model.load_weights(weights_path)
 
@@ -241,7 +241,7 @@ def eval_tapering(model, experiment_setup, dimentionality):
         except Exception as e:
             print(e)
     save_path = f'{savingfile}/{name}_{US_acc}'
-    eval(flow_pixel, im1, im2, flow_orig, experiment_setup,dimentionality, pos, save_path=save_path)
+    eval(flow_pixel, im1, im2, flow_orig, experiment_setup,dimensionality, pos, save_path=save_path)
 
 
 def eval(flow_pixel, im1, im2, flow_gt, config, dim, pos, save_path=None, save_txt=False):

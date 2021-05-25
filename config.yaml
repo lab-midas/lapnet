@@ -6,7 +6,7 @@
 
 Setup:
   architecture_version: 1
-  dimentionality: 3D
+  dimensionality: 3D
   mode_run: train
   slicing_mode: tapering
   gpu_list: '1'
@@ -24,6 +24,7 @@ Train:
     box_num: 200
     # undersampling method
     mask_type: 'drUS'
+    # selected subjects and slices for training
     subjectsIDs: '/home/studghoul1/lapnet/create_data/training_subjects_names.txt'
     slice_info_coronal: '/home/studghoul1/lapnet/create_data/slice_info_resp_coronal.ods'
     slice_info_sagittal: '/home/studghoul1/lapnet/create_data/slice_info_resp_sagital.ods'

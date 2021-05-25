@@ -50,7 +50,7 @@ if gpu_num is not "-1":
 # ===============================================================================
 slicing_mode = general_setup['slicing_mode']
 create_data = data_setup['create_data']
-dimentionality = general_setup['dimentionality']
+dimensionality = general_setup['dimensionality']
 architecture_version = general_setup['architecture_version']
 
 # ===============================================================================
@@ -58,9 +58,9 @@ architecture_version = general_setup['architecture_version']
 # ===============================================================================
 if slicing_mode == 'tapering':
     if create_data and mode_run == 'train':
-        if dimentionality == '2D':
+        if dimensionality == '2D':
             save_2D_LAPNet_data_as_npz(data_setup)
-        if dimentionality == '3D':
+        if dimensionality == '3D':
             save_3D_LAPNet_data_as_npz(data_setup)
 
 # ===============================================================================
@@ -68,23 +68,23 @@ if slicing_mode == 'tapering':
 # ===============================================================================
 if slicing_mode == 'tapering':
     if create_data and mode_run == 'test':
-        if dimentionality == '2D':
+        if dimensionality == '2D':
             create_2D_test_dataset(data_setup)
-        if dimentionality == '3D':
+        if dimensionality == '3D':
             pass
             # .. ToDo: function for 3D test data creation
 
 # ===============================================================================
 # Build the model
 # ===============================================================================
-if dimentionality == '2D':
+if dimensionality == '2D':
     if architecture_version == 0:
         ModelResp = buildLAPNet_model_2D_old(33)
         print(ModelResp.summary())
     else:
         ModelResp = buildLAPNet_model_2D()
         print(ModelResp.summary())
-if dimentionality == '3D':
+if dimensionality == '3D':
     ModelResp = buildLAPNet_model_3D()
     print(ModelResp.summary())
 
@@ -99,7 +99,7 @@ if mode_run == 'train':
 # ===============================================================================
 if mode_run == 'test':
     if slicing_mode == 'tapering':
-        res = eval_tapering(ModelResp, experiment_setup, dimentionality)
+        res = eval_tapering(ModelResp, experiment_setup, dimensionality)
 
     if slicing_mode == 'cropping':
         res = eval_cropping(ModelResp, experiment_setup)

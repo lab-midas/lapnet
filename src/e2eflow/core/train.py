@@ -42,7 +42,7 @@ def LAP_loss_function(y_true, y_pred):
 def train(ModelResp, general_setup, experiment_setup):
     # setup
     slicing_mode = general_setup['slicing_mode']
-    dimentionality = general_setup['dimentionality']
+    dimensionality = general_setup['dimensionality']
 
     # compile
     ModelResp.compile(optimizer=Adam(beta_1=0.9, beta_2=0.999, lr=0.0),
@@ -62,9 +62,9 @@ def train(ModelResp, general_setup, experiment_setup):
     # generator
     TrainingPath = experiment_setup['data_path']
     if slicing_mode == 'tapering':
-        if dimentionality == '2D':
+        if dimensionality == '2D':
             training_generator = DataGenerator_2D(TrainingPath, batch_size=batch_size)
-        if dimentionality == '3D':
+        if dimensionality == '3D':
             training_generator = DataGenerator_3D(TrainingPath, batch_size=batch_size)
 
     if slicing_mode == 'cropping':

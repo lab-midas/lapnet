@@ -2,12 +2,12 @@ import tensorflow as tf
 import yaml
 import os
 
-from e2eflow.core.lapnet import buildLAPNet_model_2D, buildLAPNet_model_3D, buildLAPNet_model_2D_old
-from e2eflow.core.train import train
-from e2eflow.resp_and_card.training_data_2D import save_2D_LAPNet_data_as_npz
-from e2eflow.resp_and_card.training_data_3D import save_3D_LAPNet_data_as_npz
-from e2eflow.test.eval_lapnet import eval_tapering, eval_cropping
-from e2eflow.resp_and_card.test_data_2D import create_2D_test_dataset
+from core.lapnet import buildLAPNet_model_2D, buildLAPNet_model_3D, buildLAPNet_model_2D_old
+from core.train import train
+from resp_and_card.training_data_2D import save_2D_LAPNet_data_as_npz
+from resp_and_card.training_data_3D import save_3D_LAPNet_data_as_npz
+from test.eval_lapnet import eval_tapering, eval_cropping
+from resp_and_card.test_data_2D import create_2D_test_dataset
 
 from tensorflow.keras import backend as K
 

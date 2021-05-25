@@ -6,7 +6,7 @@ log/
 output/
 .idea
 .git
-src/playground.py
+TF2/playground.py
 *npy
 *npz
 *.ckpt

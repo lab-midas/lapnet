@@ -1,6 +1,6 @@
 import numpy as np
-from ..core.cropping import arr2kspace, crop2D
-from ..core.tapering import taper2D
+from TF2.core.cropping import arr2kspace, crop2D
+from TF2.core.tapering import taper2D
 import tensorflow.keras as keras
 import os
 from random import shuffle

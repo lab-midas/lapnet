@@ -4,17 +4,15 @@ import scipy.io as sio
 import matplotlib
 import matplotlib.pyplot as plt
 import time
-import re
-import string
-from e2eflow.core.flow_util import flow_to_color_np
-from e2eflow.core.util import load_mat_file
-from e2eflow.test.Warp_assessment3D import warp_assessment3D
-from e2eflow.core.image_warp import np_warp_2D, np_warp_3D
-from e2eflow.core.resp_US.sampling_center import sampleCenter
-from e2eflow.core.resp_US.retrospective_radial import subsample_radial
-from e2eflow.core.cropping import arr2kspace, crop2D_FixPts
-from e2eflow.core.resp_US.sampling import generate_mask
-from e2eflow.resp_and_card.processing import pos_generation_2D, get_slice_info_from_ods_file, flow_variation, select_2D_Data
+from core.flow_util import flow_to_color_np
+from core.util import load_mat_file
+from core.Warp_assessment3D import warp_assessment3D
+from core.image_warp import np_warp_2D, np_warp_3D
+from core.undersample.sampling_center import sampleCenter
+from core.undersample.retrospective_radial import subsample_radial
+from core.cropping import arr2kspace, crop2D_FixPts
+from core.undersample.sampling import generate_mask
+from preprocess.processing import pos_generation_2D, get_slice_info_from_ods_file, flow_variation, select_2D_Data
 
 
 def save_img(result, file_path, format='png'):
@@ -75,16 +73,16 @@ def write_info_in_txt(ID, path, acc, EAE, EPE):
     EAE_file.close()
 
 
-def get_mat_files_EPE_EAE(save_path):
-    slices = get_slice_info_from_ods_file('/home/studghoul1/lapnet/lapnet/src/slice_info_resp_coronal.ods')
+def get_mat_files_EPE_EAE(save_path, ods_file_path, test_data_path, list_ID):
+    slices = get_slice_info_from_ods_file(ods_file_path)
     list_us = np.arange(1, 31, 1)
     list_reg_type = ['elastix', 'LAP']
-    list_ID = ['patient_004', 'patient_035', 'patient_036', 'volunteer_06_la', 'volunteer_12_hs']
+    # list_ID = ['patient_004', 'patient_035', 'patient_036', 'volunteer_06_la', 'volunteer_12_hs']
     for type in list_reg_type:
         for acc in list_us:
             list_paths = []
             for ID in list_ID:
-                list_paths += [f'/home/studghoul1/lapnet/data/test_data_3D_flows/{ID}/{type}_{ID}_acc_{acc}.mat']
+                list_paths += [f'{test_data_path}/{ID}/{type}_{ID}_acc_{acc}.mat']
                 for path in list_paths:
                     FlowPath = '/mnt/data/rawdata/MoCo/LAPNet/resp/LAP/'
                     data = sio.loadmat(FlowPath + ID + '.mat')

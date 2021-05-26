@@ -3,8 +3,8 @@ import numpy as np
 import os
 import multiprocessing as mp
 from functools import partial
-from e2eflow.core.tapering import taper2D
-from e2eflow.resp_and_card.processing import load_data_3D, select_2D_Data, get_maxmin_info_from_ods_file
+from TF2.core.tapering import taper2D
+from TF2.preprocess.processing import load_data_3D, select_2D_Data, get_maxmin_info_from_ods_file
 
 
 def save_3D_LAPNet_data_as_npz(data_setup):

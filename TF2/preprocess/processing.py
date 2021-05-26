@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-from e2eflow.core.image_warp import np_warp_3D
+from TF2.core.image_warp import np_warp_3D
 import scipy.io as sio
-from e2eflow.core.resp_US.sampling import generate_mask
+from TF2.core.undersample.sampling import generate_mask
 from pyexcel_ods import get_data
 
 

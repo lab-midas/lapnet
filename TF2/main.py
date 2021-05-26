@@ -1,13 +1,12 @@
 import tensorflow as tf
 import yaml
 import os
-
 from core.lapnet import buildLAPNet_model_2D, buildLAPNet_model_3D, buildLAPNet_model_2D_old
-from core.train import train
-from resp_and_card.training_data_2D import save_2D_LAPNet_data_as_npz
-from resp_and_card.training_data_3D import save_3D_LAPNet_data_as_npz
-from test.eval_lapnet import eval_tapering, eval_cropping
-from resp_and_card.test_data_2D import create_2D_test_dataset
+from train import train
+from preprocess.training_data_2D import save_2D_LAPNet_data_as_npz
+from preprocess.training_data_3D import save_3D_LAPNet_data_as_npz
+from test import eval_tapering, eval_cropping
+from preprocess.test_data_2D import create_2D_test_dataset
 
 from tensorflow.keras import backend as K
 
@@ -30,7 +29,7 @@ elif mode_run == 'test':
 # GPU setting
 # ===============================================================================
 gpu_num = general_setup['gpu_list']
-os.environ["CUDA_VISIBLE_DEVICES"] = gpu_num  # gpu 3
+os.environ["CUDA_VISIBLE_DEVICES"] = gpu_num
 if gpu_num is not "-1":
     num_Gb = general_setup['gpu_num_gb']
     memory = num_Gb * 1024

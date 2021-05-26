@@ -1,10 +1,11 @@
 import tensorflow as tf
 from tensorflow.keras.initializers import VarianceScaling
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, LeakyReLU, Lambda, concatenate, Input, AveragePooling2D
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, LeakyReLU, Lambda, Input, AveragePooling2D
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import l2
 import tensorflow.keras as keras
-from e2eflow.core.train import modified_EPE
+from train import modified_EPE
+
 
 # Create the model
 def buildLAPNet_model_2D(crop_size=33):
@@ -197,7 +198,6 @@ def buildLAPNet_model_3D():
     coronal_features = AveragePooling2D(pool_size=5, name='pool_c')(coronal_features)
     coronal_features = Conv2D(2, [1, 1], name="c_fc3")(coronal_features)
 
-
     sagital_features = Conv2D(filters=64,
                               kernel_size=3,
                               strides=2,
@@ -231,12 +231,12 @@ def buildLAPNet_model_3D():
                               name="s_conv3_1")(sagital_features)
     sagital_features = LeakyReLU(alpha=0.1, name='s_act3_1')(sagital_features)
     sagital_features = Conv2D(filters=1024,
-                            kernel_size=3,
-                            strides=2,
-                            padding='same',
-                            kernel_regularizer=l2(0.0004),
-                            kernel_initializer=initializer,
-                            name="s_conv4")(sagital_features)
+                              kernel_size=3,
+                              strides=2,
+                              padding='same',
+                              kernel_regularizer=l2(0.0004),
+                              kernel_initializer=initializer,
+                              name="s_conv4")(sagital_features)
     sagital_features = LeakyReLU(alpha=0.1, name='s_act4')(sagital_features)
     sagital_features = Conv2D(filters=1024,
                               kernel_size=3,
@@ -300,25 +300,24 @@ def buildLAPNet_model_3D():
     axial_features = AveragePooling2D(pool_size=5, name='pool_a')(axial_features)
     axial_features = Conv2D(2, [1, 1], name="a_fc3")(axial_features)
 
-
     model_coronal = keras.Model(inputs=[coronal_input], outputs=[coronal_features])
     model_sagital = keras.Model(inputs=[sagital_input], outputs=[sagital_features])
     model_axial = keras.Model(inputs=[axial_input], outputs=[axial_features])
 
-    #merged_layers = concatenate([model_coronal.output, model_sagital.output, model_axial.output])
-    #x = merge([coronal_features, sagital_features, axial_features], mode='concat', axis=-1)
-    #x = tf.stack([x, axial_features], axis=-1)
+    # merged_layers = concatenate([model_coronal.output, model_sagital.output, model_axial.output])
+    # x = merge([coronal_features, sagital_features, axial_features], mode='concat', axis=-1)
+    # x = tf.stack([x, axial_features], axis=-1)
 
-    #x = Conv2D(3, [1, 1], name="fc3")(merged_layers)
+    # x = Conv2D(3, [1, 1], name="fc3")(merged_layers)
 
-    #final_flow = Lambda(squeeze_func, name="fc8/squeezed")(x)
+    # final_flow = Lambda(squeeze_func, name="fc8/squeezed")(x)
 
-    #model = keras.Model([model_coronal.input, model_sagital.input, model_axial.input], [final_flow])
+    # model = keras.Model([model_coronal.input, model_sagital.input, model_axial.input], [final_flow])
 
-    #x = tf.keras.layers.Concatenate(axis=-1)([coronal_features, sagital_features, axial_features])
-    #x = Conv2D(3, [1, 1], name="fc3")(x)
-    #x = AveragePooling2D(pool_size=5, name='pool')(x)
-    #final_flow = Lambda(squeeze_func, name="fc8/squeezed")(x)
+    # x = tf.keras.layers.Concatenate(axis=-1)([coronal_features, sagital_features, axial_features])
+    # x = Conv2D(3, [1, 1], name="fc3")(x)
+    # x = AveragePooling2D(pool_size=5, name='pool')(x)
+    # final_flow = Lambda(squeeze_func, name="fc8/squeezed")(x)
     final_flow_c = Lambda(squeeze_func, name="fc8/squeezed_c")(coronal_features)
     final_flow_s = Lambda(squeeze_func, name="fc8/squeezed_s")(sagital_features)
     final_flow_a = Lambda(squeeze_func, name="fc8/squeezed_a")(axial_features)
@@ -332,15 +331,13 @@ def buildLAPNet_model_3D():
 def squeeze_func(x):
     return tf.squeeze(x, axis=[1, 2])
 
+
 def squeeze_func_3D(x):
     return tf.squeeze(x, axis=[1, 2, 3])
 
 
-
-
-
-def load_tf1_LAPNet_cropping_ckpt(checkpoint_path_old='/mnt/data/projects/MoCo/LAPNet/UnFlow/log/ex/resp/srx424_drUS_1603/model.ckpt'):
-
+def load_tf1_LAPNet_cropping_ckpt(
+        checkpoint_path_old='/mnt/data/projects/MoCo/LAPNet/UnFlow/log/ex/resp/srx424_drUS_1603/model.ckpt'):
     model = buildLAPNet_model_2D_old()
     model.compile(optimizer=Adam(beta_1=0.9, beta_2=0.999, lr=0.0),
                   loss=[modified_EPE],
@@ -361,6 +358,3 @@ def tensor_in_checkpoint_file(tensor_name):
     reader = tf.python.training.py_checkpoint_reader.NewCheckpointReader(file_name)
     res = tf.constant_initializer(reader.get_tensor(tensor_name))
     return res
-
-
-

@@ -19,7 +19,7 @@ class DataGenerator_Resp_train_2D(keras.utils.Sequence):
 
      Example
      -------
-     from e2eflow.resp_and_card.input_resp import DataGenerator_Resp_train_2D
+     from e2eflow.preprocess.input_resp import DataGenerator_Resp_train_2D
 
      # initialize data generator for raw data
      data_path = '/mnt/data/rawdata/MoCo/LAPNet/resp/LAP'
@@ -121,7 +121,7 @@ class DataGenerator_2D(keras.utils.Sequence):
 
     Example
     -------
-     from e2eflow.resp_and_card.input_resp import DataGenerator_2D
+     from e2eflow.preprocess.input_resp import DataGenerator_2D
 
      # initialize data generator for 2D preprocessed data
     preprocessed_data_path = '/scratch/LAPNet/2D_dataset'
@@ -206,7 +206,7 @@ class DataGenerator_3D(keras.utils.Sequence):
 
     Example
     -------
-    from e2eflow.resp_and_card.input_resp import DataGenerator_3D
+    from e2eflow.preprocess.input_resp import DataGenerator_3D
 
      # initialize data generator for 3D preprocessed data
     preprocessed_3D_data_path = '/scratch/LAPNet/3D_dataset'

@@ -5,7 +5,6 @@ data/
 log/
 output/
 .idea
-.git
 src/playground.py
 *npy
 *npz

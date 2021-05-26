@@ -1,6 +1,6 @@
 import numpy as np
 from skimage.util import view_as_windows
-from e2eflow.core.tapering import flowCrop
+from core.tapering import flowCrop
 
 
 def crop2D(ref, mov, u, pos, crop_size):

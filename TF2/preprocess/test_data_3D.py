@@ -1,6 +1,6 @@
-from e2eflow.resp_and_card.processing import load_data_3D, select_2D_Data, pos_generation_2D
+from processing import load_data_3D, select_2D_Data, pos_generation_2D
 import numpy as np
-from e2eflow.core.tapering import taper2D
+from TF2.core.tapering import taper2D
 
 
 def create_sagittal_data(dataID, us_acc, slice_num, save_dir, tapering_size=33, crop_stride=2, normalized=False,

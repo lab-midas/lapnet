@@ -1,12 +1,14 @@
 import math
 import numpy as np
 from TF2.core.image_warp import np_warp_2D
-from TF2.core.card_US.retrospective_radial import subsample_radial
-from TF2.core.card_US.pad_crop import post_crop
-from TF2.core.util import pos_generation_2D, _u_generation_2D, arr2kspace, load_mat_file
+from TF2.core.undersample.retrospective_radial import subsample_radial
+from TF2.core.undersample.pad_crop import post_crop
+from TF2.core.util import load_mat_file
+from processing import pos_generation_2D, _u_generation_2D
+from TF2.core.cropping import arr2kspace
 
 
-class MRI_Card_2D(Input):
+class MRI_Card_2D():
 
     def __init__(self, data, batch_size, dims, *,
                  num_threads=1, normalize=True,
@@ -168,12 +170,14 @@ class MRI_Card_2D(Input):
                 # here only x-axis will be padded cause y-axis has been padded much in load_aug_data()
                 batches = np.pad(batches, ((0, 0), (radius, radius), (0, 0), (0, 0)), constant_values=0)
             if params.get('random_crop'):
-                batches = self.crop2D(batches, crop_size=params.get('crop_size'), box_num=params.get('crop_box_num'), cut_margin=20)
+                batches = self.crop2D(batches, crop_size=params.get('crop_size'), box_num=params.get('crop_box_num'),
+                                      cut_margin=20)
             else:
                 x_dim, y_dim = np.shape(batches)[1:3]
                 pos = pos_generation_2D(intervall=[[0, x_dim - params.get('crop_size') + 1],
                                                    [0, y_dim - params.get('crop_size') + 1]], stride=4)
-                batches = self.crop2D_FixPts(batches, crop_size=params.get('crop_size'), box_num=np.shape(pos)[1], pos=pos)
+                batches = self.crop2D_FixPts(batches, crop_size=params.get('crop_size'), box_num=np.shape(pos)[1],
+                                             pos=pos)
             batches = np.concatenate((arr2kspace(batches[..., :2]), batches[..., 2:]), axis=-1)
             im1 = batches[..., :2]
             im2 = batches[..., 2:4]
@@ -185,6 +189,3 @@ class MRI_Card_2D(Input):
         else:
             raise ImportError('Wrong Network name is given')
         return [im1, im2, flow]
-
-
-

@@ -1,8 +1,8 @@
+import numpy as np
 import scipy.io as sio
-from e2eflow.core.pad_crop import *
-#import optopy
-#import optopy.gpunufft as op
-
+# import optopy.gpunufft as op
+from TF2.core.undersample.fft_ifft import *
+from TF2.core.undersample.pad_crop import *
 
 def get_kpos(n_FE, n_spokes, RadProfOrder, start_angle):
     # n_FE = number of points along each radial spoke
@@ -15,19 +15,19 @@ def get_kpos(n_FE, n_spokes, RadProfOrder, start_angle):
     # K - space values along each radial spoke
     # delta_kr = 1 / size(Data, 1);
     delta_kr = 1 / n_FE
-    rad_pos = np.arange(-0.5, 0.5, delta_kr)  # :0.5 - delta_kr
+    rad_pos = np.arange(-0.5, 0.5, delta_kr) # :0.5 - delta_kr
 
     # Angles of different radial spokes
     if RadProfOrder == 'golden':  # golden angle
-        RadialAngles = np.arange(0, n_spokes) * (np.pi / 180) * (180 * 0.618034)
+        RadialAngles = np.arange(0, n_spokes)*(np.pi/180)*(180*0.618034)
         isalternated = 0
 
     elif RadProfOrder == 'tinygolden':  # Andreia Gaspar 02 / 08 / 2016 tiny golden angle
-        RadialAngles = np.arange(0, n_spokes) * (np.pi / 180) * (180 * 0.1312674636)
+        RadialAngles = np.arange(0, n_spokes)*(np.pi/180)*(180*0.1312674636)
         isalternated = 0
 
     else:  # linear order
-        RadialAngles = np.arange(0, n_spokes) * (np.pi / n_spokes)
+        RadialAngles = np.arange(0, n_spokes)*(np.pi/n_spokes)
         # Flag indicating that each even radial line is sampled from +k_max to - k_max and each odd line is acquired from -k_max to + k_max
         isalternated = 1
 
@@ -37,8 +37,7 @@ def get_kpos(n_FE, n_spokes, RadProfOrder, start_angle):
 
     kpos = CalcTraj_2d_radial(rad_pos, RadialAngles, isalternated)
 
-    return np.transpose(kpos, (2, 1, 0))  # tranpose to: _, num_spokes, num_readout
-
+    return np.transpose(kpos, (2, 1, 0))   # tranpose to: _, num_spokes, num_readout
 
 def CalcTraj_2d_radial(rad_pos, rad_angles, isalternated):
     # Calculate k - space trajectory for a 2D radial acquisition
@@ -53,23 +52,18 @@ def CalcTraj_2d_radial(rad_pos, rad_angles, isalternated):
 
     if isalternated:
         # Radius from -k_max to + k_max
-        kpos[:, :, :][:, 0:-1:2, :][:, :, 0] = rad_pos[:, np.newaxis] * np.sin(rad_angles[0:-1:2])[:,
-                                                                        np.newaxis].transpose()
-        kpos[:, :, :][:, 0:-1:2, :][:, :, 1] = rad_pos[:, np.newaxis] * np.cos(rad_angles[0:-1:2])[:,
-                                                                        np.newaxis].transpose()
+        kpos[:, :, :][:, 0:-1:2, :][:, :, 0] = rad_pos[:, np.newaxis] * np.sin(rad_angles[0:-1:2])[:, np.newaxis].transpose()
+        kpos[:, :, :][:, 0:-1:2, :][:, :, 1] = rad_pos[:, np.newaxis] * np.cos(rad_angles[0:-1:2])[:, np.newaxis].transpose()
 
         # Radius from +k_max to - k_max
-        kpos[:, :, :][:, 1:-1:2, :][:, :, 0] = -rad_pos[:, np.newaxis] * np.sin(rad_angles[1:-1:2])[:,
-                                                                         np.newaxis].transpose()
-        kpos[:, :, :][:, 1:-1:2, :][:, :, 1] = -rad_pos[:, np.newaxis] * np.cos(rad_angles[1:-1:2])[:,
-                                                                         np.newaxis].transpose()
+        kpos[:, :, :][:, 1:-1:2, :][:, :, 0] = -rad_pos[:, np.newaxis] * np.sin(rad_angles[1:-1:2])[:, np.newaxis].transpose()
+        kpos[:, :, :][:, 1:-1:2, :][:, :, 1] = -rad_pos[:, np.newaxis] * np.cos(rad_angles[1:-1:2])[:, np.newaxis].transpose()
 
     else:
-        kpos[:, :, 1] = rad_pos[:, np.newaxis] * np.sin(rad_angles)[:, np.newaxis].transpose()
-        kpos[:, :, 0] = rad_pos[:, np.newaxis] * np.cos(rad_angles)[:, np.newaxis].transpose()
+        kpos[:,:,1] = rad_pos[:, np.newaxis] * np.sin(rad_angles)[:, np.newaxis].transpose()
+        kpos[:,:,0] = rad_pos[:, np.newaxis] * np.cos(rad_angles)[:, np.newaxis].transpose()
 
     return kpos
-
 
 def generateRadialTrajectory(Nread, Nspokes=1, kmax=0.5):
     """ Generate a radial trajectory
@@ -81,21 +75,20 @@ def generateRadialTrajectory(Nread, Nspokes=1, kmax=0.5):
     tmp_trajectory = np.linspace(-1, 1, num=Nread, endpoint=False) * kmax
     trajectory = np.zeros((2, Nread, Nspokes))
     for n in range(Nspokes):
-        phi = (np.mod(Nspokes, 2) + 1) * np.pi * n / Nspokes
-        kx = np.cos(phi) * tmp_trajectory
-        ky = np.sin(phi) * tmp_trajectory
-        trajectory[0, :, n] = kx
-        trajectory[1, :, n] = ky
+        phi = (np.mod(Nspokes,2) + 1) * np.pi * n / Nspokes
+        kx = np.cos(phi)*tmp_trajectory
+        ky = np.sin(phi)*tmp_trajectory
+        trajectory[0,:,n] = kx
+        trajectory[1,:,n] = ky
     return trajectory
-    # return trajectory[0] + 1j*trajectory[1]
-
+    #return trajectory[0] + 1j*trajectory[1]
 
 def calc_radial_dcf(kpos, lens):
     """ This is suboptimal... Room for (a lot of) improvement. """
     dcf = []
     num_phases, _, num_spokes, num_readout = kpos.shape
-    # num_readout, num_spokes, _ = kpos.shape
-    # num_phases = 1
+    #num_readout, num_spokes, _ = kpos.shape
+    #num_phases = 1
     for idx_bin in range(num_phases):
         dcf_idx = compute_radial_dcf(kpos[idx_bin])
         # print(np.max(dcf_idx), lens[idx_bin])
@@ -105,9 +98,8 @@ def calc_radial_dcf(kpos, lens):
 
     return dcf  # / np.max(dcf)
 
-
 def compute_radial_dcf(Kpos):
-    angles = np.degrees(np.arctan2(Kpos[1, ..., 0], Kpos[0, ..., 0])) + 180  # previously [1,...] [0,....]
+    angles = np.degrees(np.arctan2(Kpos[1,...,0], Kpos[0,...,0])) + 180   # previously [1,...] [0,....]
     dcf = np.linspace(-0.5, 0.5, Kpos.shape[-1])
     dcf = np.tile(np.abs(dcf), [Kpos.shape[1], 1])
 
@@ -129,14 +121,13 @@ def compute_radial_dcf(Kpos):
 
     return dcf.reshape((1, *dcf.shape))
 
-
-def subsample_radial(img_cart, acc=1, cphases=[0, 1]):
+def subsample_radial(img_cart, acc=1, cphases=[0,1]):
     # return radial subsampled image
 
     # zero-pad to quadratic FOV
     maxsize = np.amax(np.shape(img_cart)[0:2])
     img_cart = zpad(img_cart, (maxsize, maxsize, np.shape(img_cart)[2], np.shape(img_cart)[3])).astype(np.complex64)
-    # kspace_cart = fftnshift_np(img_cart, (0, 1))
+    #kspace_cart = fftnshift_np(img_cart, (0, 1))
 
     nyquist_spokes = np.round(np.pi / 2 * maxsize)
 
@@ -145,10 +136,8 @@ def subsample_radial(img_cart, acc=1, cphases=[0, 1]):
     else:
         n_spokes = int(nyquist_spokes)
 
-    golden_angle = 180 * 0.618034
+    golden_angle = 180*0.618034
     nRO, _, nSlices, n_phases_img = np.shape(img_cart)
-    if cphases is None:
-        cphases = range(n_phases_img)
     n_phases = len(cphases)
     if np.any(np.asarray(cphases) > n_phases_img):
         raise ValueError
@@ -156,16 +145,16 @@ def subsample_radial(img_cart, acc=1, cphases=[0, 1]):
     img = np.transpose(img_cart, (3, 2, 0, 1)).copy().view()  # phase must be first to be c-contiguous
 
     startangle = 0
-    # kpos = []
+    #kpos = []
     img_rad = []
     csm = np.ones((1, maxsize, maxsize))
-    for ipha in cphases:  # range(n_phases):
+    for ipha in cphases:  #range(n_phases):
         kpos = get_kpos(maxsize, n_spokes, 'golden', startangle)
-        # kpos = generateRadialTrajectory(int(maxsize), int(n_spokes))
-        # kpos_idx = np.transpose(kpos_idx,(0,2,1))
+        #kpos = generateRadialTrajectory(int(maxsize), int(n_spokes))
+        #kpos_idx = np.transpose(kpos_idx,(0,2,1))
 
-        # kpos_idx = kpos_idx[np.newaxis, :, :, :]  # phases x 2 x nSpokes x nRO -> required input of dcf
-        # kpos.append(kpos_idx)
+        #kpos_idx = kpos_idx[np.newaxis, :, :, :]  # phases x 2 x nSpokes x nRO -> required input of dcf
+        #kpos.append(kpos_idx)
 
         dcf = compute_radial_dcf(kpos)
         dcf = dcf * nRO * np.pi
@@ -173,7 +162,7 @@ def subsample_radial(img_cart, acc=1, cphases=[0, 1]):
         kpos = np.tile(kpos.reshape(1, -1, maxsize * n_spokes), (nSlices, 1, 1))
         dcf = np.tile(dcf.reshape(1, 1, maxsize * n_spokes) / np.max(dcf), (nSlices, 1, 1))
 
-        nufft = op.GpuNufft(img_dim=maxsize, osf=1, kernel_width=3, sector_width=5)
+        #nufft = op.GpuNufft(img_dim=maxsize, osf=1, kernel_width=3, sector_width=5)
         nufft.setDcf(dcf.astype(np.float32))  # nBatch x 1 x nRO * nSpokes
         nufft.setTraj(kpos.astype(np.float32))  # nBatch x 2 x nRO * nSpokes
         nufft.setCsm(csm.astype(np.complex64))  # nCoils x nRO x nRO
@@ -182,12 +171,12 @@ def subsample_radial(img_cart, acc=1, cphases=[0, 1]):
 
         startangle += golden_angle
 
-    img_rad = np.transpose(np.ascontiguousarray(img_rad), (2, 3, 1, 0))  # nRO x nRO x nSlices x cPhases
+    img_rad = np.transpose(np.ascontiguousarray(img_rad),(2,3,1,0))  # nRO x nRO x nSlices x cPhases
     return img_rad
 
 
 if __name__ == "__main__":
-    sinpath = 'patient_001.mat'
+    sinpath = 'card_radial.mat'
     indata = sio.loadmat(sinpath)
 
     # Cartesian image
@@ -195,20 +184,20 @@ if __name__ == "__main__":
     img_cart = np.ascontiguousarray(indata['dFixed'].astype(np.float32))  # x - y - sl - time
 
     # take slices
-    slices_sel = np.arange(0, 12)  # from Excel: [1:12]
-    img_cart = img_cart[:, :, slices_sel, :]
+    slices_sel = np.arange(0, 8) # from Excel: [1:12]
+    img_cart = img_cart[..., slices_sel]
 
     # visualize
-    # import medutils
-    # import matplotlib.pyplot as plt
-    # medutils.visualization.show(img_cart[:,:,5,0])
-    # plt.show()
+    import medutils
+    import matplotlib.pyplot as plt
+    medutils.visualization.show(img_cart[:,:,5,0])
+    plt.show()
 
     # acceleration factor
-    acc = 16
+    acc = 10
     # cardiac phases to use (1 to 25)
     # cphases = [1, 10] # already selected in pre-processing for flow estimation
 
-    img_rad = subsample_radial(img_cart, acc, None)
+    img_rad = subsample_radial(img_cart, acc)
 
-    sio.savemat('Pat1_{:d}x.mat'.format(acc), {'img_rad': img_rad, 'img_cart': img_cart})
+    sio.savemat('testrad.mat', {'img_rad': img_rad, 'img_cart': img_cart})

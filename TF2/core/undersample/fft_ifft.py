@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from e2eflow.core import tf_fft_helper
-
+import TF2.core.undersample.tf_fft_helper
 # input data is (rank==4): batch, height(x), width(y), channels(mag/pha)
 # complex dimension is always last!
 # default set to match this input

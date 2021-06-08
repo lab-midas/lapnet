@@ -43,18 +43,19 @@ FlowNet-S & card|16 |100 | 3|flownet|card_2D
 
 Tabel 1: Basic parameters to be set for training 
 
-- The crucial parameters in `./config.ini` which should be checked or modified are:
+The crucial parameters in `./config.ini` which should be checked or modified are:
     - `manual_decay_iters`
     - `manual_decay_lrs`
     - `augment_type_percent`: the proportion of generated flow type for the training 
     - `total_data_num`: how many data should be generated for the training. Here should be noticed that the 
     amount of motion type R cannot surpass the amount of the available data
     - `mask_type`: radial, crUS or drUS  
-- `cd src`
-- train with `python run.py --ex my_experiment`. Validation is run during training as specified
+
+Go to source director (`cd src`): 
+Train with `python run.py --ex my_experiment`. Validation is run during training as specified
 in `config.ini`.
 
-- If you want to use transfer learning, then the experiment should already exist in `./log/ex` dir and the
+If you want to use transfer learning, then the experiment should already exist in `./log/ex` dir and the
 experiment's name should align with this experiment. Don't forget to modify the parameters in `config.ini` 
 in the corresponding experiment's dir.  
 
@@ -62,7 +63,7 @@ in the corresponding experiment's dir.
 
 ### Evaluation of experiments
 - `mkdir output`, the results of evaluation are saved in this dir
-- adapt setting and flags in `eval_lapnet.py` (for LAP-Net )or `eval_flownet.py` (for FlowNet-S) 
+- adapt setting and flags in `eval_lapnet.py` (for LAP-Net) or `eval_flownet.py` (for FlowNet-S) 
 The crucial parameters which should be checked or modified are:
     - `slice_info_file`: there are two files (for resp and card data) which documents which slices to take for 
     each subject
@@ -72,8 +73,7 @@ The crucial parameters which should be checked or modified are:
     - `US_acc`: undersampling rate for the test
     - `mask_type`: which undersampling mask to apply for the test
     - `selected_frames`: if it is deactivated, then all slices from `slice_info_file` will be taken
-    - `cropped_image_size`: this configuration is only for cardiac data, choosing a proper size for cropping
-    the image. If it is deactivated, then no cropping is carried out.
+    - `cropped_image_size`: this configuration is only for cardiac data, choosing a proper size for cropping the image. If it is deactivated, then no cropping is carried out.
     - the save setting: save the loss and the results in png, pdf, mat, npz...
     
 - evaluate (multiple) experiments with `python eval_lapnet.py --ex experiment_name_1[, experiment_name_2 [...]]`. 
@@ -87,7 +87,7 @@ You can use the --help flag with `run.py` or `eval_lapnet.py` to view all availa
 
 ### Plot a line diagram 
 plot a line diagram of EPE or EAE loss in relation to undersampling rate
-1. Evaluate and generate the selected subjects as described in [Evaluation of experiments](#evaluation-of-experiments), 
+1. Evaluate and generate the selected subjects as described in [Evaluation of experiments](#Evaluation of experiments), 
 don't forget to activate the option of `save_loss`.
 2. Go to `./src/e2eflow/line_plot.py`, there is an example below. Type the path of calculated losses for the comparison, 
 update the name of labels, titel, save path and etc. 

@@ -64,7 +64,7 @@ Figure 2: Applied simulated flow in LAP-Net for the supervised learning
 There are in total three undersampling masks which are applied in this work:
 - [3D variable-density Poisson-Disc](https://ieeexplore.ieee.org/document/7486011)
 - 3D central sampling
-- 2D golden angle radial undersampling
+- [2D golden angle radial undersampling](https://ieeexplore.ieee.org/abstract/document/4039540)
 
 ## Usage
 

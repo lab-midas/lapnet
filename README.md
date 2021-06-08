@@ -13,8 +13,7 @@ This repository contains the TensorFlow implementation of the paper
 [Rene Botnar](https://kclpure.kcl.ac.uk/portal/rene.botnar.html), 
 [Claudia Prieto](https://kclpure.kcl.ac.uk/portal/claudia.prieto.html)<br/>
 **[LAPNet: Non-rigid registration derived in k-space for Magnetic Resonance Imaging](https://arxiv.org/abs/...)** <br/>
-(Paper link & Journal name)
-
+*IEEE Transactions on Medical Imaging* 2021.
 
 If you find *LAPNet* useful in your research, please consider citing:
 
@@ -41,7 +40,15 @@ motion estimation problem directly in the acquired (and undersampled) k-space.
 
 ## LAPNet
 ![LAPNet](https://user-images.githubusercontent.com/15344655/119488462-df89fa00-bd5a-11eb-95ef-8a8ad89a2e38.png)
-Figure 1: Network architecture of LAPNet
+Figure 1: Network architecture of LAPNet to perform non-rigid registration in k-space.
+
+![RespMotion](https://user-images.githubusercontent.com/15344655/121178314-a5425180-c85e-11eb-9de7-1e74da42a672.png)
+Figure 2: Respiratory non-rigid motion estimation in a patient with neuroendocrine tumor in the liver by the proposed 
+LAPNet in k-space in comparison to image-based non-rigid registration by FlowNet-S (deep learning), and image-based NiftyReg (cubic B-Splines). Estimated flow displacement are depicted in coronal and sagittal orientation. Reference flows are obtained from imageLAP (optical flow) on fully-sampled images. Undersampling was performed prospectively with a vdPD undersampling for 8x and 30x acceleration.
+
+![CardMotion](https://user-images.githubusercontent.com/15344655/121178587-ed617400-c85e-11eb-8669-840c145a3387.png)
+Figure 3: Cardiac non-rigid motion estimation in a patient with myocarditis. by the proposed 
+LAPNet in k-space in comparison to image-based non-rigid registration by FlowNet-S (deep learning), and image-based NiftyReg (cubic B-Splines). Estimated flow displacement are depicted in coronal and sagittal orientation. Reference flows are obtained from imageLAP (optical flow) on fully-sampled images. Undersampling was performed prospectively with a golden angle radial undersampling for 8x and 16x acceleration.
 
 ### Other Supported Architectures
 There are also some network architectures which are supported in this work: 
@@ -55,10 +62,10 @@ Architectures marked with * need to be modified further in the script and cannot
 ## Data
 Since real reference flows are very hard or even impossible to capture, we augmented the captured flows by simulation. 
 The flow augmentation types are: "C" (Constant flow), "S" (random smoothed flow), "R" (generated from
-[Local All-Pass](https://ieeexplore.ieee.org/document/7493264)) and "X" (flow "S" x "R"). Figure 2 shows an example of the augmented flows and the deformed image. 
+[Local All-Pass](https://ieeexplore.ieee.org/document/7493264)) and "X" (flow "S" x "R"). Figure 4 shows an example of the augmented flows and the deformed image. 
 
 ![Simulated Flow](https://user-images.githubusercontent.com/46929357/87416750-70d30080-c5cf-11ea-8751-1a382d95b86b.png)
-Figure 2: Applied simulated flow in LAP-Net for the supervised learning
+Figure 4: Applied simulated flow in LAP-Net for the supervised learning
 
 ### Undersampling
 There are in total three undersampling masks which are applied in this work:

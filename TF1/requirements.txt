@@ -1,0 +1,15 @@
+python 3
+gcc4
+RAR backend tool for rarfile (see https://pypi.python.org/pypi/rarfile/)
+matplotlib
+pypng
+rarfile
+pillow
+numpy
+scipy
+pylab
+skimage
+multiprocessing
+h5py
+tensorflow-gpu and tensorflow 1.x (at least version 1.7)
+CUDA and CuDNN. You should use the installer downloaded from the NVIDIA website and install to /usr/local/cuda. Please make sure that the versions you install are compatible with the version of tensorflow-gpu you are using (see e.g. https://github.com/tensorflow/tensorflow/releases).

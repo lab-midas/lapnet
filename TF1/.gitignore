@@ -5,7 +5,6 @@ data/
 log/
 output/
 .idea
-.git
 src/playground.py
 *npy
 *npz
@@ -14,8 +13,7 @@ src/playground.py
 
 __pycache__
 
+*.so
 *.o
 *.txt
 
-
-utils/

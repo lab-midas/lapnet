@@ -18,7 +18,7 @@ Train:
     create_data: False
     # num of workers used when creating data
     num_workers: 1
-    saving_dir: /home/lapnet/data/3D_dataset
+    saving_dir: /home/studghoul1/lapnet/data/3D_dataset
     #num of times a subject is undersampled and used to create data
     num_subject_us: 2
     # num of patches extracted from one slice
@@ -26,13 +26,11 @@ Train:
     # undersampling method
     mask_type: drUS
     # selected subjects and slices for training
-    subjectsIDs: /home/lapnet/create_data/training_subjects_names.txt
-    slice_info_coronal: /home/lapnet/create_data/slice_info_resp_coronal.ods
-    slice_info_sagittal: /home/lapnet/create_data/slice_info_resp_sagital.ods
-    slice_info_axial: /home/lapnet/create_data/slice_info_resp_axial.ods
-    # path of raw image data
+    subjectsIDs: /home/studghoul1/lapnet/create_data/training_subjects_names.txt
+    slice_info_coronal: /home/studghoul1/lapnet/create_data/slice_info_resp_coronal.ods
+    slice_info_sagittal: /home/studghoul1/lapnet/create_data/slice_info_resp_sagital.ods
+    slice_info_axial: /home/studghoul1/lapnet/create_data/slice_info_resp_axial.ods
     ImgPath: /mnt/data/rawdata/MoCo/LAPNet/resp/motion_data
-    # path of raw flow data (supervised learning)
     FlowPath: /mnt/data/rawdata/MoCo/LAPNet/resp/LAP
     # mask the motion field to remove background
     mask_Flow: True
@@ -41,36 +39,36 @@ Train:
 
 
   Experiment:
-    experiment_name: test_3D_data_non_connected_branches
-    checkpoint_file: test_3D_non_connected
+    experiment_name: test_3D_data_weights_trained
+    checkpoint_file: test_3D_trained_weight
     data_path: /scratch/LAPNet/3D_dataset
     num_epochs: 12
     batch_size: 64
     num_workers: 6
     # stores summaries and final model checkpoints
-    logs_path: /home/lapnet/logs
+    logs_path: /home/studghoul1/lapnet/logs
     weights_path: False
 
 Test:
   test_data:
     create_data: False
     num_workers: 1
-    saving_dir: /home/lapnet/data/3D_testData
+    saving_dir: /home/studghoul1/lapnet/data/3D_testData
     mask_type: drUS
     aug_type: real
     list_us: [1, 8, 30]
     direction: coronal
-    subjectsIDs: /home/lapnet/create_data/test_subjects_names.txt
-    slice_info_coronal: /home/lapnet/create_data/slice_info_resp_coronal.ods
-    slice_info_sagittal: /home/lapnet/create_data/slice_info_resp_sagital.ods
-    slice_info_axial: /home/lapnet/create_data/slice_info_resp_axial.ods
+    subjectsIDs: /home/studghoul1/lapnet/create_data/test_subjects_names.txt
+    slice_info_coronal: /home/studghoul1/lapnet/create_data/slice_info_resp_coronal.ods
+    slice_info_sagittal: /home/studghoul1/lapnet/create_data/slice_info_resp_sagital.ods
+    slice_info_axial: /home/studghoul1/lapnet/create_data/slice_info_resp_axial.ods
     ImgPath: /mnt/data/rawdata/MoCo/LAPNet/resp/motion_data
     FlowPath: /mnt/data/rawdata/MoCo/LAPNet/resp/LAP
     mask_Flow: True
     normalized_img: False
 
   Evaluate:
-    weights: /home/lapnet/logs/checkpoints/test_3D_non_connected/test_3D_data_non_connected_branches_12.hd5f
+    weights: /home/studghoul1/lapnet/logs/checkpoints/test_3D_non_connected/test_3D_data_weights_50_50_0_12.hd5f
     padding : True
     slice_size: 33
     slice_stride: 2
@@ -80,7 +78,7 @@ Test:
     direction: coronal
     acc: 1
     ID: patient_035
-    save_path: /home/lapnet/results/3D
-    path_data: /home/lapnet/data/3D_test_data/30/coronal_volunteer_06_la_acc30_slice_35.npz
+    save_path: /home/studghoul1/lapnet/results/3D
+    path_data: /home/studghoul1/lapnet/data/3D_test_data/30/sagital_patient_004_acc30_slice90.npz
 
 

@@ -1,11 +1,11 @@
 import math
 import numpy as np
-from TF2.core.image_warp import np_warp_2D
-from TF2.core.undersample.retrospective_radial import subsample_radial
-from TF2.core.undersample.pad_crop import post_crop
-from TF2.core.util import load_mat_file
+from core.image_warp import np_warp_2D
+from core.undersample.retrospective_radial import subsample_radial
+from core.undersample.pad_crop import post_crop
+from core.util import load_mat_file
 from processing import pos_generation_2D, _u_generation_2D
-from TF2.core.cropping import arr2kspace
+from core.cropping import arr2kspace
 
 
 class MRI_Card_2D():

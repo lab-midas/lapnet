@@ -2,7 +2,7 @@ import os
 import shutil
 import numpy as np
 import matplotlib.pyplot as plt
-import TF2.core.undersample.VDPD as VDPD
+import VDPD as VDPD
 
 
 def generate_mask_2(subsampleType=2, acc=4, vd_type=4, nRep=4):

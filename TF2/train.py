@@ -1,6 +1,6 @@
 import math
 import tensorflow as tf
-from TF2.preprocess.input_resp import DataGenerator_3D, DataGenerator_2D, DataGenerator_Resp_train_2D
+from preprocess.input_resp import DataGenerator_3D, DataGenerator_2D, DataGenerator_Resp_train_2D
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler
 import os
@@ -39,13 +39,35 @@ def LAP_loss_function(y_true, y_pred):
     return tf.add(w_1 * modified_EPE(y_true, y_pred), w_2 * EAE(y_true, y_pred))
 
 
+def loss1(y_true, y_pred):
+    w = 0.5
+    y1 = LAP_loss_function(y_true[0], y_pred[0])
+    y2 = w * LAP_loss_function(y_true[1], y_pred[1])
+    squared_difference = tf.stack([y1, y2], axis=-1)
+    return squared_difference
+
+
+def loss2(y_true, y_pred):
+    w = 0.5
+    y1 = w * LAP_loss_function(y_true[0], y_pred[0])
+    y2 = LAP_loss_function(y_true[1], y_pred[1])
+    squared_difference = tf.stack([y1, y2], axis=-1)
+    return squared_difference
+
+
 def train(ModelResp, general_setup, experiment_setup):
     # setup
     slicing_mode = general_setup['slicing_mode']
     dimensionality = general_setup['dimensionality']
     logs_path = experiment_setup['logs_path']
 
+    """lossWeights = {'fc8/squeezed_c': 0.5,
+                   'fc8/squeezed_s': 0.5}
+
     # compile
+    losses = {'fc8/squeezed_c': loss1,
+              'fc8/squeezed_s': loss2
+              }"""
     ModelResp.compile(optimizer=Adam(beta_1=0.9, beta_2=0.999, lr=0.0),
                       loss=LAP_loss_function,
                       metrics=['accuracy'])

@@ -1,6 +1,6 @@
 from processing import load_data_3D, select_2D_Data, pos_generation_2D
 import numpy as np
-from TF2.core.tapering import taper2D
+from core.tapering import taper2D
 
 
 def create_sagittal_data(dataID, us_acc, slice_num, save_dir, tapering_size=33, crop_stride=2, normalized=False,

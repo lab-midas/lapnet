@@ -1,8 +1,8 @@
 import numpy as np
 import scipy.io as sio
 # import optopy.gpunufft as op
-from TF2.core.undersample.fft_ifft import *
-from TF2.core.undersample.pad_crop import *
+from core.undersample.fft_ifft import *
+from core.undersample.pad_crop import *
 
 def get_kpos(n_FE, n_spokes, RadProfOrder, start_angle):
     # n_FE = number of points along each radial spoke

@@ -231,13 +231,11 @@ def eval_tapering(model, experiment_setup, dimensionality):
                                        [0, y_dim - experiment_setup['slice_size'] + 1]], stride=experiment_setup['slice_stride'])
     pos = np.transpose(pos)
 
-    try:
+    if dimensionality == '2D':
         flow_pixel = model.predict(batches_cp[..., 0])
-    except:
-        try:
-            flow_pixel = model.predict((batches_cp[..., 0], batches_cp[..., 1], batches_cp[..., 2]))
-        except Exception as e:
-            print(e)
+    else:
+        flow_pixel = model.predict((batches_cp[..., 0], batches_cp[..., 1]))
+
     save_path = f'{savingfile}/{name}_{US_acc}'
     eval(flow_pixel, im1, im2, flow_orig, experiment_setup,dimensionality, pos, save_path=save_path)
 
@@ -249,10 +247,15 @@ def eval(flow_pixel, im1, im2, flow_gt, config, dim, pos, save_path=None, save_t
     height, width = im1.shape
 
     if dim == '3D':
-        flow_pixel1, flow_pixel2, flow_pixel3 = flow_pixel
-        flow_pixel = np.zeros(flow_pixel1.shape)
-        flow_pixel[:, 0] = flow_pixel1[:, 0]
-        flow_pixel[:, 1] = flow_pixel1[:, 1]
+        direction = config['direction']
+        index1 = 0
+        index2 = 1
+        if direction == 'sagittal':
+            index2 = 2
+        if direction == 'sagittal':
+            index1 = 1
+            index2 = 2
+        flow_pixel = np.stack(flow_pixel[:, index1], flow_pixel[:, index2])
 
     flow_raw = np.zeros((height, width, 2), dtype=np.float32)
     time_start = time.time()
@@ -267,15 +270,7 @@ def eval(flow_pixel, im1, im2, flow_gt, config, dim, pos, save_path=None, save_t
             upper_bound_x = min(height, local_pos[j, 0] + smooth_radius + 1)
             lower_bound_y = max(0, local_pos[j, 1] - smooth_radius)
             upper_bound_y = min(width, local_pos[j, 1] + smooth_radius + 1)
-            try:
-                flow_raw[lower_bound_x:upper_bound_x, lower_bound_y:upper_bound_y, :] += flow_pixel_tmp[j, :]
-            except:
-                try:
-                    flow_raw[lower_bound_x:upper_bound_x, lower_bound_y:upper_bound_y, 0] += flow_pixel_tmp[j, 0]
-                    flow_raw[lower_bound_x:upper_bound_x, lower_bound_y:upper_bound_y, 1] += flow_pixel_tmp[j, 1]
-                except:
-                    pass
-
+            flow_raw[lower_bound_x:upper_bound_x, lower_bound_y:upper_bound_y, :] += flow_pixel_tmp[j, :]
             counter_mask[lower_bound_x:upper_bound_x, lower_bound_y:upper_bound_y, :] += 1
     flow_final = flow_raw / counter_mask
 

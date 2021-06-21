@@ -1,6 +1,6 @@
 import os
 import numpy as np
-import TF2.core.undersample.VD_CASPR_CINE as VD_CASPR_CINE
+import VD_CASPR_CINE as VD_CASPR_CINE
 
 
 def generate_mask(nSegments=14, acc=15, size_y=256, nRep=1, numPar=72):

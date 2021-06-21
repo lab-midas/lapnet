@@ -3,7 +3,7 @@ import numpy as np
 import os
 import multiprocessing as mp
 from functools import partial
-from TF2.core.tapering import taper2D
+from core.tapering import taper2D
 from preprocess.processing import load_data_3D, select_2D_Data, get_maxmin_info_from_ods_file
 
 

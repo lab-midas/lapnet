@@ -1,6 +1,6 @@
 import numpy as np
-from TF2.core.cropping import arr2kspace, crop2D
-from TF2.core.tapering import taper2D
+from core.cropping import arr2kspace, crop2D
+from core.tapering import taper2D
 import tensorflow.keras as keras
 import os
 from random import shuffle
@@ -191,9 +191,9 @@ class DataGenerator_2D(keras.utils.Sequence):
             # data = np.load(list_IDs_temp[i][0], mmap_mode='r')
             data = np.load(list_IDs_temp[i], mmap_mode='r')
             k_out[i, ...] = data['train_kspace'][ind, ...]
-            #k_out[i, ...] = data['train_kspace'][..., 0]
+            # k_out[i, ...] = data['train_kspace'][..., 0]
             flow[i, ...] = data['flow'][ind, ...]
-            #flow[i, ...] = data['flow'][:2]
+            # flow[i, ...] = data['flow'][:2]
 
         return k_out, flow
 
@@ -262,15 +262,15 @@ class DataGenerator_3D(keras.utils.Sequence):
         # Find list of IDs
         list_IDs_temp = [self.list[k] for k in indexes]
         # Generate data
-        inputs, u = self.__data_generation(list_IDs_temp)
+        k_cor, k_sag, flow = self.__data_generation(list_IDs_temp)
 
-        return inputs, u
+        return (k_cor, k_sag), flow
 
     def __data_generation(self, list_IDs_temp):
         """Generates data containing batch_size samples"""
         # Generate data
-        k_all = np.empty((self.batch_size, self.crop_size, self.crop_size, 4, 3), dtype=np.float32)
-        flow = np.empty((self.batch_size, 3), dtype=np.float32)
+        k_all = np.zeros((self.batch_size, self.crop_size, self.crop_size, 4, 3), dtype=np.float32)
+        flow = np.zeros((self.batch_size, 3), dtype=np.float32)
         # Generate data
         for i in range(len(list_IDs_temp)):
             try:
@@ -280,12 +280,12 @@ class DataGenerator_3D(keras.utils.Sequence):
             except:
                 pass
 
-        ux = flow[:, :2]
+        """ux = flow[:, :2]
         uy = np.stack((flow[:, 0], flow[:, 2]), axis=-1)
-        uz = flow[:, 1:]
+        uz = flow[:, 1:]"""
 
         k_cor = k_all[..., 0]
         k_sag = k_all[..., 1]
-        k_ax = k_all[..., 2]
+        # k_ax = k_all[..., 2]
 
-        return [k_cor, k_sag, k_ax], [ux, uy, uz]
+        return k_cor, k_sag, flow

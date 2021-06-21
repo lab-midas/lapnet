@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-from TF2.core.image_warp import np_warp_3D
+from core.image_warp import np_warp_3D
 import scipy.io as sio
-from TF2.core.undersample.sampling import generate_mask
+from core.undersample.sampling import generate_mask
 from pyexcel_ods import get_data
 
 

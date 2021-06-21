@@ -252,10 +252,10 @@ def eval(flow_pixel, im1, im2, flow_gt, config, dim, pos, save_path=None, save_t
         index2 = 1
         if direction == 'sagittal':
             index2 = 2
-        if direction == 'sagittal':
+        if direction == 'axial':
             index1 = 1
             index2 = 2
-        flow_pixel = np.stack(flow_pixel[:, index1], flow_pixel[:, index2])
+        flow_pixel = np.stack((flow_pixel[:, index1], flow_pixel[:, index2]), axis=-1)
 
     flow_raw = np.zeros((height, width, 2), dtype=np.float32)
     time_start = time.time()

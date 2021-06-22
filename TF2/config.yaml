@@ -7,7 +7,7 @@
 Setup:
   architecture_version: 1
   dimensionality: 3D
-  mode_run: train
+  mode_run: test
   slicing_mode: tapering
   # GPU device IDs to train on
   gpu_list: '1'
@@ -68,17 +68,17 @@ Test:
     normalized_img: False
 
   Evaluate:
-    weights: /home/user/lapnet/logs/checkpoints/test_3D_non_connected/test_3D_data_weights_50_50_0_12.hd5f
+    weights: /home/user/lapnet/logs/checkpoints/test_3D_trained_weight/test_3D_data_weights_trained_12.hd5f
     padding : True
     slice_size: 33
     slice_stride: 2
     smooth_wind_size: 17
     batch_size: 64
     slice_num: 15
-    direction: coronal
+    direction: axial
     acc: 1
     ID: patient_035
     save_path: /home/user/lapnet/results/3D
-    path_data: /home/user/lapnet/data/3D_test_data/30/sagital_patient_004_acc30_slice90.npz
+    path_data: /home/user/lapnet/data/3D_test_data/30/axial_patient_035_acc30_slice80.npz
 
 

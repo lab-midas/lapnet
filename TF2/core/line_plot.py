@@ -77,11 +77,11 @@ def plot_box_plot(save_dir):
     name = ['1x', '5x', '10x', '15x', '20x', '25x', '30x']
     for i, acc in enumerate([1, 5, 10, 15, 20, 25, 30]):
         for j, error in enumerate(['EPE', 'EAE']):
-            files = [f'/home/studghoul1/lapnet/results/EAE_integration/10_0/US{acc}_{error}_loss.txt',
-                     f'/home/studghoul1/lapnet/results/EAE_integration/9_1/US{acc}_{error}_loss.txt',
-                     f'/home/studghoul1/lapnet/results/EAE_integration/8_2/US{acc}_{error}_loss.txt',
-                     f'/home/studghoul1/lapnet/results/EAE_integration/7_3/US{acc}_{error}_loss.txt',
-                     f'/home/studghoul1/lapnet/results/EAE_integration/6_4/US{acc}_{error}_loss.txt']
+            files = [f'/home/user/lapnet/results/EAE_integration/10_0/US{acc}_{error}_loss.txt',
+                     f'/home/user/lapnet/results/EAE_integration/9_1/US{acc}_{error}_loss.txt',
+                     f'/home/user/lapnet/results/EAE_integration/8_2/US{acc}_{error}_loss.txt',
+                     f'/home/user/lapnet/results/EAE_integration/7_3/US{acc}_{error}_loss.txt',
+                     f'/home/user/lapnet/results/EAE_integration/6_4/US{acc}_{error}_loss.txt']
             clrs = sns.color_palette("husl", len(files))
             res = np.zeros((20, len(files)), dtype=np.float32)
             for idx in range(len(files)):
@@ -120,8 +120,8 @@ def plot_fully(save_dir):
     # name = ['1x', '5x', '10x', '15x', '20x', '25x', '30x']
     for i, acc in enumerate([1]):
         for j, error in enumerate(['EPE', 'EAE']):
-            files = [f'/home/studghoul1/lapnet/results/elastix/US1_{error}_loss.txt',
-                     f'/home/studghoul1/lapnet/results/LAPNet/US1_{error}_loss.txt']
+            files = [f'/home/user/lapnet/results/elastix/US1_{error}_loss.txt',
+                     f'/home/user/lapnet/results/LAPNet/US1_{error}_loss.txt']
             clrs = sns.color_palette("husl", len(files))
 
             for idx in range(len(files)):

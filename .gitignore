@@ -14,8 +14,7 @@ src/playground.py
 
 __pycache__
 
+*.so
 *.o
 *.txt
 
-
-utils/

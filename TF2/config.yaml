@@ -6,12 +6,13 @@
 
 Setup:
   architecture_version: 1
-  dimensionality: 3D
-  mode_run: test
+  dimensionality: 2D
+  mode_run: test #train_unsupervised
   slicing_mode: tapering
-  # GPU device IDs to train on
+  # GPU device IDs to train_supervised on
   gpu_list: '1'
   gpu_num_gb: 12
+  supervised: False
 
 Train:
   training_data:
@@ -39,9 +40,10 @@ Train:
 
 
   Experiment:
-    experiment_name: test_3D_data_weights_trained
-    checkpoint_file: test_3D_trained_weight
-    data_path: /scratch/LAPNet/3D_dataset
+    experiment_name: self_supervised_test
+    checkpoint_file: 2D_test
+    # data_path: /scratch/LAPNet/3D_dataset
+    data_path: /scratch/LAPNet/coronal
     num_epochs: 12
     batch_size: 64
     num_workers: 6
@@ -68,17 +70,18 @@ Test:
     normalized_img: False
 
   Evaluate:
-    weights: /home/studghoul1/lapnet/logs/checkpoints/test_3D_trained_weight/test_3D_data_weights_trained_12.hd5f
+    weights: /home/studghoul1/lapnet/logs/checkpoints/2D_test/self_supervised_test_12.hd5f
     padding : True
     slice_size: 33
     slice_stride: 2
     smooth_wind_size: 17
     batch_size: 64
     slice_num: 15
-    direction: axial
+    direction: coronal
     acc: 1
     ID: patient_035
-    save_path: /home/studghoul1/lapnet/results/3D
-    path_data: /home/studghoul1/lapnet/data/3D_test_data/30/axial_patient_035_acc30_slice80.npz
+    save_path: /home/studghoul1/lapnet/results
+    path_data: /mnt/data/projects/MoCo/LAPNet/coronal_test_data/1/patient_004_slice20.npz
+    #/home/studghoul1/lapnet/data/3D_test_data/1/axial_patient_035_acc1_slice80.npz
 
 

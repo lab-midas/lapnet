@@ -178,7 +178,7 @@ class DataGenerator_2D(keras.utils.Sequence):
         # Generate data
         X, y = self.__data_generation(list_IDs_temp)
 
-        return X, y
+        return [X[..., :2], X[..., 2:]], X[..., :2]
 
     def __data_generation(self, list_IDs_temp):
         """Generates data containing batch_size samples"""
@@ -187,13 +187,16 @@ class DataGenerator_2D(keras.utils.Sequence):
         flow = np.empty((self.batch_size, 2), dtype=np.float32)
         # Generate data
         for i in range(len(list_IDs_temp)):
-            ind = list_IDs_temp[i][1]
-            # data = np.load(list_IDs_temp[i][0], mmap_mode='r')
-            data = np.load(list_IDs_temp[i], mmap_mode='r')
-            k_out[i, ...] = data['train_kspace'][ind, ...]
-            # k_out[i, ...] = data['train_kspace'][..., 0]
-            flow[i, ...] = data['flow'][ind, ...]
-            # flow[i, ...] = data['flow'][:2]
+            try:
+                ind = list_IDs_temp[i][1]
+                data = np.load(list_IDs_temp[i][0], mmap_mode='r')
+                # data = np.load(list_IDs_temp[i], mmap_mode='r')
+                k_out[i, ...] = data['k_space'][ind, ...]
+                #k_out[i, ...] = data['train_kspace'][..., 0]
+                flow[i, ...] = data['flow'][ind, ...]
+                # flow[i, ...] = data['flow'][:2]
+            except:
+                pass
 
         return k_out, flow
 

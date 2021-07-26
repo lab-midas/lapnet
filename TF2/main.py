@@ -1,8 +1,9 @@
 import tensorflow as tf
 import yaml
 import os
-from core.lapnet import buildLAPNet_model_2D, buildLAPNet_model_3D, buildLAPNet_model_2D_old
-from train import train
+from core.lapnet import *
+from core.self_supervised import buildLAPNet_model_2D_unsupervised
+from train import train_supervised, train_unsupervised
 from preprocess.training_data_2D import save_2D_LAPNet_data_as_npz
 from preprocess.training_data_3D import save_3D_LAPNet_data_as_npz
 from test import eval_tapering, eval_cropping
@@ -17,9 +18,11 @@ with open("config.yaml", 'r') as stream:
     data_loaded = yaml.safe_load(stream)
 general_setup = data_loaded['Setup']
 mode_run = general_setup['mode_run']
-if mode_run == 'train':
+supervised = general_setup['supervised']
+if mode_run == 'train_supervised' or mode_run == 'train_unsupervised':
     data_setup = data_loaded['Train']['training_data']
     experiment_setup = data_loaded['Train']['Experiment']
+
 elif mode_run == 'test':
     data_setup = data_loaded['Test']['test_data']
     experiment_setup = data_loaded['Test']['Evaluate']
@@ -49,7 +52,7 @@ if gpu_num is not "-1":
 # ===============================================================================
 # Fetch general mode settings
 slicing_mode = general_setup['slicing_mode']
-create_data = data_setup['create_data']
+create_data = False#general_setup['create_data']
 dimensionality = general_setup['dimensionality']
 architecture_version = general_setup['architecture_version']
 
@@ -57,7 +60,7 @@ architecture_version = general_setup['architecture_version']
 # Create training data
 # ===============================================================================
 if slicing_mode == 'tapering':
-    if create_data and mode_run == 'train':
+    if create_data and mode_run == 'train_supervised':
         if dimensionality == '2D':
             save_2D_LAPNet_data_as_npz(data_setup)
         if dimensionality == '3D':
@@ -77,29 +80,34 @@ if slicing_mode == 'tapering':
 # ===============================================================================
 # Build the model
 # ===============================================================================
-if dimensionality == '2D':
-    if architecture_version == 0:
-        ModelResp = buildLAPNet_model_2D_old(33)
+if supervised:
+    if dimensionality == '2D':
+        if architecture_version == 0:
+            ModelResp = buildLAPNet_model_2D_old(33)
+            print(ModelResp.summary())
+        else:
+            ModelResp = buildLAPNet_model_2D()
+            print(ModelResp.summary())
+    if dimensionality == '3D':
+        ModelResp = buildLAPNet_model_3D()
         print(ModelResp.summary())
-    else:
-        ModelResp = buildLAPNet_model_2D()
-        print(ModelResp.summary())
-if dimensionality == '3D':
-    ModelResp = buildLAPNet_model_3D()
+else:
+    ModelResp = buildLAPNet_model_2D_unsupervised()
     print(ModelResp.summary())
 
 # ===============================================================================
 # Train the Model
 # ===============================================================================
-if mode_run == 'train':
-    train(ModelResp, general_setup, experiment_setup)
-
+if mode_run == 'train_supervised':
+    train_supervised(ModelResp, general_setup, experiment_setup)
+if mode_run == 'train_unsupervised':
+    train_unsupervised(ModelResp, general_setup, experiment_setup)
 # ===============================================================================
 # Test the Model
 # ===============================================================================
 if mode_run == 'test':
     if slicing_mode == 'tapering':
-        res = eval_tapering(ModelResp, experiment_setup, dimensionality)
+        res = eval_tapering(ModelResp, experiment_setup, dimensionality, supervised)
 
     if slicing_mode == 'cropping':
         res = eval_cropping(ModelResp, experiment_setup)
@@ -108,3 +116,4 @@ if mode_run == 'test':
 # Clear session
 # ===============================================================================
 K.clear_session()
+

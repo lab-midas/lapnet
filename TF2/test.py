@@ -209,7 +209,7 @@ def eval_cropping(model, experiment_setup):
     eval(flow_pixel, im1, im2, flow_orig, experiment_setup, pos, save_path=save_path)
 
 
-def eval_tapering(model, experiment_setup, dimensionality):
+def eval_tapering(model, experiment_setup, dimensionality, supervised):
     weights_path = experiment_setup['weights']
     model.load_weights(weights_path)
 
@@ -230,11 +230,15 @@ def eval_tapering(model, experiment_setup, dimensionality):
     pos = pos_generation_2D(intervall=[[0, x_dim - experiment_setup['slice_size'] + 1],
                                        [0, y_dim - experiment_setup['slice_size'] + 1]], stride=experiment_setup['slice_stride'])
     pos = np.transpose(pos)
-
-    if dimensionality == '2D':
-        flow_pixel = model.predict(batches_cp[..., 0])
+    if supervised:
+        if dimensionality == '2D':
+            flow_pixel = model.predict(batches_cp)
+        else:
+            flow_pixel = model.predict((batches_cp[..., 0], batches_cp[..., 1]))
     else:
-        flow_pixel = model.predict((batches_cp[..., 0], batches_cp[..., 1]))
+        flow_pixel = model.predict((batches_cp[..., :2], batches_cp[..., 2:]))
+        flow_pixel = flow_pixel[:,17,17,:]
+
 
     save_path = f'{savingfile}/{name}_{US_acc}'
     eval(flow_pixel, im1, im2, flow_orig, experiment_setup,dimensionality, pos, save_path=save_path)

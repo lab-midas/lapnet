@@ -309,8 +309,11 @@ class WeightedSum(Layer):
         super(WeightedSum, self).build(input_shape)
 
     def call(self, model_outputs):
-        return tf.stack((self.a * tf.gather(model_outputs[0], [0], axis=1) + (1 - self.a) * tf.gather(model_outputs[1],
+        """return tf.stack((self.a * tf.gather(model_outputs[0], [0], axis=1) + (1 - self.a) * tf.gather(model_outputs[1],
                                                                                                       [0], axis=1),
+                         tf.gather(model_outputs[0], [1], axis=1),
+                         tf.gather(model_outputs[1], [1], axis=1)), axis=-1)"""
+        return tf.stack((tf.gather(model_outputs[0], [0], axis=1) + self.a * tf.gather(model_outputs[1], [0], axis=1),
                          tf.gather(model_outputs[0], [1], axis=1),
                          tf.gather(model_outputs[1], [1], axis=1)), axis=-1)
 

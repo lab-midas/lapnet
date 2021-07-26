@@ -13,7 +13,7 @@ def buildLAPNet_model_2D_unsupervised(crop_size=33):
     moving = Input(shape=input_shape, )
     reference = Input(shape=input_shape, )
     inputs = concatenate([reference, moving])
-    # enc
+
     initializer = VarianceScaling(scale=2.0)
     x = Conv2D(filters=64,
                kernel_size=3,
@@ -69,36 +69,50 @@ def buildLAPNet_model_2D_unsupervised(crop_size=33):
     x = Lambda(squeeze_func, name="fc8/squeezed")(x)
 
     # deform moving image
-    flow = Lambda(affine_to_flow, name='affine_to_flow')([moving, x])
+    flow = Lambda(vector_to_flow, name='affine_to_flow')([moving, x])
     correctedMov = Lambda(Mapping, name='registration')([moving, flow])
 
-    # create the model
-    LAPNet_unsupervised = keras.Model(inputs=(reference, moving), outputs=correctedMov)
+    # create the self_supervised model
+    LAPNet_self_supervised = keras.Model(inputs=(reference, moving), outputs=correctedMov)
 
-    return LAPNet_unsupervised
+    return LAPNet_self_supervised
 
 
-def affine_to_flow(input):
+# vector_to_flow_func function in layer
+def vector_to_flow(input):
     moving = input[0]
     flow = input[1]
     shape = moving.shape[1:3]
-    fun = lambda x: affine_to_dense_shift(x, shape)
+    fun = lambda x: vector_to_flow_func(x, shape)
     trf = tf.map_fn(fun, flow, dtype=tf.float32)
     return trf
 
 
-def affine_to_dense_shift(flow, shape, crop_size=33):
-    mesh = ne.utils.volshape_to_meshgrid(shape, indexing='ij')
-    mesh = [tf.cast(f, 'float32') for f in mesh]
-    mesh_ones = tf.ones((1, crop_size, crop_size))
+# create the flow for the entire moving image from the flow vector at the center
+def vector_to_flow_func(flow, shape, crop_size=33):
+    # define the locations grid
+    grid = ne.utils.volshape_to_meshgrid(shape, indexing='ij')
+    grid = [tf.cast(f, 'float32') for f in grid]
+
+    # all one matrix to be transformed to the actual flow
+    arr_ones = tf.ones((1, crop_size, crop_size))
+
+    # expand the dimension of the vector flow for multiplication
     flow_exp = tf.expand_dims(flow, axis=-1)
     flow_exp = tf.expand_dims(flow_exp, axis=-1)
-    loc_matrix = tf.multiply(flow_exp, mesh_ones)
-    loc = tf.transpose(loc_matrix, [1, 2, 0])
-    res = loc + tf.stack(mesh, axis=-1)
+
+    # get the extended locations matrix
+    ind_arr = tf.multiply(flow_exp, arr_ones)
+
+    # adjust the dimensions to keep the channels at the back
+    extended_flow = tf.transpose(ind_arr, [1, 2, 0])
+
+    # get motion field
+    res = extended_flow + tf.stack(grid, axis=-1)
     return res
 
 
+# Warp the moving image with the dense flow to get the corrected patch
 def Mapping(input):
     a = input[0]
     b = input[1]

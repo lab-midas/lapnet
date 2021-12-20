@@ -12,7 +12,7 @@ This repository contains the TensorFlow implementation of the paper
 [Sergios Gatidis](https://www.medizin.uni-tuebingen.de/de/das-klinikum/mitarbeiter/profil/1479), 
 [Rene Botnar](https://kclpure.kcl.ac.uk/portal/rene.botnar.html), 
 [Claudia Prieto](https://kclpure.kcl.ac.uk/portal/claudia.prieto.html)<br/>
-**[LAPNet: Non-rigid registration derived in k-space for Magnetic Resonance Imaging](https://arxiv.org/abs/...)** <br/>
+**[LAPNet: Non-rigid registration derived in k-space for Magnetic Resonance Imaging](https://ieeexplore.ieee.org/document/9478906)** <br/>
 *IEEE Transactions on Medical Imaging* 2021.
 
 If you find *LAPNet* useful in your research, please consider citing:
@@ -21,7 +21,8 @@ If you find *LAPNet* useful in your research, please consider citing:
 	 title={LAPNet: Non-rigid registration derived in k-space for Magnetic Resonance Imaging},
 	 author={Kuestner, Thomas and Pan, Jiazhen and Qi, Haikun and Cruz, Gastao and Gilliam, Christopher and Blu, Thierry and Yang, Bin and Gatidis, Sergios and Botnar, Rene and Prieto, Claudia},
 	 journal={IEEE Transactions on Medical Imaging},
-	 year={2021}
+	 year={2021},
+	 doi = {10.1109/TMI.2021.3096131},
 	 }
 
 ### License

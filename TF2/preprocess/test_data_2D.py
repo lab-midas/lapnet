@@ -1,6 +1,6 @@
 from core.tapering import taper2D
 import os
-from preprocess.processing import pos_generation_2D, undersample, select_2D_Data, load_data_3D, get_slice_info_from_ods_file
+from processing import pos_generation_2D, undersample, select_2D_Data, load_data_3D, get_slice_info_from_ods_file
 import numpy as np
 from random import shuffle
 import multiprocessing as mp

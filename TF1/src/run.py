@@ -67,7 +67,7 @@ def main(argv=None):
         slice_info = {value[0]: list(range(*[int(j) - 1 for j in value[1].split(',')])) for value in ods["Sheet1"] if
                       len(value) is not 0}
 
-        ftconfig = copy.deepcopy(experiment.config['train'])
+        ftconfig = copy.deepcopy(experiment.config['train_supervised'])
         ftconfig.update(experiment.config['train_resp_2D'])
         convert_input_strings(ftconfig, dirs)
         ftiters = ftconfig.get('num_iters', 0)
@@ -76,10 +76,10 @@ def main(argv=None):
                               normalize=False,
                               dims=(ftconfig['height'], ftconfig['width']))
         tr = Trainer(
-            lambda: ftinput.input_train_data(img_dirs=['resp/new_data/npz/train'],  # TODO: hard-coded path
+            lambda: ftinput.input_train_data(img_dirs=['resp/new_data/npz/train_supervised'],  # TODO: hard-coded path
                                              slice_info=slice_info,
                                              params=ftconfig,
-                                             case='train'),
+                                             case='train_supervised'),
             lambda: ftinput.input_train_data(img_dirs=['resp/new_data/npz/test/'],
                                              slice_info=slice_info,
                                              params=ftconfig,
@@ -102,7 +102,7 @@ def main(argv=None):
         slice_info = {value[0]: list(range(*[int(j) - 1 if i == 0 else int(j)
                       for i, j in enumerate(value[1].split(','))])) for value in ods["Sheet1"] if len(value) is not 0}
 
-        ftconfig = copy.deepcopy(experiment.config['train'])
+        ftconfig = copy.deepcopy(experiment.config['train_supervised'])
         ftconfig.update(experiment.config['train_card_2D'])
         convert_input_strings(ftconfig, dirs)
         ftiters = ftconfig.get('num_iters', 0)
@@ -111,10 +111,10 @@ def main(argv=None):
                               normalize=False,
                               dims=(ftconfig['desired_height'], ftconfig['desired_width']))
         tr = Trainer(
-            lambda: ftinput.input_train_data(img_dirs=['card/npz/train'],  # TODO hard-coded path
+            lambda: ftinput.input_train_data(img_dirs=['card/npz/train_supervised'],  # TODO hard-coded path
                                              slice_info=slice_info,
                                              params=ftconfig,
-                                             case='train'),
+                                             case='train_supervised'),
             lambda: ftinput.input_train_data(img_dirs=['card/npz/test/'],
                                              slice_info=slice_info,
                                              params=ftconfig,

@@ -35,7 +35,7 @@ tf.app.flags.DEFINE_string('variant', 'train_2015',
                            'Name of variant to evaluate on.'
                            'If dataset = kitti, one of {train_2012, train_2015, test_2012, test_2015}.'
                            'If dataset = sintel, one of {train_clean, train_final}.'
-                           'If dataset = mdb, one of {train, test}.')
+                           'If dataset = mdb, one of {train_supervised, test}.')
 tf.app.flags.DEFINE_string('ex', '',
                            'Experiment name(s) (can be comma separated list).')
 tf.app.flags.DEFINE_integer('num', 1,
@@ -69,7 +69,7 @@ def _evaluate_experiment(name, data, config):
     if not os.path.isdir(exp_dir) or not tf.train.get_checkpoint_state(exp_dir):
         exp_dir = os.path.join(current_config['dirs']['checkpoints'], name)
     config_train = config_dict(config_path)
-    params = config_train['train']
+    params = config_train['train_supervised']
     convert_input_strings(params, config_dict('../config.ini')['dirs'])
     dataset_params_name = 'train_' + config_train['run']['dataset']
     if dataset_params_name in config_train:

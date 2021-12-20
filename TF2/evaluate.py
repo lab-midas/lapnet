@@ -1,18 +1,15 @@
 import os
-import numpy as np
 import scipy.io as sio
 import matplotlib
-import matplotlib.pyplot as plt
-import time
-from core.flow_util import flow_to_color_np
-from core.util import load_mat_file
-from core.Warp_assessment3D import warp_assessment3D
-from core.image_warp import np_warp_2D, np_warp_3D
-from core.undersample.sampling_center import sampleCenter
-from core.undersample.retrospective_radial import subsample_radial
-from core.cropping import arr2kspace, crop2D_FixPts
-from core.undersample.sampling import generate_mask
+import tensorflow as tf
+from ..core.util import load_mat_file
+from ..core.image_warp import np_warp_3D
+from ..core.undersample.sampling_center import sampleCenter
+from ..core.undersample.retrospective_radial import subsample_radial
+from ..core.cropping import arr2kspace, crop2D_FixPts
+from ..core.undersample.sampling import generate_mask
 from preprocess.processing import pos_generation_2D, get_slice_info_from_ods_file, flow_variation, select_2D_Data
+from ..core.eval_utils import *
 
 
 def save_img(result, file_path, format='png'):
@@ -57,7 +54,7 @@ def show_results(results, name):
     ax[2][2].imshow(np.abs(results['err_gt']), cmap='gray')
     ax[2][2].set_title('GT Error')
     ax[2][2].axis('off')
-    plt.show()
+    # plt.show()
     plt.savefig(name + ".png", bbox_inches='tight')
 
 
@@ -209,47 +206,59 @@ def eval_cropping(model, experiment_setup):
     eval(flow_pixel, im1, im2, flow_orig, experiment_setup, pos, save_path=save_path)
 
 
-def eval_tapering(model, experiment_setup, dimensionality, supervised):
-    weights_path = experiment_setup['weights']
-    model.load_weights(weights_path)
-
-    savingfile = experiment_setup['save_path']
-    US_acc = experiment_setup['acc']
-    name = experiment_setup['path_data'].split('/')[-1].split('.')[0]
-    dataID = experiment_setup['path_data']
+def read_data(dataID):
     data = np.load(dataID)
-    batches_cp = data['k_tapered']
     im1 = data['k_ref']
     im2 = data['k_mov']
     flow_orig = data['flow_full']
+    print('loading ...')
+    x1 = time.time()
+    batches_cp = data['k_tapered']
+    print('loaded ...')
+    x2 = time.time()
+    print(x2 - x1, ' seconds are needed to read the patches')
+    return im1, im2, flow_orig, batches_cp
 
-    height, width = np.shape(im1)
-    x_dim = height + experiment_setup['slice_size'] - 1
-    y_dim = width + experiment_setup['slice_size'] - 1
+def eval_tapering(model, experiment_setup, dimensionality, supervised):
+    weights_path = experiment_setup['weights']
+    model.load_weights(weights_path)
+    if not supervised:
+        model2 = tf.keras.models.Sequential(model.layers[:-3])
+        print(model2.summary())
 
-    pos = pos_generation_2D(intervall=[[0, x_dim - experiment_setup['slice_size'] + 1],
-                                       [0, y_dim - experiment_setup['slice_size'] + 1]], stride=experiment_setup['slice_stride'])
-    pos = np.transpose(pos)
-    if supervised:
-        if dimensionality == '2D':
-            flow_pixel = model.predict(batches_cp)
+    savingfile = experiment_setup['save_path']
+    acc = experiment_setup['acc']
+    name = experiment_setup['ID']
+    data_path = experiment_setup['path_data']
+    res = []
+    for US_acc in acc:
+        dataID = f'{data_path}/{US_acc}/{name}.npz'
+        im1, im2, flow_orig, batches_cp = read_data(dataID)
+
+        height, width = np.shape(im1)
+        x_dim = height + experiment_setup['slice_size'] - 1
+        y_dim = width + experiment_setup['slice_size'] - 1
+
+        pos = pos_generation_2D(intervall=[[0, x_dim - experiment_setup['slice_size'] + 1],
+                                           [0, y_dim - experiment_setup['slice_size'] + 1]], stride=experiment_setup['slice_stride'])
+        pos = np.transpose(pos)
+        if supervised:
+            if dimensionality == '2D':
+                print('predicting ..')
+                flow_pixel = model.predict(batches_cp)
+                print('predicted ..')
+            else:
+                flow_pixel = model.predict((batches_cp[..., 0], batches_cp[..., 1]))
         else:
-            flow_pixel = model.predict((batches_cp[..., 0], batches_cp[..., 1]))
-    else:
-        flow_pixel = model.predict((batches_cp[..., :2], batches_cp[..., 2:]))
-        flow_pixel = flow_pixel[:,17,17,:]
+            flow_pixel = model2.predict(batches_cp)
+            flow_pixel = tf.squeeze(flow_pixel)
+        save_path = f'{savingfile}/{name}_{US_acc}'
+        img_pred_info = eval(flow_pixel, im1, im2, flow_orig, experiment_setup,dimensionality, pos, save_path=save_path)
+        res.append(img_pred_info)
+    return res
 
 
-    save_path = f'{savingfile}/{name}_{US_acc}'
-    eval(flow_pixel, im1, im2, flow_orig, experiment_setup,dimensionality, pos, save_path=save_path)
-
-
-def eval(flow_pixel, im1, im2, flow_gt, config, dim, pos, save_path=None, save_txt=False):
-    smooth_wind_size = config['smooth_wind_size']
-    batch_size = config['batch_size']
-    US_acc = config['acc']
-    height, width = im1.shape
-
+def eval(flow_pixel, im1, im2, flow_gt, config, dim, save_path=None, save_txt=False):
     if dim == '3D':
         direction = config['direction']
         index1 = 0
@@ -261,83 +270,51 @@ def eval(flow_pixel, im1, im2, flow_gt, config, dim, pos, save_path=None, save_t
             index2 = 2
         flow_pixel = np.stack((flow_pixel[:, index1], flow_pixel[:, index2]), axis=-1)
 
-    flow_raw = np.zeros((height, width, 2), dtype=np.float32)
-    time_start = time.time()
-    smooth_radius = int((smooth_wind_size - 1) / 2)
-    counter_mask = np.zeros((height, width, 2), dtype=np.float32)
-
-    for i in range(int(np.floor(len(pos) / batch_size)) + 1):
-        flow_pixel_tmp = flow_pixel[batch_size * i:batch_size * i + batch_size, :]
-        local_pos = pos[batch_size * i:batch_size * i + batch_size, :]
-        for j in range(len(local_pos)):
-            lower_bound_x = max(0, local_pos[j, 0] - smooth_radius)
-            upper_bound_x = min(height, local_pos[j, 0] + smooth_radius + 1)
-            lower_bound_y = max(0, local_pos[j, 1] - smooth_radius)
-            upper_bound_y = min(width, local_pos[j, 1] + smooth_radius + 1)
-            flow_raw[lower_bound_x:upper_bound_x, lower_bound_y:upper_bound_y, :] += flow_pixel_tmp[j, :]
-            counter_mask[lower_bound_x:upper_bound_x, lower_bound_y:upper_bound_y, :] += 1
-    flow_final = flow_raw / counter_mask
-
-    time_end1 = time.time()
-    print('time cost: {}s'.format(time_end1 - time_start))
-    im1_pred = np_warp_2D(im2, -flow_final)
-
-    im_error = im1 - im2
-    im_error_pred = im1 - im1_pred
-
-    # warped error of GT
-    im1_gt = np_warp_2D(im2, -flow_gt)
-    im1_error_gt = im1 - im1_gt
-
-    u_GT = (flow_gt[..., 0], flow_gt[..., 1])  # tuple
-    u_est = (flow_final[..., 0], flow_final[..., 1])  # tuple
-    OF_index = u_GT[0] != np.nan  # *  u_GT[0] >= 0
-    error_data_pred = warp_assessment3D(u_GT, u_est, OF_index)
-
-    size_mtx = np.shape(flow_gt[..., 0])
-    u_GT = (np.zeros(size_mtx, dtype=np.float32), np.zeros(size_mtx, dtype=np.float32))  # tuple
-    u_est = (flow_gt[..., 0], flow_gt[..., 1])  # tuple
-    OF_index = u_GT[0] != np.nan  # *  u_GT[0] >= 0
-    error_data_gt = warp_assessment3D(u_GT, u_est, OF_index)
-
-    final_loss_orig = error_data_gt['Abs_Error_mean']
-    final_loss = error_data_pred['Abs_Error_mean']
-    final_loss_orig_angel = error_data_gt['Angle_Error_Mean']
-    final_loss_angel = error_data_pred['Angle_Error_Mean']
-
-    color_flow_final = flow_to_color_np(flow_final, convert_to_bgr=False)
-    color_flow_gt = flow_to_color_np(flow_gt, convert_to_bgr=False)
-
-    compare_the_flow = False
-    if compare_the_flow:
-        # compare the raw and smoothed flow
-        fig, ax = plt.subplots(1, 3, figsize=(8, 4))
-        ax[0].imshow(flow_gt)  # ref
-        ax[0].set_title('Flow GT')
-        ax[1].imshow(flow_raw)  # mov
-        ax[1].set_title('Flow Pred Raw')
-        ax[2].imshow(flow_final)
-        ax[2].set_title('Flow Pred Smooth')
-        plt.show()
-
-    results = dict()
-    results['img_ref'] = im1
-    results['img_mov'] = im2
-    results['mov_corr'] = im1_pred
-    results['color_flow_pred'] = color_flow_final
-    results['color_flow_gt'] = color_flow_gt
-    results['err_pred'] = im_error_pred
-    results['err_orig'] = im_error
-    results['err_gt'] = im1_error_gt
-    results['flow_pred'] = flow_final
-    results['flow_gt'] = flow_gt
-    results['loss_pred'] = final_loss
-    results['loss_orig'] = final_loss_orig
-    results['loss_ang_pred'] = final_loss_angel
-    results['loss_ang_orig'] = final_loss_orig_angel
-    print('EPE: ', '{:.4f}'.format(final_loss))
-    print('EAE: ', '{:.4f}'.format(final_loss_angel))
+    flow_final = arrange_predicted_flow(flow_pixel, config)
+    results = get_dic_results(im1, im2, flow_gt, flow_final)
+    print('EPE: ', '{:.4f}'.format(results['final_loss']))
+    print('EAE: ', '{:.4f}'.format(results['final_loss_angel']))
     show_results(results, save_path)
     if save_txt:
         name = config['path_data'].split('/')[-1].split('.')[0]
-        write_info_in_txt(name, save_path, US_acc, final_loss_angel, final_loss)
+        write_info_in_txt(name, save_path, config['acc'], results['final_loss_angel'], results['final_loss'])
+
+    return results
+
+
+def eval_img(results, show=True, save_path=None):
+    fig, ax = plt.subplots(3, 5, figsize=(14, 14))
+    plt.axis('off')
+    # add images
+    for i, data in enumerate(results):
+        ax[i][0].imshow(np.abs(data['img_ref']), cmap='gray')
+        ax[i][0].set_title('Ref Img')
+        ax[i][1].imshow(np.abs(data['img_mov']), cmap='gray')
+        ax[i][1].set_title('Moving Img')
+        ax[i][2].imshow(np.abs(data['mov_corr']), cmap='gray')
+        ax[i][2].set_title('Moving Corrected')
+        ax[i][3].imshow(data['color_flow_pred'])
+        ax[i][3].set_title('Flow Pred')
+        EPE = 'EPE: ' + '{:.4f}'.format(data['loss_pred'])
+        EAE = 'EAE: ' + '{:.4f}'.format(data['loss_ang_pred'])
+        ax[i][3].text(10, 310, EPE, horizontalalignment='left', fontsize=12, verticalalignment='center')
+        ax[i][3].text(10, 275, EAE, horizontalalignment='left', fontsize=12, verticalalignment='center')
+    ax[0][4].imshow(results[0]['color_flow_gt'])
+    ax[0][4].set_title('Flow LAP masked')
+    for i in range(5):
+        for j in range(3):
+            ax[j][i].axis('off')
+            # add US_rates:
+    list_us = ['fully sampled', 'acc=8x', 'acc=30x']
+    for ind, us_text in enumerate(list_us):
+        ax[ind][0].text(-20, 120, us_text, rotation=90, horizontalalignment='center', fontsize=12,
+                        verticalalignment='center')
+    if save_path:
+        plt.savefig(f"{save_path}/eval_img.png", bbox_inches='tight')
+        print(f'evaluation figure is saved under {save_path}')
+    if show:
+        plt.show()
+
+
+
+

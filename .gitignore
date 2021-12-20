@@ -11,6 +11,8 @@ src/playground.py
 *npz
 *.ckpt
 *~
+test
+optox
 
 __pycache__
 

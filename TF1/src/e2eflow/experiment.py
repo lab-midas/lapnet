@@ -14,7 +14,7 @@ class Experiment():
         log_dir = os.path.join(global_config['dirs']['log'], 'ex', name)
         dirs = global_config['dirs']
 
-        train_dir = os.path.join(log_dir, 'train')
+        train_dir = os.path.join(log_dir, 'train_supervised')
         eval_dir = os.path.join(log_dir, 'eval')
         save_dir = os.path.join(dirs['checkpoints'], name)
 

@@ -20,7 +20,7 @@ def _track_loss(op, name):
 
 
 def _track_image(op, name):
-    name = 'train/' + name
+    name = 'train_supervised/' + name
     tf.add_to_collection('train_images', tf.identity(op, name=name))
 
 

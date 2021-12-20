@@ -147,7 +147,7 @@ class Input:
                                                   capacity=len(list(batches[..., 1])), num_epochs=None)
         flow_queue = tf.train.slice_input_producer([batches[..., 2:]], shuffle=False,
                                                    capacity=len(list(batches[..., 2:4])), num_epochs=None)
-        # num_queue = tf.train.slice_input_producer([patient_num], shuffle=False,
+        # num_queue = tf.train_supervised.slice_input_producer([patient_num], shuffle=False,
         #                                            capacity=len(list(patient_num)), num_epochs=None)
 
         im1 = batches[..., 0]

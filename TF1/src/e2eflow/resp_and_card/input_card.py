@@ -120,9 +120,9 @@ class MRI_Card_2D(Input):
         print("{} real {} data are generated".format(num_to_take, aug_type))
         return np.asarray(output[:num_to_take, ...], dtype=np.float32)
 
-    def input_train_data(self, img_dirs, slice_info, params, case='train'):
+    def input_train_data(self, img_dirs, slice_info, params, case='train_supervised'):
 
-        if case == 'train':
+        if case == 'train_supervised':
             total_data_num = params.get('total_data_num')
         elif case == 'validation':
             total_data_num = 72
@@ -130,7 +130,7 @@ class MRI_Card_2D(Input):
         num_smooth = math.floor(total_data_num * params.get('augment_type_percent')[1])
         num_real = math.floor(total_data_num * params.get('augment_type_percent')[2])
         num_real_x_smooth = math.floor(total_data_num * params.get('augment_type_percent')[3])
-        assert (num_real <= 475 and case == 'train') or (num_real <= 72 and case == 'validation')
+        assert (num_real <= 475 and case == 'train_supervised') or (num_real <= 72 and case == 'validation')
 
         batches = np.zeros((0, self.dims[0], self.dims[1], 4), dtype=np.float32)
         # batches = np.zeros((0, 176, 132, 4), dtype=np.float32)

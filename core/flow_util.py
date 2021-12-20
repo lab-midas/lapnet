@@ -123,17 +123,12 @@ def flow_to_color_np(flow_uv, clip_flow=None, convert_to_bgr=False):
 
 
 def atan2(y, x):
-    angle = tf.where(tf.greater(x,0.0), tf.atan(y/x), tf.zeros_like(x))
-    angle = tf.where(tf.logical_and(tf.less(x,0.0), tf.greater_equal(y,0.0)),
-                      tf.atan(y/x) + np.pi, angle)
-    angle = tf.where(tf.logical_and(tf.less(x,0.0), tf.less(y,0.0)),
-                      tf.atan(y/x) - np.pi, angle)
-    angle = tf.where(tf.logical_and(tf.equal(x,0.0), tf.greater(y,0.0)),
-                      np.pi * tf.ones_like(x), angle)
-    angle = tf.where(tf.logical_and(tf.equal(x,0.0), tf.less(y,0.0)),
-                      -np.pi * tf.ones_like(x), angle)
-    angle = tf.where(tf.logical_and(tf.equal(x,0.0),tf.equal(y,0.0)),
-                      np.nan * tf.zeros_like(x), angle)
+    angle = np.where(np.greater(x,0.0), np.arctan(y/x), np.zeros_like(x))
+    angle = np.where(np.logical_and(np.less(x,0.0), np.greater_equal(y,0.0)), np.arctan(y/x) + np.pi, angle)
+    angle = np.where(np.logical_and(np.less(x,0.0), np.less(y,0.0)), np.arctan(y/x) - np.pi, angle)
+    angle = np.where(np.logical_and(np.equal(x,0.0), np.greater(y,0.0)),np.pi * np.ones_like(x), angle)
+    angle = np.where(np.logical_and(np.equal(x,0.0), np.less(y,0.0)), -np.pi * np.ones_like(x), angle)
+    angle = np.where(np.logical_and(np.equal(x,0.0), np.equal(y,0.0)), np.nan * np.zeros_like(x), angle)
     return angle
 
 

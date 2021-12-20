@@ -1,9 +1,59 @@
 import numpy as np
-from core.cropping import arr2kspace, crop2D
-from core.tapering import taper2D
+from ...core.cropping import arr2kspace, crop2D
+from ...core.tapering import taper2D, ifft_along_dim
 import tensorflow.keras as keras
 import os
 from random import shuffle
+import tensorflow as tf
+
+
+class DataRead():
+    def __init__(self, height=256, width=256, crop_size=33):
+        self.H = height
+        self.W = width
+        self.crop_size = crop_size
+        self.image_feature_description = {
+            'height': tf.io.FixedLenFeature([], tf.int64),
+            'width': tf.io.FixedLenFeature([], tf.int64),
+            'flow': tf.io.FixedLenFeature([], tf.string),
+            'image_ref_real': tf.io.FixedLenFeature([], tf.string),
+            'image_ref_imag': tf.io.FixedLenFeature([], tf.string),
+            'image_mov_real': tf.io.FixedLenFeature([], tf.string),
+            'image_mov_imag': tf.io.FixedLenFeature([], tf.string),
+        }
+
+
+    def fetch_2D_data(self, element):
+        content =  tf.io.parse_single_example(element, self.image_feature_description)
+        image_ref_real = content['image_ref_real']
+        image_ref_imag = content['image_ref_imag']
+        image_mov_real = content['image_mov_real']
+        image_mov_imag = content['image_mov_imag']
+        full_flow = content['flow']
+
+        image_ref_real = tf.io.parse_tensor(image_ref_real, out_type=tf.float32)
+        image_ref_imag = tf.io.parse_tensor(image_ref_imag, out_type=tf.float32)
+        image_mov_real = tf.io.parse_tensor(image_mov_real, out_type=tf.float32)
+        image_mov_imag = tf.io.parse_tensor(image_mov_imag, out_type=tf.float32)
+        full_flow = tf.io.parse_tensor(full_flow, out_type=tf.float32)
+
+        shape = tf.shape((self.H, self.W))
+        image_ref_real = tf.reshape(image_ref_real, shape)
+        image_ref_imag = tf.reshape(image_ref_imag, shape)
+        image_mov_real = tf.reshape(image_mov_real, shape)
+        image_mov_imag = tf.reshape(image_mov_imag, shape)
+        full_flow = tf.reshape(full_flow, (self.H, self.W, 2))
+
+        image_ref = image_ref_real +1j * image_ref_imag
+        image_mov = image_mov_real + 1j * image_mov_imag
+
+        x_pos = np.random.randint(0, self.H - self.crop_size + 1)
+        y_pos = np.random.randint(0, self.W - self.crop_size + 1)
+
+        k_ref, k_mov, flow = taper2D(image_ref, image_mov, x_pos, y_pos, crop_size=self.crop_size, u=full_flow)
+        k_space = tf.stack((k_ref, k_mov), axis=-1)
+
+        return k_space, flow
 
 
 class DataGenerator_Resp_train_2D(keras.utils.Sequence):
@@ -82,7 +132,7 @@ class DataGenerator_Resp_train_2D(keras.utils.Sequence):
         return res
 
     def data_augmentation(self, list_IDs_temp, positions):
-        """Returns augmented data with batch_size kspace"""  # k_scaled : (n_samples, crop_size, crop_size, 4)
+        """Returns augmented data with batch_size kspace"""
         # Initialization
         k_out = np.empty((self.batch_size, self.crop_size, self.crop_size, 4), dtype=np.float32)
         img = np.empty((self.batch_size, self.crop_size, self.crop_size, 2), dtype=np.float32)
@@ -128,8 +178,8 @@ class DataGenerator_2D(keras.utils.Sequence):
     tapering_training_generator_2D = DataGenerator_2D(preprocessed_data_path)
     """
 
-    def __init__(self, Dataset_path, batch_size=64, num_data=1.5e+6, aug_type=None, shuffle=True, crop_size=33,
-                 box_num=200):
+    def __init__(self, Dataset_path, loss_type=None, batch_size=64, num_data=1.5e+6, aug_type=None, shuffle=True, crop_size=33,
+                 box_num=200, training_mode='supervised'):
         """Initialization"""
         if aug_type is None:
             aug_type = [0.2, 0.4, 0.4]
@@ -140,11 +190,19 @@ class DataGenerator_2D(keras.utils.Sequence):
         self.num_data: int = num_data
         self.box_num: int = box_num
         self.crop_size: int = crop_size
+        self.loss_type = loss_type
         self.list = self.get_paths_list()
+        self.training_mode = training_mode
         self.on_epoch_end()
 
-    def get_paths_list(self):
+    def make_list_samples(self):
+        list_IDs = [x for x in os.listdir(self.dataset_path)]
+        res = [(os.path.join(self.dataset_path, path), i) for path in list_IDs for i in range(self.box_num)]
+        shuffle(res)
+        return res
 
+
+    def get_paths_list(self):
         num_real = int(self.num_data * self.aug_type[0])
         num_realxsmooth = int(self.num_data * self.aug_type[1])
         num_smooth = int(self.num_data * self.aug_type[2])
@@ -178,27 +236,38 @@ class DataGenerator_2D(keras.utils.Sequence):
         # Generate data
         X, y = self.__data_generation(list_IDs_temp)
 
-        return [X[..., :2], X[..., 2:]], X[..., :2]
+        return X, y
+
 
     def __data_generation(self, list_IDs_temp):
         """Generates data containing batch_size samples"""
         # Generate data
         k_out = np.empty((self.batch_size, self.crop_size, self.crop_size, 4), dtype=np.float32)
-        flow = np.empty((self.batch_size, 2), dtype=np.float32)
-        # Generate data
-        for i in range(len(list_IDs_temp)):
-            try:
+        if self.training_mode is 'self_supervised':
+            img_ref = np.empty((self.batch_size,2 , self.crop_size, self.crop_size), dtype=np.float32)
+            img_mov = np.empty((self.batch_size, 2, self.crop_size, self.crop_size), dtype=np.float32)
+            for i in range(len(list_IDs_temp)):
                 ind = list_IDs_temp[i][1]
                 data = np.load(list_IDs_temp[i][0], mmap_mode='r')
-                # data = np.load(list_IDs_temp[i], mmap_mode='r')
                 k_out[i, ...] = data['k_space'][ind, ...]
-                #k_out[i, ...] = data['train_kspace'][..., 0]
-                flow[i, ...] = data['flow'][ind, ...]
-                # flow[i, ...] = data['flow'][:2]
-            except:
-                pass
+                cimg_ref = ifft_along_dim(data['k_space'][ind, :, :, 0] + 1j * data['k_space'][ind, :, :, 1])
+                img_ref[i, ...] = np.stack((cimg_ref.real, cimg_ref.imag), axis=0)
+                cimg_mov = ifft_along_dim(data['k_space'][ind, :, :, 2] + 1j * data['k_space'][ind, :, :, 3])
+                img_mov[i, ...] = np.stack((cimg_mov.real, cimg_mov.imag), axis=0)
+            return (k_out, img_mov), img_ref
 
-        return k_out, flow
+        if self.training_mode is 'supervised':
+            flow = np.empty((self.batch_size, 2), dtype=np.float32)
+            for i in range(len(list_IDs_temp)):
+                ind = list_IDs_temp[i][1]
+                data = np.load(list_IDs_temp[i][0], mmap_mode='r')
+                k_out[i, ...] = data['k_space'][ind, ...]
+                flow[i, ...] = data['flow'][ind, ...]
+            return k_out, flow
+
+
+
+
 
 
 class DataGenerator_3D(keras.utils.Sequence):
@@ -276,16 +345,9 @@ class DataGenerator_3D(keras.utils.Sequence):
         flow = np.zeros((self.batch_size, 3), dtype=np.float32)
         # Generate data
         for i in range(len(list_IDs_temp)):
-            try:
-                data = np.load(list_IDs_temp[i])
-                k_all[i, ...] = data['train_kspace']
-                flow[i, ...] = data['flow']
-            except:
-                pass
-
-        """ux = flow[:, :2]
-        uy = np.stack((flow[:, 0], flow[:, 2]), axis=-1)
-        uz = flow[:, 1:]"""
+            data = np.load(list_IDs_temp[i])
+            k_all[i, ...] = data['train_kspace']
+            flow[i, ...] = data['flow']
 
         k_cor = k_all[..., 0]
         k_sag = k_all[..., 1]

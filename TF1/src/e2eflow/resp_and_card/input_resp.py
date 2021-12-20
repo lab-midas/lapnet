@@ -44,7 +44,7 @@ class MRI_Resp_2D(Input):
             flag = 1
         while len(output) <= num_to_take:
             fn_im_path = fn_im_paths[i]
-            # fn_im_path = '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/train/volunteer_01_cw.npz'
+            # fn_im_path = '/home/jpa19/PycharmProjects/MA/UnFlow/data/resp/new_data/npz/train_supervised/volunteer_01_cw.npz'
             try:
                 f = load_mat_file(fn_im_path)
             except:
@@ -130,9 +130,9 @@ class MRI_Resp_2D(Input):
 
         return np.asarray(output[:num_to_take, ...], dtype=np.float32)
 
-    def input_train_data(self, img_dirs, slice_info, params, case='train'):
+    def input_train_data(self, img_dirs, slice_info, params, case='train_supervised'):
         # strategy 1: fixed total number
-        if case == 'train':
+        if case == 'train_supervised':
             total_data_num = params.get('total_data_num')
         elif case == 'validation':
             total_data_num = 128
@@ -140,7 +140,7 @@ class MRI_Resp_2D(Input):
         num_smooth = math.floor(total_data_num * params.get('augment_type_percent')[1])
         num_real = math.floor(total_data_num * params.get('augment_type_percent')[2])
         num_real_x_smooth = math.floor(total_data_num * params.get('augment_type_percent')[3])
-        assert (num_real <= 1585 and case == 'train') or (num_real <= 136 and case == 'validation')
+        assert (num_real <= 1585 and case == 'train_supervised') or (num_real <= 136 and case == 'validation')
 
         # # strategy 2: use all real_simulated data
         # num_real = 1721

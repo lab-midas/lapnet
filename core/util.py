@@ -3,8 +3,6 @@ import scipy.io as sio
 import h5py
 import numpy as np
 import matplotlib
-# matplotlib.use('pdf')
-# matplotlib.use('Agg')
 import pylab
 import matplotlib.pyplot as plt
 

@@ -168,7 +168,7 @@ class Trainer():
         else:
             opt = tf.train.AdamOptimizer(beta1=0.9, beta2=0.999,
                                          learning_rate=learning_rate)
-            #opt = tf.train.MomentumOptimizer(learning_rate, 0.9)
+            #opt = tf.train_supervised.MomentumOptimizer(learning_rate, 0.9)
 
         def _add_summaries():
             _add_loss_summaries()
@@ -181,7 +181,7 @@ class Trainer():
             loss_, _ = supervised_loss(batch, self.params)
             train_op = opt.minimize(loss_)
             _add_summaries()
-        else:   # JP: below is for multi-gpu train, haven't seen yet
+        else:   # JP: below is for multi-gpu train_supervised, haven't seen yet
             tower_grads = []
             with tf.variable_scope(tf.get_variable_scope()):
                 for i, devid in enumerate(self.devices):
@@ -228,7 +228,7 @@ class Trainer():
                                        num_threads=1)
 
             with tf.name_scope('params') as scope:
-                learning_rate_ = util.summarized_placeholder('learning_rate', 'train')
+                learning_rate_ = util.summarized_placeholder('learning_rate', 'train_supervised')
                 summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, scope)
 
             global_step_ = tf.placeholder(tf.int32, name="global_step")
@@ -294,7 +294,7 @@ class Trainer():
                         summary = sess.run(summary_, feed_dict=feed_dict)
                         summary_writer.add_summary(summary, i)
 
-                        print("-- train: i = {}, loss = {}".format(i, loss))
+                        print("-- train_supervised: i = {}, loss = {}".format(i, loss))
                         # print(num[0])
 
                 save_path = os.path.join(self.ckpt_dir, 'model.ckpt')
@@ -325,7 +325,7 @@ class Trainer():
     #
     #         sess_config = tf.ConfigProto(allow_soft_placement=True)
     #
-    #         ckpt = tf.train.get_checkpoint_state(self.ckpt_dir)
+    #         ckpt = tf.train_supervised.get_checkpoint_state(self.ckpt_dir)
     #         assert ckpt is not None, "No checkpoints to evaluate"
     #
     #         # Correct path for ckpts from different machine
@@ -334,7 +334,7 @@ class Trainer():
     #
     #         with tf.Session() as sess:
     #             summary_writer = tf.summary.FileWriter(self.eval_summaries_dir)
-    #             saver = tf.train.Saver(variables_to_restore)
+    #             saver = tf.train_supervised.Saver(variables_to_restore)
     #
     #             sess.run(tf.global_variables_initializer())
     #             sess.run(tf.local_variables_initializer())
@@ -342,8 +342,8 @@ class Trainer():
     #             restore_networks(sess, self.params, ckpt)
     #             global_step = ckpt_path.split('/')[-1].split('-')[-1]
     #
-    #             coord = tf.train.Coordinator()
-    #             threads = tf.train.start_queue_runners(sess=sess,
+    #             coord = tf.train_supervised.Coordinator()
+    #             threads = tf.train_supervised.start_queue_runners(sess=sess,
     #                                                    coord=coord)
 
     def eval(self, pro_load_data, global_step):

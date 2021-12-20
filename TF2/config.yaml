@@ -7,18 +7,18 @@
 Setup:
   architecture_version: 1
   dimensionality: 2D
-  mode_run: test #train_unsupervised
+  mode_run: test # or train_unsupervised or train_supervised
   slicing_mode: tapering
   # GPU device IDs to train_supervised on
-  gpu_list: '1'
-  gpu_num_gb: 12
+  gpu_list: '3'
+  gpu_num_gb: 10
   supervised: False
 
 Train:
   training_data:
     create_data: False
     # num of workers used when creating data
-    num_workers: 1
+    num_workers: 6
     saving_dir: /home/studghoul1/lapnet/data/3D_dataset
     #num of times a subject is undersampled and used to create data
     num_subject_us: 2
@@ -40,16 +40,19 @@ Train:
 
 
   Experiment:
-    experiment_name: self_supervised_test
-    checkpoint_file: 2D_test
-    # data_path: /scratch/LAPNet/3D_dataset
-    data_path: /scratch/LAPNet/coronal
-    num_epochs: 12
+    data_fetch_method: generator # or tfrecords
+    experiment_name: 2D_self_supervised
+    checkpoint_file: 2D_self_supervised
+    data_path: /scratch/lapnet/coronal
+    num_epochs: 10
     batch_size: 64
-    num_workers: 6
+    learning_rate: 1e-4
+    optimizer: 'Adam'
+    num_workers: 2
     # stores summaries and final model checkpoints
-    logs_path: /home/studghoul1/lapnet/logs
+    logs_path: /home/studghoul1/lapnet/logs/checkpoints
     weights_path: False
+    loss:  'photometric'
 
 Test:
   test_data:
@@ -70,18 +73,18 @@ Test:
     normalized_img: False
 
   Evaluate:
-    weights: /home/studghoul1/lapnet/logs/checkpoints/2D_test/self_supervised_test_12.hd5f
+    weights: /home/studghoul1/lapnet/logs/checkpoints/checkpoints/2D_self_supervised/2D_self_supervised/2D_self_supervised_01.hd5f
     padding : True
     slice_size: 33
     slice_stride: 2
     smooth_wind_size: 17
     batch_size: 64
-    slice_num: 15
+    slice_num: 10
     direction: coronal
-    acc: 1
-    ID: patient_035
+    acc: [1, 8, 30]
+    ID: patient_004_slice13
     save_path: /home/studghoul1/lapnet/results
-    path_data: /mnt/data/projects/MoCo/LAPNet/coronal_test_data/1/patient_004_slice20.npz
-    #/home/studghoul1/lapnet/data/3D_test_data/1/axial_patient_035_acc1_slice80.npz
+    path_data: /scratch/lapnet/coronal_test_data
+
 
 

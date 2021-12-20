@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.interpolate import interpn
 import matplotlib.pyplot as plt
-
+from math import ceil, pi
 
 def taper2D(ref_img, mov_img, x_pos,y_pos, crop_size, u=None):
     """taper"""
@@ -16,24 +16,78 @@ def taper2D(ref_img, mov_img, x_pos,y_pos, crop_size, u=None):
 
 def rectangulartapering2d(ki, x, y, p):
     """perform tapering in fourier domain
-    :param ki: initial 2d kspace to be tapered
-    :param ix: 1D array of the cropping along x interval
-    :param iy: 1D array of the cropping along y interval
+    :param ki: initial 2d image to be tapered
+    :param x: position of cropping along the x axis
+    :param y: position of cropping along the y axis
+    :param p: length of the cropped piece (pxp)
     :return: tapered 2d k_space
     """
-    arr_kspace = np.zeros((p, p, 2), dtype=np.float32)
-    ix = np.arange(x, x + p - 1)
-    iy = np.arange(y, y + p - 1)
-    k, idx, idy = paddimg(ki, ix, iy)
-    plotfullsampledkspace(k)
-    k_cut = RectWindow(k, idx, idy)
-    plotfullsampledkspace(k_cut)
+    # ix: 1D array of the cropping along x interval
+    idx = np.arange(x, x + p - 1)
+    # iy: 1D array of the cropping along y interval
+    idy = np.arange(y, y + p - 1)
+    k, idx, idy = pad_img(ki, idx, idy)
+    #plotfullsampledkspace(k)
+    k_win = RectWindow(k, idx, idy)
+    k_cut = np_fftconvolve(k, k_win)
+    #plotfullsampledkspace(k_cut)
     regridded_k_space = regrid(k_cut, idx, idy)
+    # plottaperedkspace(regridded_k_space)
     tapered_k_space = reshuffle(regridded_k_space)
+    # plottaperedkspace(tapered_k_space)
+    # tapered_k_space = np.stack((np.real(tapered_k_space), np.imag(tapered_k_space)), axis=-1)
+    return tapered_k_space
+
+def rectangulartapering2d2(ki, x, y, p):
+    """perform tapering in fourier domain
+    :param ki: initial 2d image to be tapered
+    :param x: position of cropping along the x axis
+    :param y: position of cropping along the y axis
+    :param p: length of the cropped piece (pxp)
+    :return: tapered 2d k_space
+    """
+    # ix: 1D array of the cropping along x interval
+    idx = np.arange(x, x + p - 1)
+    # iy: 1D array of the cropping along y interval
+    idy = np.arange(y, y + p - 1)
+    # k, idx, idy = pad_img(ki, idx, idy)
+    k = fftnshift(ki)
+    #plotfullsampledkspace(k)
+    k_win = RectWindow(k, idx, idy)
+    k_cut = np_fftconvolve(k, k_win)
+
+    #plotfullsampledkspace(k_cut)
+    regridded_k_space = regrid(k_cut, idx, idy)
+    #plottaperedkspace(regridded_k_space)
+    tapered_k_space = reshuffle(regridded_k_space)
+    #plottaperedkspace(tapered_k_space)
+    tapered_k_space = phase_shift(tapered_k_space, x, y, p)
     plottaperedkspace(tapered_k_space)
-    arr_kspace[:, :, 0] = np.real(tapered_k_space)
-    arr_kspace[:, :, 1] = np.imag(tapered_k_space)
-    return arr_kspace
+    # tapered_k_space = np.stack((np.real(tapered_k_space), np.imag(tapered_k_space)), axis=-1)
+    return tapered_k_space
+
+
+def phase_shift(k, x_pos, y_pos, patch_size):
+    rows, columns = 256, 256
+    image_center_x = rows / 2
+    image_center_y = columns / 2
+
+    cropped_image_center_x = x_pos + (patch_size - 1) / 2
+    cropped_image_center_y = y_pos + (patch_size - 1) / 2
+
+    x_offset = ceil(image_center_x - cropped_image_center_x)
+    y_offset = ceil(image_center_y - cropped_image_center_y)
+
+    x_pos, y_pos = np.mgrid[0:patch_size], np.mgrid[0:patch_size]
+
+    gridx, gridy = np.meshgrid(x_pos, y_pos)
+
+    shift_phase_Xaxis = np.multiply(- 1j * x_offset * 2 * pi / (patch_size + 1), gridy)
+    shift_phase_Yaxis = np.multiply(- 1j * y_offset * 2 * pi / (patch_size + 1), gridx)
+
+    linear_phase = np.exp(shift_phase_Xaxis + shift_phase_Yaxis)
+    res = np.multiply(k, linear_phase)
+    return res
 
 
 def rectangulartapering3d(k, ix, iy, iz):
@@ -59,14 +113,53 @@ def flowCrop(arr, x, y, p):
     yp = y + radius
     return arr[xp, yp, :].real
 
+def _compute_padding(inputs, x, y, patch_size):
+      """Calculates padding for 'causal' option for 1-d conv layers."""
+      left_pad = 0
+      right_pad = 0
+      upper_pad = 0
+      lower_pad = 0
+
+      centercropx = x + round((patch_size + 1) / 2)
+      centercropy = y + round((patch_size + 1) / 2)
+
+      input_shape = inputs.shape
+
+      padx = input_shape[-2] - 2 * centercropx
+      pady = input_shape[-1] - 2 * centercropy
+
+      if pady > 0:
+          left_pad += pady
+      else:
+          right_pad += -pady
+      if padx > 0:
+          upper_pad = padx
+      else:
+          lower_pad += -padx
+
+      paddingdifference = int(round((abs(padx) - abs(pady)) / 2))
+      if paddingdifference > 0:
+          left_pad += paddingdifference
+          right_pad += paddingdifference
+      else:
+          upper_pad += -paddingdifference
+          lower_pad += -paddingdifference
+
+
+
+      if getattr(inputs.shape, 'ndims', None) is None:
+          batch_rank = 1
+      else:
+          batch_rank = len(inputs.shape) - 2
+      causal_padding = [[0, 0]] * batch_rank + [[upper_pad, lower_pad], [left_pad, right_pad]]
+      return causal_padding
 
 def fft_along_dim(x):
     """give the FFT along rows and columns of a 2D array
     :param x: input 2d array
     :return: 2d array
     """
-    res = x
-    res = np.apply_along_axis(np.fft.fft, 0, res, norm="ortho")
+    res = np.apply_along_axis(np.fft.fft, 0, x, norm="ortho")
     res = np.apply_along_axis(np.fft.fft, 1, res, norm="ortho")
     return res
 
@@ -110,6 +203,7 @@ def ifftnshift(x):
     :param x: 2D or 3D array
     :return: 2D or 3D array
     """
+    res = x
     if x.ndim == 2:
         res = np.fft.fftshift(ifft_along_dim(np.fft.ifftshift(x)))
     if x.ndim == 3:
@@ -140,8 +234,8 @@ def plotfullsampledkspace(k):
     :param k: 2D array
     :return: plot image
     """
-    image = ifftnshift(k)
-    plt.imshow(np.abs(image), cmap='gray')
+    img = ifftnshift(k)
+    plt.imshow(np.abs(img))
     plt.show()
 
 
@@ -151,11 +245,11 @@ def plottaperedkspace(k):
     :return: plot image
     """
     image = ifft_along_dim(k)
-    plt.imshow(np.abs(image), cmap='gray')
+    plt.imshow(np.abs(image))
     plt.show()
 
 
-def paddimg(img, ix, iy):
+def pad_img(img, ix, iy):
     """transform k to time domain pad it so that the cropped part defined by ix and iy is in
     the center of a square array and return it to k space for a central crop
     :param img: 2D array to be padded
@@ -164,7 +258,7 @@ def paddimg(img, ix, iy):
     :return: 2d padded k space + new cropping intervals
     """
     # img = ifftnshift(k)
-    rows, cols = img.shape
+    rows, cols = img.shape[-2], img.shape[-1]
     centercropx = ix[0] + round((ix.shape[0] + 1) / 2)
     centercropy = iy[0] + round((iy.shape[0] + 1) / 2)
     padx = rows - 2 * centercropx
@@ -222,8 +316,8 @@ def RectWindow(k, ix, iy):
     idx, idy = np.meshgrid(ix, iy)
     win[idx, idy] = 1
     k_win = fftnshift(win)
-    kcut = np_fftconvolve(k, k_win)
-    return kcut
+
+    return k_win
 
 
 def reshuffle(k):

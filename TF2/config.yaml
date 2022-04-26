@@ -16,23 +16,29 @@ Setup:
 
 Train:
   training_data:
-    create_data: False
+    create_data: True
+    MoCo: False
     # num of workers used when creating data
-    num_workers: 6
-    saving_dir: /home/studghoul1/lapnet/data/3D_dataset
+    dataset: respiratory
+    num_workers: 1
+    saving_dir: /home/studghoul1/dataset/LAPNet/real_motion/test
     #num of times a subject is undersampled and used to create data
-    num_subject_us: 2
+    num_subject_us: 4
     # num of patches extracted from one slice
     box_num: 200
     # undersampling method
     mask_type: drUS
     # selected subjects and slices for training
-    subjectsIDs: /home/studghoul1/lapnet/create_data/training_subjects_names.txt
-    slice_info_coronal: /home/studghoul1/lapnet/create_data/slice_info_resp_coronal.ods
-    slice_info_sagittal: /home/studghoul1/lapnet/create_data/slice_info_resp_sagital.ods
-    slice_info_axial: /home/studghoul1/lapnet/create_data/slice_info_resp_axial.ods
-    ImgPath: /mnt/data/rawdata/MoCo/LAPNet/resp/motion_data
-    FlowPath: /mnt/data/rawdata/MoCo/LAPNet/resp/LAP
+    #subjectsIDs: /home/studghoul1/lapnet/ods/test_subjects_names.txt
+    subjectsIDs: /home/studghoul1/lapnet/ods/cine_test_subjects.txt
+    slice_info_coronal: /home/studghoul1/lapnet/ods/slice_info_resp_coronal.ods
+    #slice_info_coronal: /home/rahamme1/data/CINE/2D_processed/slice_info_card.ods
+    #slice_info_sagittal: /home/studghoul1/lapnet/ods/slice_info_resp_sagital.ods
+    #slice_info_axial: /home/studghoul1/lapnet/ods/slice_info_resp_axial.ods
+    ImgPath: /mnt/qdata/rawdata/MoCo/LAPNet/resp/motion_data
+    #ImgPath: /home/students/studxusiy1/mr_recon/03_cine2dt/preprocessing
+    FlowPath: /mnt/qdata/rawdata/MoCo/LAPNet/resp/LAP
+    #FlowPath: /mnt/qdata/rawdata/MoCo/LAPNet/card/new_data/mat/test
     # mask the motion field to remove background
     mask_Flow: True
     # tell if input data is normalized otherwise it will be normalized
@@ -57,23 +63,23 @@ Train:
 Test:
   test_data:
     create_data: False
-    num_workers: 1
-    saving_dir: /home/studghoul1/lapnet/data/3D_testData
+    num_workers: 4
+    saving_dir: /home/studghoul1/lapnet/datasets/rad_test_data
     mask_type: drUS
     aug_type: real
-    list_us: [1, 8, 30]
+    list_us: [1, 2, 4, 6, 8, 10, 12, 14, 16]
     direction: coronal
-    subjectsIDs: /home/studghoul1/lapnet/create_data/test_subjects_names.txt
-    slice_info_coronal: /home/studghoul1/lapnet/create_data/slice_info_resp_coronal.ods
+    subjectsIDs: /home/studghoul1/lapnet/ods/test_subjects_names.txt
+    slice_info_coronal: /home/studghoul1/lapnet/ods/slice_info_resp_test.ods
     slice_info_sagittal: /home/studghoul1/lapnet/create_data/slice_info_resp_sagital.ods
     slice_info_axial: /home/studghoul1/lapnet/create_data/slice_info_resp_axial.ods
-    ImgPath: /mnt/data/rawdata/MoCo/LAPNet/resp/motion_data
-    FlowPath: /mnt/data/rawdata/MoCo/LAPNet/resp/LAP
+    ImgPath: /mnt/qdata/rawdata/MoCo/LAPNet/resp/motion_data
+    FlowPath: /mnt/qdata/rawdata/MoCo/LAPNet/resp/LAP
     mask_Flow: True
     normalized_img: False
 
   Evaluate:
-    weights: /home/studghoul1/lapnet/logs/checkpoints/checkpoints/2D_self_supervised/2D_self_supervised/2D_self_supervised_01.hd5f
+    weights: /home/studghoul1/lapnet/logs/checkpoints/torch/self_supervised_real/GT_fully_sampled_11.pt
     padding : True
     slice_size: 33
     slice_stride: 2
@@ -82,7 +88,7 @@ Test:
     slice_num: 10
     direction: coronal
     acc: [1, 8, 30]
-    ID: patient_004_slice13
+    ID: patient_035_slice0.npz
     save_path: /home/studghoul1/lapnet/results
     path_data: /scratch/lapnet/coronal_test_data
 

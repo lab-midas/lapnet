@@ -1,48 +1,42 @@
 import torch
-from model import LAPNet
-import os
+from model import LAPNet, two_branch_LAPNet
 import yaml
-from ..core.eval_utils import *
+from eval_plots import eval_plot
+from util import get_sample_results, obj
+import json
 
-def get_sample_results(model, name, acc, args):
-    im1, im2, flow_orig, batches_cp = read_test_data(name, acc, args)
-
-    data = torch.from_numpy(np.transpose(batches_cp, (0, 3, 2, 1)))
-    flow_pixel = model(data.cuda())
-    flow_pixel = flow_pixel.cpu().detach().numpy()
-    flow_pixel = np.squeeze(flow_pixel)
-
-    flow_final = arrange_predicted_flow(flow_pixel, args)
-    results = get_dic_results(im1, im2, flow_orig, flow_final)
-    print('EPE: ', '{:.4f}'.format(results['loss_pred']))
-    print('EAE: ', '{:.4f}'.format(results['loss_ang_pred']))
-    show_results(results, name, args)
-
-    return results
 
 @torch.no_grad()
-def evaluate(model, args):
-    list_predictions = []
-    for name in args['training_IDs']:
-        for acc in args['acc_list']:
-            results = get_sample_results(model, name, acc, args)
-            list_predictions.append(results)
-    eval_img(list_predictions, show=True, save_path=args['save_path'])
+def evaluate_checkpoint(args):
+    checkpoint = args.checkpoint_path
+    if args.model == '2D':
+        model = LAPNet()
+    elif args.model == '3D':
+        model = two_branch_LAPNet()
+
+    model.load_state_dict(
+        torch.load(checkpoint, map_location='cuda:0')['model_state_dict'])
+    print(model)
+    model.cuda()
+    model.eval()
+    model.load_state_dict(
+        torch.load(checkpoint, map_location='cuda:0')['model_state_dict'])
+
+    with torch.no_grad():
+        list_predictions = []
+        IDs = args.IDs
+        for name in IDs:
+            for acc in args.acc_list:
+                results = get_sample_results(model, name, acc, args)
+                list_predictions.append(results)
+
+        eval_plot(list_predictions, args.acc_list, save_path=args.save_path)
+
     return list_predictions
 
 
 if __name__ == '__main__':
-    with open("/home/studghoul1/lapnet/lapnet/pytorch/config.yaml", 'r') as stream:
+    with open('/home/studghoul1/lapnet/lapnet/pytorch/configs/evaluate_resp.yaml', 'r') as stream:
         args = yaml.safe_load(stream)
-    # device configuration
-    os.environ['CUDA_VISIBLE_DEVICES'] = args['Setup']['gpu_num']
-
-    model = LAPNet()
-    model.load_state_dict(torch.load(args['Evaluate']['checkpoint_path'], map_location=args['Setup']['gpu'])['model_state_dict'])
-    print(model)
-
-    model.cuda()
-    model.eval()
-
-    with torch.no_grad():
-        list_predictions = evaluate(model, args['Evaluate'])
+    args = json.loads(json.dumps(args), object_hook=obj)
+    evaluate_checkpoint(args.Evaluate)

@@ -1,10 +1,9 @@
 import yaml
 from models import *
 from train import train_supervised, train_unsupervised
-from preprocess.training_data_2D import save_2D_LAPNet_data_as_npz
-from preprocess.training_data_3D import save_3D_LAPNet_data_as_npz
-from evaluate import eval_tapering, eval_cropping, eval_img
-from preprocess.test_data_2D import create_2D_test_dataset
+from preprocess import save_respiratory_data, create_respiratory_test_data, save_3d_data
+from evaluate import eval_tapering, eval_cropping
+from core import plot_results
 from tensorflow.keras import backend as K
 import tensorflow as tf
 
@@ -28,7 +27,7 @@ else:
 # ===============================================================================
 # Set up the GPU parameters
 gpu_num = general_setup['gpu_list']
-os.environ["CUDA_VISIBLE_DEVICES"] = '3'
+os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 if gpu_num != "-1":
     num_Gb = general_setup['gpu_num_gb']
     memory = 20480
@@ -48,7 +47,7 @@ if gpu_num != "-1":
 # ===============================================================================
 # Fetch general mode settings
 slicing_mode = general_setup['slicing_mode']
-create_data = False #general_setup['create_data']
+create_data = general_setup['create_data']
 dimensionality = general_setup['dimensionality']
 architecture_version = general_setup['architecture_version']
 
@@ -58,9 +57,9 @@ architecture_version = general_setup['architecture_version']
 if slicing_mode == 'tapering':
     if create_data and mode_run == 'train_supervised':
         if dimensionality == '2D':
-            save_2D_LAPNet_data_as_npz(data_setup)
+            save_respiratory_data(data_setup)
         if dimensionality == '3D':
-            save_3D_LAPNet_data_as_npz(data_setup)
+            save_3d_data(data_setup)
 
 # ===============================================================================
 # Create test data
@@ -68,7 +67,7 @@ if slicing_mode == 'tapering':
 if slicing_mode == 'tapering':
     if create_data and mode_run == 'test':
         if dimensionality == '2D':
-            create_2D_test_dataset(data_setup)
+            create_respiratory_test_data(data_setup)
         if dimensionality == '3D':
             pass
             # .. ToDo: function for 3D test data creation
@@ -106,7 +105,7 @@ if mode_run == 'train_unsupervised':
 if mode_run == 'test':
     if slicing_mode == 'tapering':
         res = eval_tapering(ModelResp, experiment_setup, dimensionality, supervised)
-        eval_img(res)
+        plot_results(res)
 
     if slicing_mode == 'cropping':
         res = eval_cropping(ModelResp, experiment_setup)

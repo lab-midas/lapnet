@@ -1,0 +1,15 @@
+Evaluate:
+   experiment: supervised
+   IDs : ['volunteer_06_la_slice6.npz']
+   checkpoint_path: '/home/studghoul1/lapnet/logs/LAPNet/photometric_different_lr/ckpt_num_11.pt'
+   save_path: /home/studghoul1/lapnet/lapnet/results
+   save_dir: /home/studghoul1/lapnet/lapnet/results/thesis_plots/LAPNetSelfSupervised.png
+   acc_list: [1,8, 30]
+   patch_size: 33
+   stride_size: 2
+   smooth_wind_size: 17
+   supervised: False
+   model: 2D
+   data_path: /home/studghoul1/dataset/LAPNet/real_motion/test
+   img_size: [256,256]
+   batch_size: 64

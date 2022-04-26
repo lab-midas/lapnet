@@ -4,6 +4,18 @@ import re
 import seaborn as sns
 
 
+def write_info_in_txt(ID, path, acc, EAE, EPE):
+    Subjects_file = open(f'{path}/US{acc}_subject_info.txt', "a")
+    EPE_file = open(f'{path}/US{acc}_EPE_loss.txt', "a")
+    EAE_file = open(f'{path}/US{acc}_EAE_loss.txt', "a")
+    Subjects_file.write(ID + "\n")
+    EPE_file.write(str(EPE) + "\n")
+    EAE_file.write(str(EAE) + "\n")
+    Subjects_file.close()
+    EPE_file.close()
+    EAE_file.close()
+
+
 def plot_data(data, title, labels, y_axis):
     fig = plt.figure(figsize=(10, 5), dpi=100)
     for idx, line in enumerate(data):

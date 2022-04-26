@@ -7,6 +7,21 @@ import pylab
 import matplotlib.pyplot as plt
 
 
+def pos_generation_2D(intervall, stride):
+    """
+    :param intervall:
+    :param stride:
+    :return: 2 x position (x, y)
+    """
+    x = np.arange(intervall[0][0], intervall[0][1], stride)
+    y = np.arange(intervall[1][0], intervall[1][1], stride)
+    vx, vy = np.meshgrid(x, y)
+    vx = vx.reshape(vx.shape[1] * vx.shape[0])
+    vy = vy.reshape(vy.shape[1] * vy.shape[0])
+    pos = np.stack((vx, vy), axis=0)
+    return pos
+
+
 def mat2npz(mat_dirs, output_dirs, save_type=np.float32):
     if not os.path.exists(output_dirs):
         os.mkdir(output_dirs)

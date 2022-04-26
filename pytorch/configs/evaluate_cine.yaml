@@ -1,0 +1,17 @@
+Evaluate:
+  experiment: supervised
+  ID : 'patient_035_slice20.npz' #coronal_volunteer_06_la_slice_35.npz
+  ID_sag: 'patient_004_slice90.npz'
+  IDs : ['Ha_020519_slice6.npz']
+  checkpoint_path: /home/studghoul1/lapnet/logs/LAPNet/CINE/self_supervised_sd1/ckpt_num_13.pt
+  save_path: /home/studghoul1/lapnet/lapnet/results
+  acc_list: [1, 4, 8, 14, 16]
+  patch_size: 33
+  stride_size: 2
+  smooth_wind_size: 17
+  model: 2D
+  data_path: /home/studghoul1/dataset/cine/test #/home/studghoul1/dataset/LAPNet/CINE/test
+  img_size: [256,256]
+  supervised: False
+  save_dir: False #/home/studghoul1/Documents/MA_results/LAPNet/resp/estimated_flows
+  batch_size: 64

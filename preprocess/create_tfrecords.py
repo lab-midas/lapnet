@@ -2,41 +2,37 @@ import tensorflow as tf
 from random import shuffle
 import os
 import numpy as np
-from processing import get_maxmin_info_from_ods_file, load_data_3D
+from util import get_maxmin_info_from_ods_file, Map
+from processing import respiratoryDataset
 
-def generate_us_data(list_IDS, img_path, flow_path, slice_info, numrecords, aug, showfunc, mask_type='drUS'):
+
+def generate_us_data(args, showfunc):
+    dataset = respiratoryDataset(args)
     num_data = 0
     list_us = np.arange(0, 31, 2)
     list_us[0] = 1
-    for ind, dataID in enumerate(list_IDS):
-        print ('start dataID .... ', dataID)
+    for ind, dataID in enumerate(args.list_IDS):
+        print('start dataID .... ', dataID)
         ID_slice_info = slice_info[dataID]
         np.random.seed()
-        us_rate_list = np.random.RandomState().choice(list_us, size=numrecords, replace=False)
+        us_rate_list = np.random.RandomState().choice(list_us, size=args.numrecords, replace=False)
 
         # make sure that fully sampled data is also included in the training data
-        if not(1 in us_rate_list) and ind < int(len(list_IDS)/8):
+        if not (1 in us_rate_list) and ind < int(len(args.list_IDS) / 8):
             us_rate_list[0] = 1
 
         for undersampling_rate in us_rate_list:
-           print('undersampling_rate ', undersampling_rate)
-           img_ref, img_mov, flow, _ = load_data_3D(dataID=dataID,
-                                                    img_path=img_path,
-                                                    flow_path=flow_path,
-                                                    aug_type=aug,
-                                                    us_rate=undersampling_rate,
-                                                    mask_type=mask_type,
-                                                    normalized=False,
-                                                    masking=False)
+            print('undersampling_rate ', undersampling_rate)
+            img_ref, img_mov, flow, _ = dataset.read_respiratory_data(dataID=dataID,
+                                                                      aug_type=args.aug,
+                                                                      mask_type=args.mask_type)
 
-
-           for z_dim in range(int(ID_slice_info[0]), int(ID_slice_info[1])):
-               print('slice ', z_dim, ' is saved')
-               showfunc(img_ref[:,:,z_dim], img_mov[:,:,z_dim], flow[:,:,z_dim,:2])
-               num_data +=1
+            for z_dim in range(int(ID_slice_info[0]), int(ID_slice_info[1])):
+                print('slice ', z_dim, ' is saved')
+                showfunc(img_ref[:, :, z_dim], img_mov[:, :, z_dim], flow[:, :, z_dim, :2])
+                num_data += 1
 
         print(f'the generated training data has {num_data} samples')
-
 
 
 class LAPNet_TFRec():
@@ -84,16 +80,14 @@ class TFRsaver():
         )
 
 
-def create_tfrecord(record_path, list_IDs, img_path, flow_path, slice_info, num_ID_usage, aug):
-    qtfr = LAPNet_TFRec(record_path)
-    tfrsaver = TFRsaver( qtfr)
-    generate_us_data(list_IDs, img_path, flow_path, slice_info, num_ID_usage, aug, tfrsaver.savedata)
+def create_tfrecord(config):
+    qtfr = LAPNet_TFRec(config.record_path)
+    tfrsaver = TFRsaver(qtfr)
+    generate_us_data(config, tfrsaver.savedata)
     qtfr.close_record()
 
-if __name__ == '__main__':
 
-    img_path = '/mnt/qdata/rawdata/MoCo/LAPNet/resp/motion_data'
-    flow_path = '/mnt/qdata/rawdata/MoCo/LAPNet/resp/LAP'
+if __name__ == '__main__':
     txt_training_IDs = '/home/students/studghoul1/Documents/research_thesis_data_results/create_data/training_subjects_names.txt'
     slice_info_coronal = '/home/students/studghoul1/Documents/research_thesis_data_results/create_data/slice_info_resp_coronal.ods'
     save_path = '/home/students/studghoul1/lapnet/tfrecords'
@@ -108,12 +102,19 @@ if __name__ == '__main__':
     slice_info = get_maxmin_info_from_ods_file(slice_info_coronal)
     fname_real = os.path.join(save_path, TRAINSET_FNAME_real)
 
-    create_tfrecord(record_path= fname_real, list_IDs= training_IDs,
-                    img_path= img_path, flow_path=flow_path,
-                    slice_info=slice_info, num_ID_usage=1, aug='real')
+    args = {}
+    args['record_path'] = fname_real
+    args['list_IDs'] = training_IDs
+    args['slice_info'] = slice_info
+    args['num_ID_usage'] = 1
+    args['aug'] = 'real'
+    args['img_path'] = '/mnt/qdata/rawdata/MoCo/LAPNet/resp/motion_data'
+    args['flow_path'] = '/mnt/qdata/rawdata/MoCo/LAPNet/resp/LAP'
+    args['mask_type'] = 'drUs'
+    args['simulated'] = True
+    args['data_type'] = 'complex'
+    args['amp'] = 10
+    args['masked_flow'] = False
+    config = Map(args)
 
-
-
-
-
-
+    create_tfrecord(config)

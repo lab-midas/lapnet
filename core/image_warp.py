@@ -30,7 +30,7 @@ def np_warp_2D(img, flow):
     coord_x = posx + vx
     coord_y = posy + vy
     coords = np.array([coord_x, coord_y])
-    if img.dtype == np.complex64:
+    if img.dtype == np.complex64 or img.dtype == np.complex128:
         img_real = np.real(img).astype('float32')
         img_imag = np.imag(img).astype('float32')
         warped_real = warp(img_real, coords, order=1)

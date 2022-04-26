@@ -1,0 +1,35 @@
+Setup:
+  gpu: 'cuda:0'
+
+Train:
+  experiment_name: self_supervised_sd1
+  project: drUS_2d_lapnet_cine #drUS_2d_lapnet_cine
+  debug: False
+  # data_path: /home/studghoul1/dataset/LAPNet/drUs
+  data_path: /home/studghoul1/dataset/cine/new
+  save_dir: /home/studghoul1/lapnet/logs/LAPNet/CINE
+  num_workers: 6
+  checkpoint: False
+  # lr: 0.00002
+  lr: 0.0001
+  batch_size: 64
+  clip: 1.0
+  training_mode: 'self_supervised' # 'supervised'
+  epochs: 20
+  wdecay: 0.00001
+  # wdecay: 0.0004
+  mask: False
+  eval_model: False
+  branches: False
+  train_loss:
+    which: ['photometric']
+    loss_weights: [1]
+    photometric:
+      mode: L1
+    smooth:
+      mode: 2
+    EPE:
+      mode: 1
+    EAE:
+      mode: 1
+

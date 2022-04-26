@@ -2,14 +2,11 @@ import os
 import scipy.io as sio
 import matplotlib
 import tensorflow as tf
-from ..core.util import load_mat_file
-from ..core.image_warp import np_warp_3D
-from ..core.undersample.sampling_center import sampleCenter
-from ..core.undersample.retrospective_radial import subsample_radial
-from ..core.cropping import arr2kspace, crop2D_FixPts
-from ..core.undersample.sampling import generate_mask
-from preprocess.processing import pos_generation_2D, get_slice_info_from_ods_file, flow_variation, select_2D_Data
-from ..core.eval_utils import *
+import matplotlib.pyplot as plt
+import numpy as np
+from preprocess import get_slice_info_from_ods_file, select_2d_data
+from core import generate_mask, pos_generation_2D, subsample_radial, load_mat_file, np_warp_3D, sampleCenter, \
+    arr2kspace, crop2D_FixPts, warp_assessment3D, arrange_predicted_flow, get_eval_results
 
 
 def save_img(result, file_path, format='png'):
@@ -158,7 +155,6 @@ def eval_cropping(model, experiment_setup):
     uy = np.asarray(f['uy'], dtype=np.float32)
     uz = np.asarray(f['uz'], dtype=np.float32)
     u = np.stack((ux, uy, uz), axis=-1)
-    u = flow_variation(ux, u, aug_type)
     mov = np_warp_3D(ref, u)
 
     if US_acc > 1:
@@ -182,7 +178,7 @@ def eval_cropping(model, experiment_setup):
     ind = experiment_setup['slice_num']
     slice = experiment_setup['selected_slices'][ind]
 
-    Imgs = select_2D_Data(ref, mov, u, slice, 'coronal')
+    Imgs = select_2d_data(ref, mov, u, slice, 'coronal')
     Imgs = np.asarray(Imgs, dtype=np.float32)
     Imgs = Imgs[np.newaxis, ...]
     radius = int((experiment_setup['slice_size'] - 1) / 2)
@@ -190,7 +186,8 @@ def eval_cropping(model, experiment_setup):
         Imgs = np.pad(Imgs, ((0, 0), (radius, radius), (radius, radius), (0, 0)), constant_values=0)
     x_dim, y_dim = np.shape(Imgs)[1:3]
     pos = pos_generation_2D(intervall=[[0, x_dim - experiment_setup['slice_size'] + 1],
-                                       [0, y_dim - experiment_setup['slice_size'] + 1]], stride=experiment_setup['slice_stride'])
+                                       [0, y_dim - experiment_setup['slice_size'] + 1]],
+                            stride=experiment_setup['slice_stride'])
 
     Imgs_cp = crop2D_FixPts(Imgs, crop_size=experiment_setup['crop_size'], box_num=np.shape(pos)[1], pos=pos)
     Imgs_cp = arr2kspace(Imgs_cp[..., :2])
@@ -212,12 +209,10 @@ def read_data(dataID):
     im2 = data['k_mov']
     flow_orig = data['flow_full']
     print('loading ...')
-    x1 = time.time()
     batches_cp = data['k_tapered']
     print('loaded ...')
-    x2 = time.time()
-    print(x2 - x1, ' seconds are needed to read the patches')
     return im1, im2, flow_orig, batches_cp
+
 
 def eval_tapering(model, experiment_setup, dimensionality, supervised):
     weights_path = experiment_setup['weights']
@@ -240,7 +235,8 @@ def eval_tapering(model, experiment_setup, dimensionality, supervised):
         y_dim = width + experiment_setup['slice_size'] - 1
 
         pos = pos_generation_2D(intervall=[[0, x_dim - experiment_setup['slice_size'] + 1],
-                                           [0, y_dim - experiment_setup['slice_size'] + 1]], stride=experiment_setup['slice_stride'])
+                                           [0, y_dim - experiment_setup['slice_size'] + 1]],
+                                stride=experiment_setup['slice_stride'])
         pos = np.transpose(pos)
         if supervised:
             if dimensionality == '2D':
@@ -253,7 +249,8 @@ def eval_tapering(model, experiment_setup, dimensionality, supervised):
             flow_pixel = model2.predict(batches_cp)
             flow_pixel = tf.squeeze(flow_pixel)
         save_path = f'{savingfile}/{name}_{US_acc}'
-        img_pred_info = eval(flow_pixel, im1, im2, flow_orig, experiment_setup,dimensionality, pos, save_path=save_path)
+        img_pred_info = eval(flow_pixel, im1, im2, flow_orig, experiment_setup, dimensionality, pos,
+                             save_path=save_path)
         res.append(img_pred_info)
     return res
 
@@ -271,7 +268,7 @@ def eval(flow_pixel, im1, im2, flow_gt, config, dim, save_path=None, save_txt=Fa
         flow_pixel = np.stack((flow_pixel[:, index1], flow_pixel[:, index2]), axis=-1)
 
     flow_final = arrange_predicted_flow(flow_pixel, config)
-    results = get_dic_results(im1, im2, flow_gt, flow_final)
+    results = get_eval_results(im1, im2, flow_gt, flow_final)
     print('EPE: ', '{:.4f}'.format(results['final_loss']))
     print('EAE: ', '{:.4f}'.format(results['final_loss_angel']))
     show_results(results, save_path)
@@ -314,7 +311,5 @@ def eval_img(results, show=True, save_path=None):
         print(f'evaluation figure is saved under {save_path}')
     if show:
         plt.show()
-
-
 
 

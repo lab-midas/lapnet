@@ -1,9 +1,13 @@
 import numpy as np
 import scipy.io as sio
+import optopy
 import optopy.gpunufft as op
-from e2eflow.core.card_US.fft_ifft import *
-from e2eflow.core.card_US.pad_crop import *
+from fft_ifft import *
+from pad_crop import *
 
+# ~/lapnet/lapnet/optox_gpunufft/build$ cmake .. -DWITH_PYTHON=ON -DWITH_PYTORCH=OFF -DCUDA_INCLUDE_DIRS=/midas/software/nvidia/cuda-11.4
+
+# cmake .. -DWITH_GPUNUFFT=ON -DCUDA_INCLUDE_DIRS=${CUDA_HOME} -DMATLAB_ROOT_DIR=/home/studmatlab/MATLAB/R2020a
 def get_kpos(n_FE, n_spokes, RadProfOrder, start_angle):
     # n_FE = number of points along each radial spoke
     # n_spokes = number of radial spokes
@@ -138,6 +142,8 @@ def subsample_radial(img_cart, acc=1, cphases=[0,1]):
 
     golden_angle = 180*0.618034
     nRO, _, nSlices, n_phases_img = np.shape(img_cart)
+    if cphases is None:
+        cphases = range(n_phases_img)
     n_phases = len(cphases)
     if np.any(np.asarray(cphases) > n_phases_img):
         raise ValueError
@@ -161,43 +167,49 @@ def subsample_radial(img_cart, acc=1, cphases=[0,1]):
 
         kpos = np.tile(kpos.reshape(1, -1, maxsize * n_spokes), (nSlices, 1, 1))
         dcf = np.tile(dcf.reshape(1, 1, maxsize * n_spokes) / np.max(dcf), (nSlices, 1, 1))
-
+ 
         nufft = op.GpuNufft(img_dim=maxsize, osf=1, kernel_width=3, sector_width=5)
         nufft.setDcf(dcf.astype(np.float32))  # nBatch x 1 x nRO * nSpokes
         nufft.setTraj(kpos.astype(np.float32))  # nBatch x 2 x nRO * nSpokes
         nufft.setCsm(csm.astype(np.complex64))  # nCoils x nRO x nRO
         out = nufft.adjoint(nufft.forward(img[ipha, ...].astype(np.complex64)))
         img_rad.append(out)
-
+ 
         startangle += golden_angle
-
+ 
     img_rad = np.transpose(np.ascontiguousarray(img_rad),(2,3,1,0))  # nRO x nRO x nSlices x cPhases
     return img_rad
 
 
 if __name__ == "__main__":
-    sinpath = '/home/jpa19/PycharmProjects/MA/UnFlow/data/card/mat/train_supervised/Ca_090419.mat'
+    sinpath = '/mnt/qdata/rawdata/MoCo/LAPNet/resp/TF1/data_with_flow/patient_002.mat'
     indata = sio.loadmat(sinpath)
 
     # Cartesian image
     # np.ascontiguousarray IMPORTANT! otherwise wrong index shifting
     img_cart = np.ascontiguousarray(indata['dFixed'].astype(np.float32))  # x - y - sl - time
-
+    print(img_cart.shape)
     # take slices
     slices_sel = np.arange(0, 8) # from Excel: [1:12]
-    img_cart = img_cart[..., slices_sel]
+    # img_cart = img_cart[..., 30]
 
     # visualize
     import medutils
     import matplotlib.pyplot as plt
-    medutils.visualization.show(img_cart[:,:,5,0])
-    plt.show()
+    #medutils.visualization.show(img_cart[..., 30])
+    #plt.savefig('fully.png')
 
     # acceleration factor
     acc = 10
     # cardiac phases to use (1 to 25)
     # cphases = [1, 10] # already selected in pre-processing for flow estimation
 
-    img_rad = subsample_radial(img_cart, acc)
-
-    sio.savemat('/home/tk18/data/LAPNet/testrad.mat', {'img_rad': img_rad, 'img_cart': img_cart})
+    img_rad = subsample_radial(img_cart[...,None], acc, None)
+    print(img_rad.shape)
+    plt.imshow(np.abs(img_cart[...,30]))
+    plt.savefig('fully.png')
+    plt.imshow(np.abs(img_rad[..., 30, 0]))
+    plt.savefig('radial.png')
+    #medutils.visualization.show(img_rad[..., 30])
+    #plt.savefig('rad.png')
+    #sio.savemat('testrad.mat', {'img_rad': img_rad, 'img_cart': img_cart})

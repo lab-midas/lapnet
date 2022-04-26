@@ -1,158 +1,7 @@
 import numpy as np
 from scipy.interpolate import interpn
 import matplotlib.pyplot as plt
-from math import ceil, pi
 
-def taper2D(ref_img, mov_img, x_pos,y_pos, crop_size, u=None):
-    """taper"""
-    k_ref = rectangulartapering2d(ref_img, x_pos, y_pos, crop_size)
-    k_mov = rectangulartapering2d(mov_img, x_pos, y_pos, crop_size)
-    if u is not None:
-        flow = flowCrop(u, x_pos, y_pos, crop_size)
-        return k_ref, k_mov, flow
-    else:
-        return k_ref, k_mov
-
-
-def rectangulartapering2d(ki, x, y, p):
-    """perform tapering in fourier domain
-    :param ki: initial 2d image to be tapered
-    :param x: position of cropping along the x axis
-    :param y: position of cropping along the y axis
-    :param p: length of the cropped piece (pxp)
-    :return: tapered 2d k_space
-    """
-    # ix: 1D array of the cropping along x interval
-    idx = np.arange(x, x + p - 1)
-    # iy: 1D array of the cropping along y interval
-    idy = np.arange(y, y + p - 1)
-    k, idx, idy = pad_img(ki, idx, idy)
-    #plotfullsampledkspace(k)
-    k_win = RectWindow(k, idx, idy)
-    k_cut = np_fftconvolve(k, k_win)
-    #plotfullsampledkspace(k_cut)
-    regridded_k_space = regrid(k_cut, idx, idy)
-    # plottaperedkspace(regridded_k_space)
-    tapered_k_space = reshuffle(regridded_k_space)
-    # plottaperedkspace(tapered_k_space)
-    # tapered_k_space = np.stack((np.real(tapered_k_space), np.imag(tapered_k_space)), axis=-1)
-    return tapered_k_space
-
-def rectangulartapering2d2(ki, x, y, p):
-    """perform tapering in fourier domain
-    :param ki: initial 2d image to be tapered
-    :param x: position of cropping along the x axis
-    :param y: position of cropping along the y axis
-    :param p: length of the cropped piece (pxp)
-    :return: tapered 2d k_space
-    """
-    # ix: 1D array of the cropping along x interval
-    idx = np.arange(x, x + p - 1)
-    # iy: 1D array of the cropping along y interval
-    idy = np.arange(y, y + p - 1)
-    # k, idx, idy = pad_img(ki, idx, idy)
-    k = fftnshift(ki)
-    #plotfullsampledkspace(k)
-    k_win = RectWindow(k, idx, idy)
-    k_cut = np_fftconvolve(k, k_win)
-
-    #plotfullsampledkspace(k_cut)
-    regridded_k_space = regrid(k_cut, idx, idy)
-    #plottaperedkspace(regridded_k_space)
-    tapered_k_space = reshuffle(regridded_k_space)
-    #plottaperedkspace(tapered_k_space)
-    tapered_k_space = phase_shift(tapered_k_space, x, y, p)
-    plottaperedkspace(tapered_k_space)
-    # tapered_k_space = np.stack((np.real(tapered_k_space), np.imag(tapered_k_space)), axis=-1)
-    return tapered_k_space
-
-
-def phase_shift(k, x_pos, y_pos, patch_size):
-    rows, columns = 256, 256
-    image_center_x = rows / 2
-    image_center_y = columns / 2
-
-    cropped_image_center_x = x_pos + (patch_size - 1) / 2
-    cropped_image_center_y = y_pos + (patch_size - 1) / 2
-
-    x_offset = ceil(image_center_x - cropped_image_center_x)
-    y_offset = ceil(image_center_y - cropped_image_center_y)
-
-    x_pos, y_pos = np.mgrid[0:patch_size], np.mgrid[0:patch_size]
-
-    gridx, gridy = np.meshgrid(x_pos, y_pos)
-
-    shift_phase_Xaxis = np.multiply(- 1j * x_offset * 2 * pi / (patch_size + 1), gridy)
-    shift_phase_Yaxis = np.multiply(- 1j * y_offset * 2 * pi / (patch_size + 1), gridx)
-
-    linear_phase = np.exp(shift_phase_Xaxis + shift_phase_Yaxis)
-    res = np.multiply(k, linear_phase)
-    return res
-
-
-def rectangulartapering3d(k, ix, iy, iz):
-    """perform tapering in fourier domain on 3d array
-    :param k: initial 3d kspace to be tapered
-    :param ix: 1D array of the cropping along x interval
-    :param iy: 1D array of the cropping along y interval
-    :param iz: 1D array of the cropping along z interval
-    :return: tapered 3d k_space
-    """
-    x = ix.shape[0] + 1
-    y = iy.shape[0] + 1
-    z = iz.shape[0] + 1
-    res = np.zeros((x, y, z), dtype=np.complex128)
-    for i in np.arange(res.shape[2]):
-        res[:, :, i] = rectangulartapering2d(k[:, :, i + iz[0]], ix, iy)
-    return res
-
-
-def flowCrop(arr, x, y, p):
-    radius = int((p - 1) / 2)
-    xp = x + radius
-    yp = y + radius
-    return arr[xp, yp, :].real
-
-def _compute_padding(inputs, x, y, patch_size):
-      """Calculates padding for 'causal' option for 1-d conv layers."""
-      left_pad = 0
-      right_pad = 0
-      upper_pad = 0
-      lower_pad = 0
-
-      centercropx = x + round((patch_size + 1) / 2)
-      centercropy = y + round((patch_size + 1) / 2)
-
-      input_shape = inputs.shape
-
-      padx = input_shape[-2] - 2 * centercropx
-      pady = input_shape[-1] - 2 * centercropy
-
-      if pady > 0:
-          left_pad += pady
-      else:
-          right_pad += -pady
-      if padx > 0:
-          upper_pad = padx
-      else:
-          lower_pad += -padx
-
-      paddingdifference = int(round((abs(padx) - abs(pady)) / 2))
-      if paddingdifference > 0:
-          left_pad += paddingdifference
-          right_pad += paddingdifference
-      else:
-          upper_pad += -paddingdifference
-          lower_pad += -paddingdifference
-
-
-
-      if getattr(inputs.shape, 'ndims', None) is None:
-          batch_rank = 1
-      else:
-          batch_rank = len(inputs.shape) - 2
-      causal_padding = [[0, 0]] * batch_rank + [[upper_pad, lower_pad], [left_pad, right_pad]]
-      return causal_padding
 
 def fft_along_dim(x):
     """give the FFT along rows and columns of a 2D array
@@ -328,3 +177,47 @@ def reshuffle(k):
     k[::2, :] = -k[::2, :]
     k[:, ::2] = -k[:, ::2]
     return k
+
+
+def taper2D(ref_img, mov_img, x_pos, y_pos, crop_size=33, u=None):
+    k_ref = rectangulartapering2d(ref_img, x_pos, y_pos, crop_size)
+    k_mov = rectangulartapering2d(mov_img, x_pos, y_pos, crop_size)
+    k_ref = np.stack((np.real(k_ref), np.imag(k_ref), np.real(k_mov), np.imag(k_mov)), axis=-1)
+    if u is not None:
+        flow = flowCrop(u, x_pos, y_pos, crop_size)
+        return k_ref, flow
+    else:
+        return k_ref
+
+
+def rectangulartapering2d(ki, x, y, p):
+    """perform tapering in fourier domain
+    :param ki: initial 2d image to be tapered
+    :param x: position of cropping along the x axis
+    :param y: position of cropping along the y axis
+    :param p: length of the cropped piece (pxp)
+    :return: tapered 2d k_space
+    """
+    # ix: 1D array of the cropping along x interval
+    idx = np.arange(x, x + p - 1)
+    # iy: 1D array of the cropping along y interval
+    idy = np.arange(y, y + p - 1)
+    k, idx, idy = pad_img(ki, idx, idy)
+    # plotfullsampledkspace(k)
+    k_win = RectWindow(k, idx, idy)
+    k_cut = np_fftconvolve(k, k_win)
+    # plotfullsampledkspace(k_cut)
+    regridded_k_space = regrid(k_cut, idx, idy)
+    # plottaperedkspace(regridded_k_space)
+    tapered_k_space = reshuffle(regridded_k_space)
+    # plottaperedkspace(tapered_k_space)
+    # tapered_k_space = np.stack((np.real(tapered_k_space), np.imag(tapered_k_space)), axis=-1)
+    return tapered_k_space
+
+
+def flowCrop(arr, x, y, p):
+    radius = int((p - 1) / 2)
+    xp = x + radius
+    yp = y + radius
+    return arr[xp, yp, :].real
+
